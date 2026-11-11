@@ -1,6 +1,7 @@
 /* PyTest Pro - öğrenci sınav ekranı */
 'use strict';
 (function () {
+  const { esc, fmtAnswer, post, renderAnswer, renderQuestionText } = window.PyTest;
   const $ = (id) => document.getElementById(id);
   const STORE = 'pytest_aktif_sinav';
   const SAVE_DELAY_MS = 1500;     // son tuştan sonra sunucuya kaydetme gecikmesi
@@ -14,10 +15,7 @@
   let tickTimer = null, saveTimer = null, retryTimer = null, statusTimer = null;
   let dirty = false, saving = false, submitting = false;
 
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const hasAnswer = (id) => String(answers[id] ?? '').trim() !== '';
-  const tfLabel = (v) => (v === 'True' ? 'Doğru (True)' : v === 'False' ? 'Yanlış (False)' : v);
 
   // ---------- yerel yedek ----------
   function readLocal() {
@@ -31,19 +29,6 @@
     try { localStorage.removeItem(STORE); } catch (e) { /* yok say */ }
   }
 
-  async function post(url, body) {
-    try {
-      const r = await fetch(url, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      });
-      let data = {};
-      try { data = await r.json(); } catch (e) { /* boş gövde */ }
-      return { ok: r.ok, status: r.status, data };
-    } catch (e) {
-      return { ok: false, status: 0, data: { error: 'Sunucuya ulaşılamadı.' } };
-    }
-  }
-
   function show(id) {
     ['login-card', 'exam-card', 'result-card'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
   }
@@ -52,8 +37,10 @@
   async function loadStatus() {
     try {
       const s = await (await fetch('/api/status')).json();
+      $('exam-title').textContent = s.title || 'Sınava Başla';
       $('exam-info').textContent = `${s.question_count} soru · ${s.duration_min} dakika`;
       $('closed-msg').classList.toggle('hidden', s.open);
+      $('practice-link').classList.toggle('hidden', !s.practice_open);
     } catch (e) { /* sessizce yeniden denenecek */ }
   }
   function startStatusPolling() {
@@ -132,56 +119,8 @@
     const q = exam.questions[idx];
     $('q-badge').textContent = `Soru ${idx + 1} / ${exam.questions.length}`;
     $('q-topic').textContent = 'Konu: ' + q.topic;
-    $('q-text').innerHTML = q.text; // sunucunun şablonlardan ürettiği güvenli metin
-    if (q.code) { $('q-code').textContent = q.code; $('q-code').classList.remove('hidden'); }
-    else $('q-code').classList.add('hidden');
-
-    const box = $('answer-box');
-    box.innerHTML = '';
-    const saved = answers[q.id] || '';
-    if (q.type === 'mc' || q.type === 'tf') {
-      const opts = q.type === 'mc' ? q.options : ['True', 'False'];
-      const group = document.createElement('div');
-      group.setAttribute('role', 'radiogroup');
-      opts.forEach((opt) => {
-        const lab = document.createElement('label');
-        lab.className = 'opt' + (saved === opt ? ' sel' : '');
-        const inp = document.createElement('input');
-        inp.type = 'radio'; inp.name = 'ans'; inp.value = opt; inp.checked = saved === opt;
-        inp.addEventListener('change', () => {
-          save(q.id, opt);
-          group.querySelectorAll('.opt').forEach((l) => l.classList.toggle('sel', l.contains(inp)));
-        });
-        const sp = document.createElement('span');
-        sp.textContent = q.type === 'tf' ? tfLabel(opt) : opt;
-        lab.append(inp, sp);
-        group.appendChild(lab);
-      });
-      box.appendChild(group);
-    } else if (q.type === 'short') {
-      const inp = document.createElement('input');
-      inp.type = 'text'; inp.value = saved; inp.className = 'mono';
-      inp.placeholder = 'Cevabını buraya yaz...'; inp.setAttribute('aria-label', 'Cevabın');
-      inp.addEventListener('input', (e) => save(q.id, e.target.value));
-      box.appendChild(inp);
-      if (focus) inp.focus();
-    } else if (q.type === 'code') {
-      const ta = document.createElement('textarea');
-      ta.className = 'code'; ta.value = saved; ta.spellcheck = false;
-      ta.placeholder = '# Python kodunu buraya yaz...'; ta.setAttribute('aria-label', 'Python kodun');
-      ta.addEventListener('input', (e) => save(q.id, e.target.value));
-      ta.addEventListener('keydown', (e) => { // Tab tuşu 4 boşluk eklesin
-        if (e.key === 'Tab' && !e.shiftKey) {
-          e.preventDefault();
-          const s = ta.selectionStart;
-          ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ta.selectionEnd);
-          ta.selectionStart = ta.selectionEnd = s + 4;
-          save(q.id, ta.value);
-        }
-      });
-      box.appendChild(ta);
-      if (focus) ta.focus();
-    }
+    renderQuestionText($('q-text'), $('q-code'), q);
+    renderAnswer($('answer-box'), q, answers[q.id], (v) => save(q.id, v), focus);
     $('btn-prev').disabled = idx === 0;
     $('btn-next').disabled = idx === exam.questions.length - 1;
     renderNav();
@@ -292,7 +231,6 @@
       return;
     }
     $('solutions-title').textContent = 'Soru & Çözüm Analizi';
-    const fmt = (q, v) => (q.type === 'tf' ? tfLabel(v) : v);
     $('solutions').innerHTML = d.details.map((q, i) => `
       <div class="sol ${q.correct ? 'ok' : 'no'}">
         <div class="sol-head">
@@ -302,8 +240,8 @@
         <div class="sol-text">${q.text}</div>
         ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
         <div class="sol-meta">
-          <div><b>Senin cevabın:</b> <span class="ans ${q.correct ? 'green-t' : 'red-t'}">${esc(q.user_answer ? fmt(q, q.user_answer) : 'Boş bırakıldı')}</span></div>
-          ${!q.correct ? `<div><b>Doğru cevap:</b> <span class="ans green-t">${esc(fmt(q, q.answer))}</span></div>` : ''}
+          <div><b>Senin cevabın:</b> <span class="ans ${q.correct ? 'green-t' : 'red-t'}">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş bırakıldı')}</span></div>
+          ${!q.correct ? `<div><b>Doğru cevap:</b> <span class="ans green-t">${esc(fmtAnswer(q.type, q.answer))}</span></div>` : ''}
           ${q.note ? `<div class="muted">${q.note}</div>` : ''}
           <div class="exp"><b>Açıklama:</b> ${q.solution}</div>
         </div>

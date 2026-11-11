@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}PyTest Pro{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">
+      <div class="logo-badge" aria-hidden="true">Py</div>
+      <div>
+        <h1>{% block heading %}PyTest Pro{% endblock %}</h1>
+        <p>{% block subheading %}{% endblock %}</p>
+      </div>
+    </div>
+    {% block header_right %}{% endblock %}
+  </div>
+</header>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+{% block after_main %}{% endblock %}
+
+<footer>Python Programlama · Dinamik Ölçme ve Değerlendirme Platformu · v{{ version }}</footer>
+</body>
+</html>

@@ -1,29 +1,13 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PyTest Pro - Python Giriş Sınavı</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<script src="{{ url_for('static', filename='student.js') }}" defer></script>
-</head>
-<body>
-<header>
-  <div class="bar">
-    <div class="logo">
-      <div class="logo-badge" aria-hidden="true">Py</div>
-      <div>
-        <h1>PyTest Pro - Dinamik Ölçme Sistemi</h1>
-        <p>Print, Input, Değişkenler, Veri Tipleri &amp; Dönüşümler</p>
-      </div>
-    </div>
-  </div>
-</header>
+{% extends "base.html" %}
+{% block title %}PyTest Pro - Python Sınavı{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/student.js') }}" defer></script>{% endblock %}
+{% block heading %}PyTest Pro - Dinamik Ölçme Sistemi{% endblock %}
+{% block subheading %}Her öğrenciye özel üretilen Python soruları{% endblock %}
 
-<main>
+{% block content %}
   <!-- GİRİŞ -->
   <form id="login-card" class="card narrow center stack" novalidate>
-    <h2>Sınava Başla</h2>
+    <h2 id="exam-title">Sınava Başla</h2>
     <p class="muted">Bilgilerini gir. Sorular sana özel olarak oluşturulacak.</p>
     <p id="exam-info" class="info-line"></p>
     <div id="closed-msg" class="notice hidden" role="status">
@@ -38,6 +22,7 @@
     <div id="login-err" class="err" role="alert"></div>
     <button id="btn-start" type="submit" class="btn primary block">▶ Sınavı Başlat</button>
     <p class="muted small">Sayfa kapanırsa aynı ad ve numarayla tekrar girerek kaldığın yerden devam edebilirsin.</p>
+    <a id="practice-link" class="btn block hidden" href="/pratik">📘 Pratik Moduna Git</a>
   </form>
 
   <!-- SINAV -->
@@ -90,8 +75,4 @@
       <div id="solutions"></div>
     </div>
   </div>
-</main>
-
-<footer>Python Programlama Giriş Dersi - Dinamik Ölçme ve Değerlendirme Platformu © 2026</footer>
-</body>
-</html>
+{% endblock %}

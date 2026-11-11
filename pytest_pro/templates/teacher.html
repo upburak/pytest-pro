@@ -1,24 +1,11 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PyTest Pro - Öğretmen Paneli</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<script src="{{ url_for('static', filename='teacher.js') }}" defer></script>
-</head>
-<body>
-<header>
-  <div class="bar">
-    <div class="logo">
-      <div class="logo-badge" aria-hidden="true">Py</div>
-      <div><h1>PyTest Pro - Öğretmen Paneli</h1><p>Canlı sonuç takibi</p></div>
-    </div>
-    <button id="btn-logout" type="button" class="btn sm hidden">Çıkış</button>
-  </div>
-</header>
+{% extends "base.html" %}
+{% block title %}PyTest Pro - Öğretmen Paneli{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/teacher.js') }}" defer></script>{% endblock %}
+{% block heading %}PyTest Pro - Öğretmen Paneli{% endblock %}
+{% block subheading %}Sınav ayarları ve canlı sonuç takibi{% endblock %}
+{% block header_right %}<button id="btn-logout" type="button" class="btn sm hidden">Çıkış</button>{% endblock %}
 
-<main>
+{% block content %}
   <!-- ŞİFRE -->
   <form id="login" class="card narrow center stack">
     <h2>Öğretmen Girişi</h2>
@@ -34,6 +21,7 @@
       <div class="stack grow">
         <div class="muted">ÖĞRENCİLER BU ADRESE GİRSİN</div>
         <div id="url" class="url">...</div>
+        <div class="muted">Pratik modu: <span id="practice-url" class="mono"></span></div>
         <div class="muted">Öğrenci ve öğretmen bilgisayarı aynı ağda olmalı.</div>
       </div>
       <img id="qr" class="qr" alt="Öğrenci adresinin QR kodu">
@@ -47,27 +35,35 @@
           <button id="btn-toggle-open" type="button" class="btn sm"></button>
         </div>
       </div>
-      <form id="settings-form" class="form-grid">
-        <label class="field">Soru sayısı
-          <select id="set-count">
-            <option value="5">5 soru</option>
-            <option value="10">10 soru</option>
-            <option value="15">15 soru</option>
-            <option value="20">20 soru</option>
-          </select>
-        </label>
-        <label class="field">Süre (dakika)
-          <input type="number" id="set-duration" min="1" max="180" step="1" required>
-        </label>
-        <label class="check"><input type="checkbox" id="set-solutions"> Sınav sonunda çözümleri göster</label>
-        <label class="check"><input type="checkbox" id="set-retake"> Aynı numarayla tekrar girişe izin ver</label>
+      <form id="settings-form" class="stack">
+        <div class="form-grid">
+          <label class="field">Sınav başlığı
+            <input type="text" id="set-title" maxlength="80" placeholder="Örn: 9-A Python 1. Sınav">
+          </label>
+          <label class="field">Soru sayısı
+            <select id="set-count"></select>
+          </label>
+          <label class="field">Süre (dakika)
+            <input type="number" id="set-duration" min="1" max="180" step="1" required>
+          </label>
+        </div>
+        <fieldset class="units-box">
+          <legend>Sınava girecek üniteler <span class="muted small">(sorular seçilen ünitelere eşit dağıtılır)</span></legend>
+          <div id="set-units" class="unit-checks"></div>
+        </fieldset>
+        <div class="form-grid">
+          <label class="check"><input type="checkbox" id="set-solutions"> Sınav sonunda çözümleri göster</label>
+          <label class="check"><input type="checkbox" id="set-retake"> Aynı numarayla tekrar girişe izin ver</label>
+          <label class="check"><input type="checkbox" id="set-practice"> Pratik modunu aç</label>
+        </div>
         <div class="row">
           <button type="submit" class="btn primary sm">Ayarları Kaydet</button>
           <span id="settings-msg" class="muted" role="status"></span>
         </div>
       </form>
-      <p class="muted">Soru sayısı ve süre yeni başlayan sınavlara uygulanır; devam eden sınavlar etkilenmez.
-        Sınavı kapatmak yeni girişleri durdurur, sınavdaki öğrenciler devam edebilir.</p>
+      <p class="muted">Başlık, soru sayısı, süre ve üniteler yeni başlayan sınavlara uygulanır; devam eden sınavlar
+        etkilenmez. Sınavı kapatmak yeni girişleri durdurur, sınavdaki öğrenciler devam edebilir.
+        Pratik modu çözümleri gösterdiği için sınav sırasında kapalı tutmanız önerilir.</p>
     </div>
 
     <div class="grid4">
@@ -81,6 +77,7 @@
       <div class="row between mb-12">
         <h3 class="m0">Öğrenci Sonuçları <span class="dot" title="3 sn'de bir yenilenir"></span></h3>
         <div class="row">
+          <select id="title-filter" class="filter" aria-label="Sınava göre filtrele"></select>
           <input type="search" id="search" class="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
           <button id="btn-csv" type="button" class="btn green sm">⬇ Excel / CSV</button>
           <button id="btn-clear" type="button" class="btn red sm">🗑 Tümünü Sil</button>
@@ -92,8 +89,8 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
-      <p class="muted">Ayrıntı için tamamlanmış bir satıra tıkla. Aynı numara birden fazla girerse "Deneme #" olarak işaretlenir.
-        Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
+      <p class="muted">Ayrıntı için tamamlanmış bir satıra tıkla. Aynı sınava aynı numarayla birden fazla girilirse
+        "Deneme #" olarak işaretlenir. Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
       <div id="net-err" class="err" role="alert"></div>
     </div>
 
@@ -103,8 +100,9 @@
       <div id="topics" class="topics"></div>
     </div>
   </div>
-</main>
+{% endblock %}
 
+{% block after_main %}
 <!-- DETAY -->
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="m-title">
   <div class="card">
@@ -118,7 +116,4 @@
     <div id="m-body" class="modal-body"></div>
   </div>
 </div>
-
-<footer>Python Programlama Giriş Dersi - Dinamik Ölçme ve Değerlendirme Platformu © 2026</footer>
-</body>
-</html>
+{% endblock %}

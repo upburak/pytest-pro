@@ -142,3 +142,29 @@ input.search { width: 200px; margin-top: 0; padding: 6px 10px; font-size: 13px; 
 .btn:focus-visible, .nav-grid button:focus-visible, tr.click:focus-visible, .opt:focus-within {
   outline: 2px solid #93c5fd; outline-offset: 2px;
 }
+
+/* --- v3: bağlantı düğmeleri, ünite seçimi, pratik modu --- */
+a.btn { display: inline-block; text-decoration: none; text-align: center; }
+a.btn.block { display: block; }
+.block { display: block; }
+select.filter { width: auto; max-width: 220px; margin-top: 0; padding: 6px 10px; font-size: 13px; }
+
+.units-box { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; }
+.units-box legend { padding: 0 6px; font-size: 13px; color: var(--text); }
+.unit-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.unit-check { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 10px; cursor: pointer;
+  background: var(--card2); border: 1px solid var(--line); font-size: 13px; }
+.unit-check:has(input:checked) { border-color: var(--blue); background: rgba(37,99,235,.15); }
+.unit-check input { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--blue); flex: none; }
+.unit-check .muted { display: block; margin-top: 4px; }
+
+.unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.unit-card { display: flex; gap: 14px; text-align: left; padding: 16px; border-radius: 14px; cursor: pointer;
+  background: var(--card); border: 1px solid var(--line); color: var(--text); font: inherit; }
+.unit-card:hover { border-color: var(--blue); background: #24324a; }
+.unit-card:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+.unit-no { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+  font-weight: 800; color: #0f172a; background: linear-gradient(135deg, #3b82f6, #facc15); }
+.unit-body { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.practice { max-width: 860px; margin: 0 auto; }
+#feedback { margin-top: 14px; }

@@ -1,0 +1,31 @@
+[project]
+name = "pytest-pro"
+dynamic = ["version"]
+description = "Python öğretimi için yerel ağda çalışan dinamik ölçme ve değerlendirme sistemi"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["flask>=3.0", "qrcode>=7.4", "waitress>=3.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+pytest-pro = "pytest_pro.app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "pytest_pro.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["pytest_pro*"]
+
+[tool.setuptools.package-data]
+pytest_pro = ["templates/*.html", "static/css/*", "static/js/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"

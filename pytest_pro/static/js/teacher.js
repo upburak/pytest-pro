@@ -1,9 +1,11 @@
 /* PyTest Pro - öğretmen paneli */
 'use strict';
 (function () {
+  const { esc, fmtAnswer, levelBadge } = window.PyTest;
   const $ = (id) => document.getElementById(id);
   const KEY = 'pytest_ogretmen_sifre';
   const POLL_MS = 3000;
+  const ALL = '__tum__';
 
   let pw = '';
   let poll = null;
@@ -11,10 +13,14 @@
   let settings = null;
   let detailId = null;
 
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const mmss = (sec) => String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
-  const tfLabel = (v) => (v === 'True' ? 'Doğru (True)' : v === 'False' ? 'Yanlış (False)' : v);
+  const titleLabel = (t) => (t ? t : '(başlıksız)');
+
+  function filterQuery() {
+    const sel = $('title-filter');
+    if (!sel.options.length || sel.value === ALL) return '';
+    return '?sinav=' + encodeURIComponent(sel.value); // '' = başlıksız sınavlar
+  }
 
   async function api(path, opts = {}) {
     const headers = Object.assign({}, opts.headers || {}, { 'X-Ogretmen-Sifre': pw });
@@ -43,7 +49,9 @@
       $('panel').classList.remove('hidden');
       $('btn-logout').classList.remove('hidden');
       $('url').textContent = info.url;
+      $('practice-url').textContent = info.url + '/pratik';
       $('qr').src = '/api/qr.svg';
+      buildSettingsForm(info);
       applySettings(info.settings);
       startPolling();
     } catch (e) {
@@ -66,12 +74,25 @@
   function stopPolling() { clearInterval(poll); poll = null; }
 
   // ---------- ayarlar ----------
+  function buildSettingsForm(info) {
+    $('set-count').innerHTML = info.count_choices.map((c) => `<option value="${c}">${c} soru</option>`).join('');
+    $('set-units').innerHTML = info.units.map((u) => `
+      <label class="unit-check" title="${esc(u.description)}">
+        <input type="checkbox" value="${esc(u.id)}">
+        <span><b>${u.order}. ${esc(u.title)}</b> ${levelBadge(u.level)}
+        <span class="muted small">${u.templates} soru şablonu · ${esc(u.topics.join(', '))}</span></span>
+      </label>`).join('');
+  }
+
   function applySettings(s) {
     settings = s;
+    $('set-title').value = s.title;
     $('set-count').value = String(s.question_count);
     $('set-duration').value = s.duration_min;
     $('set-solutions').checked = s.show_solutions;
     $('set-retake').checked = s.allow_retake;
+    $('set-practice').checked = s.practice_open;
+    $('set-units').querySelectorAll('input').forEach((i) => { i.checked = s.units.includes(i.value); });
     $('open-state').className = 'badge ' + (s.exam_open ? 'b-ok' : 'b-no');
     $('open-state').textContent = s.exam_open ? 'Sınav AÇIK' : 'Sınav KAPALI';
     $('btn-toggle-open').textContent = s.exam_open ? 'Yeni Girişleri Kapat' : 'Sınavı Aç';
@@ -87,12 +108,17 @@
   async function saveSettings(ev) {
     ev.preventDefault();
     const msg = $('settings-msg');
+    const units = [...$('set-units').querySelectorAll('input:checked')].map((i) => i.value);
+    if (!units.length) { msg.textContent = '✘ En az bir ünite seç.'; return; }
     try {
       await putSettings({
+        title: $('set-title').value,
         question_count: parseInt($('set-count').value, 10),
         duration_min: parseInt($('set-duration').value, 10),
+        units,
         show_solutions: $('set-solutions').checked,
         allow_retake: $('set-retake').checked,
+        practice_open: $('set-practice').checked,
       });
       msg.textContent = '✓ Kaydedildi';
     } catch (e) {
@@ -106,11 +132,26 @@
   }
 
   // ---------- sonuçlar ----------
+  function updateTitleFilter(titles) {
+    const sel = $('title-filter');
+    const current = sel.value || ALL;
+    const options = [`<option value="${ALL}">Tüm sınavlar</option>`]
+      .concat(titles.map((t) => `<option value="${esc(t)}">${esc(titleLabel(t))}</option>`));
+    const html = options.join('');
+    if (sel.dataset.html !== html) {
+      sel.innerHTML = html;
+      sel.dataset.html = html;
+      sel.value = titles.includes(current) ? current : ALL;
+    }
+    $('btn-clear').textContent = sel.value === ALL ? '🗑 Tümünü Sil' : '🗑 Bu Sınavı Sil';
+  }
+
   async function refresh() {
     try {
-      const data = await (await api('/api/results')).json();
+      const data = await (await api('/api/results' + filterQuery())).json();
       $('net-err').textContent = '';
       rows = data.rows;
+      updateTitleFilter(data.titles);
       const s = data.summary;
       $('s-done').textContent = s.done;
       $('s-live').textContent = s.live;
@@ -131,15 +172,17 @@
         rows.length ? 'Aramaya uyan öğrenci yok.' : 'Henüz sınava giren öğrenci yok.'}</td></tr>`;
       return;
     }
+    const showTitle = $('title-filter').value === ALL;
     $('tbody').innerHTML = list.map((r) => {
       let status;
       if (r.status === 'sinavda') status = `<span class="badge b-live">Sınavda · ${mmss(r.remaining)}</span>`;
       else status = (r.score >= 50 ? '<span class="badge b-ok">Başarılı</span>' : '<span class="badge b-no">Tekrar Etmeli</span>') +
         (r.auto ? ' <span class="badge b-time" title="Süre dolunca son kaydedilen cevaplarla otomatik gönderildi">Otomatik</span>' : '');
       const attempt = r.attempt > 1 ? ` <span class="badge b-time">Deneme #${r.attempt}</span>` : '';
+      const title = showTitle && r.title ? `<div class="muted small">${esc(r.title)}</div>` : '';
       const done = r.status === 'bitti';
       return `<tr class="${done ? 'click' : ''}" data-id="${esc(r.id)}"${done ? ' tabindex="0"' : ''}>
-        <td class="mono">${esc(r.no)}</td><td><b>${esc(r.name)}</b>${attempt}</td>
+        <td class="mono">${esc(r.no)}</td><td><b>${esc(r.name)}</b>${attempt}${title}</td>
         <td class="muted">${esc(r.started)}</td>
         <td>${done ? `<span class="green-t">${r.correct} D</span> / <span class="red-t">${r.wrong} Y</span>` : '-'}</td>
         <td class="amber-t"><b>${r.score ?? '-'}</b></td><td>${status}</td></tr>`;
@@ -161,7 +204,7 @@
       const row = document.createElement('div');
       row.className = 'topic-row';
       const name = document.createElement('span');
-      name.textContent = t.topic;
+      name.innerHTML = `${esc(t.topic)}<span class="muted small block">${esc(t.unit)}</span>`;
       const bar = document.createElement('div');
       bar.className = 'meter ' + (t.rate < 50 ? 'low' : t.rate < 75 ? 'mid' : '');
       bar.setAttribute('role', 'img');
@@ -182,15 +225,15 @@
       const d = await (await api('/api/results/' + encodeURIComponent(id))).json();
       detailId = d.id;
       $('m-title').textContent = `${d.name} (${d.no}) — ${d.score} puan${d.auto ? ' · otomatik gönderildi' : ''}`;
-      const fmt = (q, v) => (q.type === 'tf' ? tfLabel(v) : v);
-      $('m-body').innerHTML = `<p class="muted">Başlama: ${esc(d.started)} · Bitiş: ${esc(d.submitted)} · ${d.correct} doğru, ${d.wrong} yanlış/boş</p>` +
+      $('m-body').innerHTML = `<p class="muted">${d.title ? esc(d.title) + ' · ' : ''}Başlama: ${esc(d.started)} · Bitiş: ${esc(d.submitted)} · ${d.correct} doğru, ${d.wrong} yanlış/boş</p>` +
         d.details.map((q, i) => `
         <div class="sol ${q.correct ? 'ok' : 'no'}">
           <b class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</b>
+          <span class="muted small">${esc(q.unit)}</span>
           <div class="sol-text">${q.text}</div>
           ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
-          <div class="sol-meta"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer ? fmt(q, q.user_answer) : 'Boş')}</span></div>
-          ${!q.correct ? `<div class="sol-meta"><b>Doğru:</b> <span class="ans green-t">${esc(fmt(q, q.answer))}</span></div>` : ''}
+          <div class="sol-meta"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş')}</span></div>
+          ${!q.correct ? `<div class="sol-meta"><b>Doğru:</b> <span class="ans green-t">${esc(fmtAnswer(q.type, q.answer))}</span></div>` : ''}
           ${q.note ? `<div class="muted">${q.note}</div>` : ''}
         </div>`).join('');
       $('modal').classList.remove('hidden');
@@ -213,7 +256,7 @@
 
   async function downloadCSV() {
     try {
-      const r = await api('/api/results.csv');
+      const r = await api('/api/results.csv' + filterQuery());
       const blob = await r.blob();
       const name = (r.headers.get('Content-Disposition') || '').split('filename=')[1] || 'sonuclar.csv';
       const a = document.createElement('a');
@@ -227,9 +270,12 @@
   }
 
   async function clearAll() {
-    if (!confirm('TÜM sınav kayıtları kalıcı olarak silinecek. Emin misin?')) return;
+    const filtered = $('title-filter').value !== ALL;
+    const what = filtered ? `"${titleLabel($('title-filter').value)}" sınavının TÜM kayıtları` : 'TÜM sınav kayıtları';
+    if (!confirm(`${what} kalıcı olarak silinecek. Emin misin?`)) return;
     if (!confirm('Bu işlem geri alınamaz. Önce CSV indirdin mi? Silmeye devam?')) return;
-    try { await api('/api/results', { method: 'DELETE' }); refresh(); } catch (e) { alert('Silinemedi: ' + e.message); }
+    try { await api('/api/results' + filterQuery(), { method: 'DELETE' }); refresh(); }
+    catch (e) { alert('Silinemedi: ' + e.message); }
   }
 
   // ---------- olaylar ----------
@@ -238,6 +284,7 @@
   $('settings-form').addEventListener('submit', saveSettings);
   $('btn-toggle-open').addEventListener('click', toggleOpen);
   $('search').addEventListener('input', renderTable);
+  $('title-filter').addEventListener('change', refresh);
   $('btn-csv').addEventListener('click', downloadCSV);
   $('btn-clear').addEventListener('click', clearAll);
   $('m-close').addEventListener('click', closeModal);

@@ -8,3 +8,5 @@ results.db-shm
 .venv/
 venv/
 *.csv
+build/
+*.egg-info/
