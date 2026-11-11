@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyTest Pro - Öğretmen Paneli</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">
+      <div class="logo-badge">Py</div>
+      <div><h1>PyTest Pro - Öğretmen Paneli</h1><p>Canlı sonuç takibi</p></div>
+    </div>
+    <button id="btn-logout" class="btn sm hidden" onclick="logout()">Çıkış</button>
+  </div>
+</header>
+
+<main>
+  <!-- ŞİFRE -->
+  <div id="login" class="card narrow center stack">
+    <h2>Öğretmen Girişi</h2>
+    <p class="muted">Şifre, <code>server.py</code> çalıştırıldığında konsolda yazar.</p>
+    <input type="password" id="pw" placeholder="Öğretmen şifresi" onkeydown="if(event.key==='Enter')login()">
+    <div id="login-err" class="err"></div>
+    <button class="btn primary block" onclick="login()">Giriş</button>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panel" class="hidden stack">
+    <div class="card row between">
+      <div class="stack" style="flex:1;min-width:240px">
+        <div class="muted">ÖĞRENCİLER BU ADRESE GİRSİN</div>
+        <div id="url" class="url">...</div>
+        <div class="muted">Öğrenci ve öğretmen bilgisayarı aynı ağda olmalı.</div>
+      </div>
+      <img id="qr" class="qr" alt="QR kod">
+    </div>
+
+    <div class="grid3">
+      <div class="stat"><p>Sınavı Bitiren</p><b id="s-done">0</b></div>
+      <div class="stat"><p>Şu An Sınavda</p><b id="s-live" class="blue-t">0</b></div>
+      <div class="stat"><p>Sınıf Ortalaması</p><b id="s-avg" class="green-t">0.0</b></div>
+    </div>
+
+    <div class="card">
+      <div class="row between" style="margin-bottom:12px">
+        <h3 style="margin:0">Öğrenci Sonuçları <span class="dot" title="3 sn'de bir yenilenir"></span></h3>
+        <div class="row">
+          <button class="btn green sm" onclick="downloadCSV()">⬇ Excel / CSV</button>
+          <button class="btn red sm" onclick="clearAll()">🗑 Temizle</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Okul No</th><th>Ad Soyad</th><th>Başlama</th><th>D / Y</th><th>Puan</th><th>Durum</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <p class="muted">Ayrıntı için satıra tıkla. Aynı numara birden fazla girerse "Deneme #" olarak işaretlenir.</p>
+      <div id="net-err" class="err"></div>
+    </div>
+  </div>
+</main>
+
+<!-- DETAY -->
+<div id="modal" class="modal hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="card"><div class="row between"><h3 id="m-title" style="margin:0"></h3>
+    <button class="btn sm" onclick="$('modal').classList.add('hidden')">Kapat</button></div>
+    <div id="m-body" style="margin-top:12px"></div></div>
+</div>
+
+<footer>Python Programlama Giriş Dersi - Dinamik Ölçme ve Değerlendirme Platformu © 2026</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'pytest_ogretmen_sifre';
+let pw = '';
+let poll = null;
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), 'X-Ogretmen-Sifre': pw } });
+  if (r.status === 401) { logout(); throw new Error('Şifre hatalı'); }
+  if (!r.ok) throw new Error('Sunucu hatası (' + r.status + ')');
+  return r;
+}
+
+async function login() {
+  pw = $('pw').value.trim() || pw;
+  $('login-err').textContent = '';
+  try {
+    const info = await (await api('/api/info')).json();
+    try { sessionStorage.setItem(KEY, pw); } catch (e) {}
+    $('login').classList.add('hidden');
+    $('panel').classList.remove('hidden');
+    $('btn-logout').classList.remove('hidden');
+    $('url').textContent = info.url;
+    $('qr').src = '/api/qr.svg';
+    refresh();
+    clearInterval(poll); poll = setInterval(refresh, 3000);
+  } catch (e) { $('login-err').textContent = 'Giriş başarısız: ' + e.message; }
+}
+
+function logout() {
+  clearInterval(poll); pw = '';
+  try { sessionStorage.removeItem(KEY); } catch (e) {}
+  $('panel').classList.add('hidden'); $('btn-logout').classList.add('hidden');
+  $('login').classList.remove('hidden');
+}
+
+async function refresh() {
+  try {
+    const rows = await (await api('/api/results')).json();
+    $('net-err').textContent = '';
+    const done = rows.filter(r => r.status === 'bitti');
+    $('s-done').textContent = done.length;
+    $('s-live').textContent = rows.filter(r => r.status === 'sinavda').length;
+    $('s-avg').textContent = done.length ? (done.reduce((a, r) => a + r.score, 0) / done.length).toFixed(1) : '0.0';
+    if (!rows.length) {
+      $('tbody').innerHTML = '<tr><td colspan="6" class="muted center">Henüz sınava giren öğrenci yok.</td></tr>';
+      return;
+    }
+    $('tbody').innerHTML = rows.map(r => {
+      let durum;
+      if (r.status === 'sinavda') durum = '<span class="badge b-live">Sınavda</span>';
+      else if (r.status === 'sure_doldu') durum = '<span class="badge b-time">Göndermedi</span>';
+      else durum = r.score >= 50 ? '<span class="badge b-ok">Başarılı</span>' : '<span class="badge b-no">Tekrar Etmeli</span>';
+      const deneme = r.attempt > 1 ? ` <span class="badge b-time">Deneme #${r.attempt}</span>` : '';
+      return `<tr class="${r.status === 'bitti' ? 'click' : ''}" data-id="${esc(r.id)}">
+        <td class="mono">${esc(r.no)}</td><td><b>${esc(r.name)}</b>${deneme}</td>
+        <td class="muted">${esc(r.started)}</td>
+        <td>${r.status === 'bitti' ? `<span class="green-t">${r.correct} D</span> / <span class="red-t">${r.wrong} Y</span>` : '-'}</td>
+        <td class="amber-t"><b>${r.score ?? '-'}</b></td><td>${durum}</td></tr>`;
+    }).join('');
+    document.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => detail(tr.dataset.id));
+  } catch (e) { $('net-err').textContent = 'Bağlantı sorunu: ' + e.message; }
+}
+
+async function detail(id) {
+  const d = await (await api('/api/results/' + encodeURIComponent(id))).json();
+  $('m-title').textContent = `${d.name} (${d.no}) — ${d.score} puan`;
+  $('m-body').innerHTML = d.details.map((q, i) => `
+    <div class="sol ${q.correct ? 'ok' : 'no'}">
+      <b class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</b>
+      <div style="margin:6px 0">${q.text}</div>
+      ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
+      <div style="font-size:13px"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer || 'Boş')}</span></div>
+      ${!q.correct ? `<div style="font-size:13px"><b>Doğru:</b> <span class="ans green-t">${esc(q.answer)}</span></div>` : ''}
+      ${q.note ? `<div class="muted">${q.note}</div>` : ''}
+    </div>`).join('');
+  $('modal').classList.remove('hidden');
+}
+
+async function downloadCSV() {
+  try {
+    const r = await api('/api/results.csv');
+    const blob = await r.blob();
+    const name = (r.headers.get('Content-Disposition') || '').split('filename=')[1] || 'sonuclar.csv';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch (e) { alert('İndirilemedi: ' + e.message); }
+}
+
+async function clearAll() {
+  if (!confirm('TÜM sınav kayıtları kalıcı olarak silinecek. Emin misin?')) return;
+  if (!confirm('Bu işlem geri alınamaz. Önce CSV indirdin mi? Silmeye devam?')) return;
+  await api('/api/results', { method: 'DELETE' });
+  refresh();
+}
+
+try { const saved = sessionStorage.getItem(KEY); if (saved) { pw = saved; login(); } } catch (e) {}
+</script>
+</body>
+</html>

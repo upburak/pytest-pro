@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyTest Pro - Python Giriş Sınavı</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">
+      <div class="logo-badge">Py</div>
+      <div>
+        <h1>PyTest Pro - Dinamik Ölçme Sistemi</h1>
+        <p>Print, Input, Değişkenler, Veri Tipleri &amp; Dönüşümler</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- GİRİŞ -->
+  <div id="login-card" class="card narrow center stack">
+    <h2>Sınava Başla</h2>
+    <p class="muted">Bilgilerini gir. Sorular sana özel olarak oluşturulacak.</p>
+    <label class="field">Ad Soyad
+      <input type="text" id="std-name" maxlength="60" placeholder="Örn: Ahsen Yılmaz" autocomplete="off">
+    </label>
+    <label class="field">Okul No
+      <input type="text" id="std-no" maxlength="20" placeholder="Örn: 1042" inputmode="numeric" autocomplete="off">
+    </label>
+    <label class="field">Soru Sayısı
+      <select id="question-count">
+        <option value="5">5 Soru (Hızlı Test)</option>
+        <option value="10" selected>10 Soru (Standart)</option>
+        <option value="15">15 Soru (Kapsamlı)</option>
+      </select>
+    </label>
+    <div id="login-err" class="err"></div>
+    <button id="btn-start" class="btn primary block" onclick="startExam()">▶ Sınavı Başlat</button>
+  </div>
+
+  <!-- SINAV -->
+  <div id="exam-card" class="exam hidden">
+    <aside class="stack">
+      <div class="card stack">
+        <div class="row between"><span class="muted">⏱ Kalan Süre</span><span id="timer" class="timer">15:00</span></div>
+        <div class="muted"><b>Öğrenci:</b> <span id="disp-name"></span><br><b>No:</b> <span id="disp-no"></span></div>
+      </div>
+      <div class="card">
+        <div class="muted" style="margin-bottom:10px">SORU NAVİGASYONU</div>
+        <div id="nav-grid" class="nav-grid"></div>
+      </div>
+      <button id="btn-submit" class="btn green block" onclick="confirmSubmit()">✔ Sınavı Bitir ve Gönder</button>
+      <div id="submit-err" class="err"></div>
+    </aside>
+
+    <section class="card">
+      <div class="q-head">
+        <span id="q-badge" class="pill"></span>
+        <span id="q-topic" class="tag"></span>
+      </div>
+      <div id="q-text" class="q-text"></div>
+      <pre id="q-code" class="snippet hidden"></pre>
+      <div id="answer-box"></div>
+      <div class="q-foot">
+        <button id="btn-prev" class="btn" onclick="go(-1)">← Önceki</button>
+        <span class="muted">Cevapların otomatik kaydedilir</span>
+        <button id="btn-next" class="btn primary" onclick="go(1)">Sonraki →</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- SONUÇ -->
+  <div id="result-card" class="hidden stack" style="max-width:900px;margin:0 auto">
+    <div class="card center stack">
+      <h2>Sınav Tamamlandı!</h2>
+      <p class="muted" id="res-msg">Sonucun öğretmenine iletildi.</p>
+      <div class="stats">
+        <div class="stat"><p>Puan</p><b id="res-score" class="amber-t">0</b></div>
+        <div class="stat"><p>Doğru</p><b id="res-correct" class="green-t">0</b></div>
+        <div class="stat"><p>Yanlış</p><b id="res-wrong" class="red-t">0</b></div>
+        <div class="stat"><p>Başarı</p><b id="res-percent" class="blue-t">%0</b></div>
+      </div>
+      <div><button class="btn" onclick="resetExam()">↻ Yeni Sınav</button></div>
+    </div>
+    <div class="card">
+      <h3>Soru &amp; Çözüm Analizi</h3>
+      <div id="solutions"></div>
+    </div>
+  </div>
+</main>
+
+<footer>Python Programlama Giriş Dersi - Dinamik Ölçme ve Değerlendirme Platformu © 2026</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const STORE = 'pytest_aktif_sinav';
+let exam = null;          // {exam_id, questions, deadline, name, no}
+let answers = {};
+let idx = 0;
+let timer = null;
+let submitting = false;
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function persist() {
+  try { localStorage.setItem(STORE, JSON.stringify({ exam, answers })); } catch (e) {}
+}
+function clearPersist() { try { localStorage.removeItem(STORE); } catch (e) {} }
+
+async function startExam() {
+  const name = $('std-name').value.trim(), no = $('std-no').value.trim();
+  const count = parseInt($('question-count').value, 10);
+  $('login-err').textContent = '';
+  if (!name || !no) { $('login-err').textContent = 'Ad Soyad ve Okul No zorunludur.'; return; }
+  $('btn-start').disabled = true;
+  try {
+    const r = await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, no, count }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Sunucu hatası');
+    exam = { exam_id: d.exam_id, questions: d.questions, deadline: Date.now() + d.duration * 1000, name, no };
+    answers = {}; idx = 0;
+    persist();
+    openExam();
+  } catch (e) {
+    $('login-err').textContent = 'Sınav başlatılamadı: ' + e.message;
+  } finally { $('btn-start').disabled = false; }
+}
+
+function openExam() {
+  $('disp-name').textContent = exam.name;
+  $('disp-no').textContent = exam.no;
+  $('login-card').classList.add('hidden');
+  $('result-card').classList.add('hidden');
+  $('exam-card').classList.remove('hidden');
+  renderNav(); renderQ(); startTimer();
+}
+
+function startTimer() {
+  clearInterval(timer);
+  const tick = () => {
+    const left = Math.max(0, Math.round((exam.deadline - Date.now()) / 1000));
+    $('timer').textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+    $('timer').classList.toggle('warn', left <= 60);
+    if (left <= 0) { clearInterval(timer); submitExam(true); }
+  };
+  tick(); timer = setInterval(tick, 1000);
+}
+
+function renderNav() {
+  const g = $('nav-grid'); g.innerHTML = '';
+  exam.questions.forEach((q, i) => {
+    const b = document.createElement('button');
+    b.textContent = i + 1;
+    b.className = (i === idx ? 'current' : (answers[q.id] ? 'answered' : ''));
+    b.onclick = () => { idx = i; renderQ(); };
+    g.appendChild(b);
+  });
+}
+
+function renderQ() {
+  const q = exam.questions[idx];
+  $('q-badge').textContent = `Soru ${idx + 1} / ${exam.questions.length}`;
+  $('q-topic').textContent = 'Konu: ' + q.topic;
+  $('q-text').innerHTML = q.text;                       // sunucunun ürettiği güvenli metin
+  if (q.code) { $('q-code').textContent = q.code; $('q-code').classList.remove('hidden'); }
+  else $('q-code').classList.add('hidden');
+
+  const box = $('answer-box'); box.innerHTML = '';
+  const saved = answers[q.id] || '';
+  if (q.type === 'mc' || q.type === 'tf') {
+    const opts = q.type === 'mc' ? q.options : ['True', 'False'];
+    opts.forEach(opt => {
+      const lab = document.createElement('label');
+      lab.className = 'opt' + (saved === opt ? ' sel' : '');
+      const inp = document.createElement('input');
+      inp.type = 'radio'; inp.name = 'ans'; inp.value = opt; inp.checked = saved === opt;
+      inp.onchange = () => { save(q.id, opt); renderQ(); };
+      const sp = document.createElement('span');
+      sp.textContent = q.type === 'tf' ? (opt === 'True' ? 'Doğru (True)' : 'Yanlış (False)') : opt;
+      lab.append(inp, sp); box.appendChild(lab);
+    });
+  } else if (q.type === 'short') {
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.value = saved; inp.placeholder = 'Cevabını buraya yaz...'; inp.className = 'mono';
+    inp.oninput = e => save(q.id, e.target.value);
+    box.appendChild(inp); inp.focus();
+  } else if (q.type === 'code') {
+    const ta = document.createElement('textarea');
+    ta.className = 'code'; ta.value = saved; ta.spellcheck = false;
+    ta.placeholder = '# Python kodunu buraya yaz...';
+    ta.oninput = e => save(q.id, e.target.value);
+    ta.onkeydown = e => {               // Tab tuşu 4 boşluk eklesin
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = ta.selectionStart;
+        ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = s + 4; save(q.id, ta.value);
+      }
+    };
+    box.appendChild(ta);
+  }
+  $('btn-prev').disabled = idx === 0;
+  $('btn-next').disabled = idx === exam.questions.length - 1;
+  renderNav();
+}
+
+function save(id, val) { answers[id] = val; persist(); renderNav(); }
+function go(d) { const n = idx + d; if (n >= 0 && n < exam.questions.length) { idx = n; renderQ(); } }
+
+function confirmSubmit() {
+  const empty = exam.questions.filter(q => !(answers[q.id] || '').trim()).length;
+  const msg = empty ? `${empty} soru boş. Yine de göndermek istiyor musun?` : 'Sınavı göndermek istiyor musun?';
+  if (confirm(msg)) submitExam(false);
+}
+
+async function submitExam(auto) {
+  if (submitting) return;                // çift gönderim engeli
+  submitting = true;
+  $('btn-submit').disabled = true;
+  $('submit-err').textContent = auto ? 'Süre doldu, gönderiliyor...' : 'Gönderiliyor...';
+  try {
+    const r = await fetch('/api/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exam_id: exam.exam_id, answers }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Sunucu hatası');
+    clearInterval(timer); clearPersist();
+    showResult(d);
+  } catch (e) {
+    $('submit-err').textContent = 'Gönderilemedi: ' + e.message + ' — Tekrar dene.';
+    $('btn-submit').disabled = false;
+    submitting = false;
+  }
+}
+
+function showResult(d) {
+  $('exam-card').classList.add('hidden');
+  $('result-card').classList.remove('hidden');
+  $('res-score').textContent = d.score;
+  $('res-correct').textContent = d.correct;
+  $('res-wrong').textContent = d.wrong;
+  $('res-percent').textContent = '%' + d.percent;
+  $('res-msg').textContent = d.late ? 'Süre aşımıyla gönderildi; cevaplar değerlendirilmedi.' : 'Sonucun öğretmenine iletildi.';
+  $('solutions').innerHTML = d.details.map((q, i) => `
+    <div class="sol ${q.correct ? 'ok' : 'no'}">
+      <div class="row between" style="font-size:13px;font-weight:600">
+        <span class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</span>
+        <span class="muted">${q.correct ? 'Tam Puan' : '0 Puan'}</span>
+      </div>
+      <div style="margin:8px 0">${q.text}</div>
+      ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
+      <div style="font-size:13px">
+        <div><b>Senin cevabın:</b> <span class="ans ${q.correct ? 'green-t' : 'red-t'}">${esc(q.user_answer || 'Boş bırakıldı')}</span></div>
+        ${!q.correct ? `<div><b>Doğru cevap:</b> <span class="ans green-t">${esc(q.answer)}</span></div>` : ''}
+        ${q.note ? `<div class="muted">${q.note}</div>` : ''}
+        <div class="exp"><b>Açıklama:</b> ${q.solution}</div>
+      </div>
+    </div>`).join('');
+}
+
+function resetExam() {
+  submitting = false; exam = null; answers = {};
+  $('btn-submit').disabled = false; $('submit-err').textContent = '';
+  $('result-card').classList.add('hidden');
+  $('login-card').classList.remove('hidden');
+}
+
+// Sayfa yenilenirse yarım kalan sınava devam et
+(function resume() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (s && s.exam && s.exam.deadline > Date.now() - 20000) {
+      exam = s.exam; answers = s.answers || {}; openExam();
+    } else clearPersist();
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
