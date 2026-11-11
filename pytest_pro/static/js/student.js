@@ -37,8 +37,8 @@
   async function loadStatus() {
     try {
       const s = await (await fetch('/api/status')).json();
-      $('exam-title').textContent = s.title || 'Sınava Başla';
-      $('exam-info').textContent = `${s.question_count} soru · ${s.duration_min} dakika`;
+      $('exam-title').textContent = s.title || 'Sınava başla';
+      $('exam-info').textContent = `${s.question_count} soru, ${s.duration_min} dakika`;
       $('closed-msg').classList.toggle('hidden', s.open);
       $('practice-link').classList.toggle('hidden', !s.practice_open);
     } catch (e) { /* sessizce yeniden denenecek */ }
@@ -117,8 +117,9 @@
 
   function renderQ(focus) {
     const q = exam.questions[idx];
+    $('q-num').textContent = idx + 1;
     $('q-badge').textContent = `Soru ${idx + 1} / ${exam.questions.length}`;
-    $('q-topic').textContent = 'Konu: ' + q.topic;
+    $('q-topic').textContent = q.topic;
     renderQuestionText($('q-text'), $('q-code'), q);
     renderAnswer($('answer-box'), q, answers[q.id], (v) => save(q.id, v), focus);
     $('btn-prev').disabled = idx === 0;
@@ -223,19 +224,19 @@
       : 'Sonucun öğretmenine iletildi.';
 
     if (!d.show_solutions) {
-      $('solutions-title').textContent = 'Sonuç Özeti';
-      $('solutions').innerHTML = '<p class="muted">Çözümler öğretmenin tarafından gizlendi.</p>' +
+      $('solutions-title').textContent = 'Soru soru sonuç';
+      $('solutions').innerHTML = '<p class="muted">Öğretmenin bu sınavda çözümleri göstermiyor.</p>' +
         d.details.map((q, i) => `<div class="sol ${q.correct ? 'ok' : 'no'}"><div class="sol-head">
-          <span class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</span>
+          <span>Soru ${i + 1}: ${esc(q.topic)}</span>
         </div></div>`).join('');
       return;
     }
-    $('solutions-title').textContent = 'Soru & Çözüm Analizi';
+    $('solutions-title').textContent = 'Sorular ve çözümleri';
     $('solutions').innerHTML = d.details.map((q, i) => `
       <div class="sol ${q.correct ? 'ok' : 'no'}">
         <div class="sol-head">
-          <span class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</span>
-          <span class="muted">${q.correct ? 'Tam Puan' : '0 Puan'}</span>
+          <span>Soru ${i + 1}: ${esc(q.topic)}</span>
+          <span class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? 'Doğru' : 'Yanlış'}</span>
         </div>
         <div class="sol-text">${q.text}</div>
         ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}

@@ -102,5 +102,7 @@ Proje genişlemeye göre tasarlandı: her ünite ayrı bir dosyadır, yeni soru 
 ve testler yeni şablonları kendiliğinden doğrular. Mimari, yeni ünite/soru/denetleyici ekleme ve yol
 haritası için: **[docs/GELISTIRME.md](docs/GELISTIRME.md)**
 
+Görsel dil (renkler, yazı tipleri, bileşenler ve kuralları): **[docs/TASARIM.md](docs/TASARIM.md)**
+
 ---
 BÇ-GKAL

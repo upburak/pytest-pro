@@ -1,40 +1,40 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Pratik Modu{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/practice.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro - Pratik Modu{% endblock %}
-{% block subheading %}Ünite seç, soru çöz, cevabını hemen kontrol et{% endblock %}
-{% block header_right %}<span id="score" class="pill hidden" aria-live="polite"></span>{% endblock %}
+{% block heading %}PyTest Pro{% endblock %}
+{% block subheading %}Pratik{% endblock %}
+{% block header_right %}<span id="score" class="score-pill hidden" aria-live="polite"></span>{% endblock %}
 
 {% block content %}
   <div id="closed" class="card narrow center stack hidden">
-    <h2>Pratik modu şu an kapalı</h2>
-    <p class="muted">Öğretmenin pratik modunu açtığında buradan çalışabilirsin.</p>
-    <a class="btn" href="/">← Sınav sayfasına dön</a>
+    <h2>Pratik şu an kapalı</h2>
+    <p class="muted">Öğretmenin pratiği açtığında buradan çalışabilirsin.</p>
+    <a class="btn" href="/">Sınav sayfasına dön</a>
   </div>
 
   <div id="units-view" class="stack hidden">
-    <div class="card">
-      <h2 class="m0">Bir ünite seç</h2>
-      <p class="muted">Sonuçların kaydedilmez; dilediğin kadar soru çözebilirsin. Her soru yeniden üretilir.</p>
+    <div class="card practice stack">
+      <h2>İçindekiler</h2>
+      <p class="muted">Bir ünite seç. Her soru yeniden üretilir, cevabın hemen kontrol edilir ve hiçbir yere kaydedilmez.</p>
+      <ul id="unit-grid" class="unit-grid"></ul>
     </div>
-    <div id="unit-grid" class="unit-grid"></div>
   </div>
 
   <div id="question-view" class="practice hidden">
-    <section class="card">
+    <section class="sheet question">
       <div class="q-head">
         <span id="q-unit" class="pill"></span>
-        <span id="q-topic" class="tag"></span>
+        <span id="q-topic"></span>
       </div>
       <div id="q-text" class="q-text"></div>
       <pre id="q-code" class="snippet hidden"></pre>
       <div id="answer-box"></div>
       <div id="feedback" class="hidden" role="status" aria-live="polite"></div>
       <div class="q-foot">
-        <button id="btn-units" type="button" class="btn">← Üniteler</button>
+        <button id="btn-units" type="button" class="btn">İçindekiler</button>
         <div class="row">
-          <button id="btn-check" type="button" class="btn primary">Kontrol Et</button>
-          <button id="btn-next" type="button" class="btn green hidden">Sonraki Soru →</button>
+          <button id="btn-check" type="button" class="btn primary">Cevabı kontrol et</button>
+          <button id="btn-next" type="button" class="btn green hidden">Yeni soru</button>
         </div>
       </div>
       <div id="err" class="err" role="alert"></div>

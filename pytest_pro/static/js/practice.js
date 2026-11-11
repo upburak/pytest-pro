@@ -17,7 +17,7 @@
 
   function updateScore() {
     $('score').classList.toggle('hidden', score.total === 0);
-    $('score').textContent = `Bu oturumda ${score.right} / ${score.total} doğru`;
+    $('score').textContent = `${score.right} / ${score.total} doğru`;
   }
 
   async function loadUnits() {
@@ -27,15 +27,16 @@
     const grid = $('unit-grid');
     grid.innerHTML = '';
     r.data.forEach((u) => {
+      const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'unit-card';
       b.innerHTML = `<span class="unit-no">${u.order}</span>
-        <span class="unit-body"><b>${esc(u.title)}</b>
-        ${levelBadge(u.level)}
-        <span class="muted small">${esc(u.description)}</span></span>`;
+        <span class="unit-body"><b>${esc(u.title)}</b><span class="muted">${esc(u.description)}</span></span>
+        ${levelBadge(u.level)}`;
       b.addEventListener('click', () => { unit = u.id; nextQuestion(); });
-      grid.appendChild(b);
+      li.appendChild(b);
+      grid.appendChild(li);
     });
     view('units-view');
   }
@@ -50,7 +51,7 @@
     answer = '';
     checked = false;
     $('q-unit').textContent = r.data.unit;
-    $('q-topic').textContent = 'Konu: ' + current.topic;
+    $('q-topic').textContent = current.topic;
     renderQuestionText($('q-text'), $('q-code'), current);
     renderAnswer($('answer-box'), current, '', (v) => { answer = v; }, true);
     $('feedback').className = 'hidden';
@@ -80,7 +81,7 @@
     const d = r.data;
     $('feedback').className = 'sol ' + (d.correct ? 'ok' : 'no');
     $('feedback').innerHTML = `
-      <div class="sol-head"><span class="${d.correct ? 'green-t' : 'red-t'}">${d.correct ? '✔ Doğru!' : '✘ Yanlış'}</span></div>
+      <div class="sol-head"><span class="pen-note ${d.correct ? 'green-t' : ''}">${d.correct ? 'Doğru' : 'Yanlış'}</span></div>
       <div class="sol-meta">
         ${!d.correct ? `<div><b>Doğru cevap:</b> <span class="ans green-t">${esc(fmtAnswer(d.type, d.answer))}</span></div>` : ''}
         ${d.note ? `<div class="muted">${d.note}</div>` : ''}

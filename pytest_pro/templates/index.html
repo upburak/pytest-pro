@@ -1,77 +1,82 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Python Sınavı{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/student.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro - Dinamik Ölçme Sistemi{% endblock %}
-{% block subheading %}Her öğrenciye özel üretilen Python soruları{% endblock %}
+{% block heading %}PyTest Pro{% endblock %}
+{% block subheading %}Python sınavı{% endblock %}
 
 {% block content %}
   <!-- GİRİŞ -->
-  <form id="login-card" class="card narrow center stack" novalidate>
-    <h2 id="exam-title">Sınava Başla</h2>
-    <p class="muted">Bilgilerini gir. Sorular sana özel olarak oluşturulacak.</p>
+  <form id="login-card" class="card narrow stack" novalidate>
+    <h2 id="exam-title">Sınava başla</h2>
     <p id="exam-info" class="info-line"></p>
     <div id="closed-msg" class="notice hidden" role="status">
-      Sınav şu an kapalı. Öğretmenin sınavı açtığında bu sayfa kendiliğinden güncellenir.
+      Sınav henüz açılmadı. Öğretmenin açtığında bu sayfa kendiliğinden güncellenir.
     </div>
-    <label class="field">Ad Soyad
-      <input type="text" id="std-name" maxlength="60" placeholder="Örn: Ahsen Yılmaz" autocomplete="off" required>
+    <label class="field">Ad soyad
+      <input type="text" id="std-name" maxlength="60" placeholder="Ahsen Yılmaz" autocomplete="off" required>
     </label>
-    <label class="field">Okul No
-      <input type="text" id="std-no" maxlength="20" placeholder="Örn: 1042" inputmode="numeric" autocomplete="off" required>
+    <label class="field">Okul numarası
+      <input type="text" id="std-no" maxlength="20" placeholder="1042" inputmode="numeric" autocomplete="off" required>
     </label>
     <div id="login-err" class="err" role="alert"></div>
-    <button id="btn-start" type="submit" class="btn primary block">▶ Sınavı Başlat</button>
-    <p class="muted small">Sayfa kapanırsa aynı ad ve numarayla tekrar girerek kaldığın yerden devam edebilirsin.</p>
-    <a id="practice-link" class="btn block hidden" href="/pratik">📘 Pratik Moduna Git</a>
+    <button id="btn-start" type="submit" class="btn primary block">Sınavı başlat</button>
+    <p class="muted small">Sorular sana özel üretilir. Sayfa kapanırsa aynı ad ve numarayla girip kaldığın yerden devam edersin.</p>
+    <a id="practice-link" class="btn block hidden" href="/pratik">Pratik yap</a>
   </form>
 
   <!-- SINAV -->
   <div id="exam-card" class="exam hidden">
-    <aside class="stack">
-      <div class="card stack">
-        <div class="row between"><span class="muted">⏱ Kalan Süre</span><span id="timer" class="timer">--:--</span></div>
-        <div class="muted"><b>Öğrenci:</b> <span id="disp-name"></span><br><b>No:</b> <span id="disp-no"></span></div>
-        <div id="save-state" class="save-state" role="status" aria-live="polite"></div>
+    <aside class="card answer-sheet stack" aria-label="Cevap kâğıdı">
+      <div class="row between">
+        <span class="sheet-title">Cevap kâğıdı</span>
+        <span id="timer" class="timer" role="timer" aria-label="Kalan süre">--:--</span>
       </div>
-      <div class="card">
-        <div class="muted mb-10">SORU NAVİGASYONU</div>
-        <div id="nav-grid" class="nav-grid"></div>
-      </div>
-      <button id="btn-submit" type="button" class="btn green block">✔ Sınavı Bitir ve Gönder</button>
+      <div class="muted"><span id="disp-name"></span><br>No <span id="disp-no"></span></div>
+      <div id="nav-grid" class="nav-grid" aria-label="Sorular"></div>
+      <div id="save-state" class="save-state" role="status" aria-live="polite"></div>
+      <button id="btn-submit" type="button" class="btn green block">Sınavı bitir ve gönder</button>
       <div id="submit-err" class="err" role="alert"></div>
     </aside>
 
-    <section class="card" aria-labelledby="q-badge">
+    <section class="sheet question" aria-labelledby="q-badge">
+      <div id="q-num" class="q-num" aria-hidden="true"></div>
       <div class="q-head">
-        <span id="q-badge" class="pill"></span>
-        <span id="q-topic" class="tag"></span>
+        <span id="q-badge"></span>
+        <span id="q-topic"></span>
       </div>
       <div id="q-text" class="q-text"></div>
       <pre id="q-code" class="snippet hidden"></pre>
       <div id="answer-box"></div>
       <div class="q-foot">
-        <button id="btn-prev" type="button" class="btn">← Önceki</button>
+        <button id="btn-prev" type="button" class="btn">Önceki soru</button>
         <span id="answered-count" class="muted"></span>
-        <button id="btn-next" type="button" class="btn primary">Sonraki →</button>
+        <button id="btn-next" type="button" class="btn primary">Sonraki soru</button>
       </div>
     </section>
   </div>
 
-  <!-- SONUÇ -->
+  <!-- SONUÇ: öğretmenin kırmızı kalemle okuduğu kâğıt -->
   <div id="result-card" class="result-wrap hidden stack">
-    <div class="card center stack">
-      <h2>Sınav Tamamlandı!</h2>
-      <p class="muted" id="res-msg">Sonucun öğretmenine iletildi.</p>
-      <div class="stats">
-        <div class="stat"><p>Puan</p><b id="res-score" class="amber-t">0</b></div>
-        <div class="stat"><p>Doğru</p><b id="res-correct" class="green-t">0</b></div>
-        <div class="stat"><p>Yanlış / Boş</p><b id="res-wrong" class="red-t">0</b></div>
-        <div class="stat"><p>Başarı</p><b id="res-percent" class="blue-t">%0</b></div>
+    <div class="card grade">
+      <div class="score-mark" aria-label="Puan">
+        <svg viewBox="0 0 190 150" aria-hidden="true" focusable="false">
+          <ellipse cx="95" cy="76" rx="84" ry="62" transform="rotate(-6 95 76)"></ellipse>
+        </svg>
+        <b id="res-score">0</b>
       </div>
-      <div><button id="btn-reset" type="button" class="btn">↻ Giriş Ekranına Dön</button></div>
+      <div class="stack">
+        <h2>Sınavın okundu</h2>
+        <p class="muted" id="res-msg">Sonucun öğretmenine iletildi.</p>
+        <div class="tally">
+          <div><b id="res-correct">0</b>doğru</div>
+          <div><b id="res-wrong">0</b>yanlış ya da boş</div>
+          <div><b id="res-percent">%0</b>başarı</div>
+        </div>
+        <div><button id="btn-reset" type="button" class="btn">Giriş ekranına dön</button></div>
+      </div>
     </div>
     <div class="card">
-      <h3 id="solutions-title">Soru &amp; Çözüm Analizi</h3>
+      <h3 id="solutions-title">Sorular ve çözümleri</h3>
       <div id="solutions"></div>
     </div>
   </div>

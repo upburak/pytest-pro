@@ -33,21 +33,29 @@ window.PyTest = (function () {
     box.innerHTML = '';
     saved = saved || '';
     if (q.type === 'mc' || q.type === 'tf') {
+      // Optik form: her şık harfli bir yuvarlak; seçilince kurşun kalemle doldurulmuş gibi kararır.
       const opts = q.type === 'mc' ? q.options : ['True', 'False'];
+      const letters = q.type === 'mc' ? 'ABCDE' : 'DY';
       const group = document.createElement('div');
       group.setAttribute('role', 'radiogroup');
-      opts.forEach((opt) => {
+      group.setAttribute('aria-label', 'Şıklar');
+      opts.forEach((opt, i) => {
         const lab = document.createElement('label');
-        lab.className = 'opt' + (saved === opt ? ' sel' : '');
+        lab.className = 'opt' + (q.type === 'tf' ? ' opt-tf' : '') + (saved === opt ? ' sel' : '');
         const inp = document.createElement('input');
         inp.type = 'radio'; inp.name = 'ans-' + q.id; inp.value = opt; inp.checked = saved === opt;
         inp.addEventListener('change', () => {
           group.querySelectorAll('.opt').forEach((l) => l.classList.toggle('sel', l.contains(inp)));
           onChange(opt);
         });
+        const bubble = document.createElement('span');
+        bubble.className = 'bubble';
+        bubble.setAttribute('aria-hidden', 'true');
+        bubble.textContent = letters[i];
         const sp = document.createElement('span');
+        sp.className = 'opt-text';
         sp.textContent = q.type === 'tf' ? tfLabel(opt) : opt;
-        lab.append(inp, sp);
+        lab.append(inp, bubble, sp);
         group.appendChild(lab);
       });
       box.appendChild(group);

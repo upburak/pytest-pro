@@ -94,8 +94,8 @@
     $('set-practice').checked = s.practice_open;
     $('set-units').querySelectorAll('input').forEach((i) => { i.checked = s.units.includes(i.value); });
     $('open-state').className = 'badge ' + (s.exam_open ? 'b-ok' : 'b-no');
-    $('open-state').textContent = s.exam_open ? 'Sınav AÇIK' : 'Sınav KAPALI';
-    $('btn-toggle-open').textContent = s.exam_open ? 'Yeni Girişleri Kapat' : 'Sınavı Aç';
+    $('open-state').textContent = s.exam_open ? 'Sınav açık' : 'Sınav kapalı';
+    $('btn-toggle-open').textContent = s.exam_open ? 'Yeni girişleri kapat' : 'Sınavı aç';
   }
 
   async function putSettings(body) {
@@ -143,7 +143,7 @@
       sel.dataset.html = html;
       sel.value = titles.includes(current) ? current : ALL;
     }
-    $('btn-clear').textContent = sel.value === ALL ? '🗑 Tümünü Sil' : '🗑 Bu Sınavı Sil';
+    $('btn-clear').textContent = sel.value === ALL ? 'Tümünü sil' : 'Bu sınavı sil';
   }
 
   async function refresh() {
@@ -175,8 +175,8 @@
     const showTitle = $('title-filter').value === ALL;
     $('tbody').innerHTML = list.map((r) => {
       let status;
-      if (r.status === 'sinavda') status = `<span class="badge b-live">Sınavda · ${mmss(r.remaining)}</span>`;
-      else status = (r.score >= 50 ? '<span class="badge b-ok">Başarılı</span>' : '<span class="badge b-no">Tekrar Etmeli</span>') +
+      if (r.status === 'sinavda') status = `<span class="badge b-live">Sınavda, ${mmss(r.remaining)} kaldı</span>`;
+      else status = (r.score >= 50 ? '<span class="badge b-ok">Başarılı</span>' : '<span class="badge b-no">Tekrar etmeli</span>') +
         (r.auto ? ' <span class="badge b-time" title="Süre dolunca son kaydedilen cevaplarla otomatik gönderildi">Otomatik</span>' : '');
       const attempt = r.attempt > 1 ? ` <span class="badge b-time">Deneme #${r.attempt}</span>` : '';
       const title = showTitle && r.title ? `<div class="muted small">${esc(r.title)}</div>` : '';
@@ -184,8 +184,8 @@
       return `<tr class="${done ? 'click' : ''}" data-id="${esc(r.id)}"${done ? ' tabindex="0"' : ''}>
         <td class="mono">${esc(r.no)}</td><td><b>${esc(r.name)}</b>${attempt}${title}</td>
         <td class="muted">${esc(r.started)}</td>
-        <td>${done ? `<span class="green-t">${r.correct} D</span> / <span class="red-t">${r.wrong} Y</span>` : '-'}</td>
-        <td class="amber-t"><b>${r.score ?? '-'}</b></td><td>${status}</td></tr>`;
+        <td>${done ? `<span class="green-t">${r.correct}</span> / <span class="red-t">${r.wrong}</span>` : '-'}</td>
+        <td><b>${r.score ?? '-'}</b></td><td>${status}</td></tr>`;
     }).join('');
     document.querySelectorAll('#tbody tr.click').forEach((tr) => {
       tr.addEventListener('click', () => detail(tr.dataset.id));
@@ -224,12 +224,11 @@
     try {
       const d = await (await api('/api/results/' + encodeURIComponent(id))).json();
       detailId = d.id;
-      $('m-title').textContent = `${d.name} (${d.no}) — ${d.score} puan${d.auto ? ' · otomatik gönderildi' : ''}`;
-      $('m-body').innerHTML = `<p class="muted">${d.title ? esc(d.title) + ' · ' : ''}Başlama: ${esc(d.started)} · Bitiş: ${esc(d.submitted)} · ${d.correct} doğru, ${d.wrong} yanlış/boş</p>` +
+      $('m-title').textContent = `${d.name} (${d.no}), ${d.score} puan${d.auto ? ', otomatik gönderildi' : ''}`;
+      $('m-body').innerHTML = `<p class="muted">${d.title ? esc(d.title) + '. ' : ''}Başlama ${esc(d.started)}, bitiş ${esc(d.submitted)}. ${d.correct} doğru, ${d.wrong} yanlış ya da boş.</p>` +
         d.details.map((q, i) => `
         <div class="sol ${q.correct ? 'ok' : 'no'}">
-          <b class="${q.correct ? 'green-t' : 'red-t'}">${q.correct ? '✔' : '✘'} Soru ${i + 1} (${esc(q.topic)})</b>
-          <span class="muted small">${esc(q.unit)}</span>
+          <div class="sol-head"><span>Soru ${i + 1}: ${esc(q.topic)}</span><span class="muted small">${esc(q.unit)}</span></div>
           <div class="sol-text">${q.text}</div>
           ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
           <div class="sol-meta"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş')}</span></div>

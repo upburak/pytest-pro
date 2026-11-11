@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Öğretmen Paneli{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/teacher.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro - Öğretmen Paneli{% endblock %}
-{% block subheading %}Sınav ayarları ve canlı sonuç takibi{% endblock %}
+{% block heading %}PyTest Pro{% endblock %}
+{% block subheading %}Öğretmen paneli{% endblock %}
 {% block header_right %}<button id="btn-logout" type="button" class="btn sm hidden">Çıkış</button>{% endblock %}
 
 {% block content %}
@@ -19,7 +19,7 @@
   <div id="panel" class="hidden stack">
     <div class="card row between">
       <div class="stack grow">
-        <div class="muted">ÖĞRENCİLER BU ADRESE GİRSİN</div>
+        <div class="muted">Öğrencilerin gireceği adres</div>
         <div id="url" class="url">...</div>
         <div class="muted">Pratik modu: <span id="practice-url" class="mono"></span></div>
         <div class="muted">Öğrenci ve öğretmen bilgisayarı aynı ağda olmalı.</div>
@@ -29,7 +29,7 @@
 
     <div class="card stack">
       <div class="row between">
-        <h3 class="m0">Sınav Ayarları</h3>
+        <h3>Sınav ayarları</h3>
         <div class="row">
           <span id="open-state" class="badge"></span>
           <button id="btn-toggle-open" type="button" class="btn sm"></button>
@@ -57,7 +57,7 @@
           <label class="check"><input type="checkbox" id="set-practice"> Pratik modunu aç</label>
         </div>
         <div class="row">
-          <button type="submit" class="btn primary sm">Ayarları Kaydet</button>
+          <button type="submit" class="btn primary sm">Ayarları kaydet</button>
           <span id="settings-msg" class="muted" role="status"></span>
         </div>
       </form>
@@ -67,25 +67,25 @@
     </div>
 
     <div class="grid4">
-      <div class="stat"><p>Sınavı Bitiren</p><b id="s-done">0</b></div>
-      <div class="stat"><p>Şu An Sınavda</p><b id="s-live" class="blue-t">0</b></div>
-      <div class="stat"><p>Sınıf Ortalaması</p><b id="s-avg" class="green-t">—</b></div>
-      <div class="stat"><p>Başarı Oranı (≥50)</p><b id="s-pass" class="amber-t">—</b></div>
+      <div class="stat"><p>Sınavı bitiren</p><b id="s-done">0</b></div>
+      <div class="stat"><p>Şu an sınavda</p><b id="s-live" class="blue-t">0</b></div>
+      <div class="stat"><p>Sınıf ortalaması</p><b id="s-avg">—</b></div>
+      <div class="stat"><p>50 ve üstü alan</p><b id="s-pass">—</b></div>
     </div>
 
     <div class="card">
       <div class="row between mb-12">
-        <h3 class="m0">Öğrenci Sonuçları <span class="dot" title="3 sn'de bir yenilenir"></span></h3>
+        <h3>Öğrenci sonuçları <span class="dot" title="3 saniyede bir yenilenir"></span></h3>
         <div class="row">
           <select id="title-filter" class="filter" aria-label="Sınava göre filtrele"></select>
           <input type="search" id="search" class="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
-          <button id="btn-csv" type="button" class="btn green sm">⬇ Excel / CSV</button>
-          <button id="btn-clear" type="button" class="btn red sm">🗑 Tümünü Sil</button>
+          <button id="btn-csv" type="button" class="btn sm">Excel için indir</button>
+          <button id="btn-clear" type="button" class="btn red sm">Tümünü sil</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Okul No</th><th>Ad Soyad</th><th>Başlama</th><th>D / Y</th><th>Puan</th><th>Durum</th></tr></thead>
+          <thead><tr><th>Okul no</th><th>Ad soyad</th><th>Başlama</th><th>Doğru / yanlış</th><th>Puan</th><th>Durum</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
@@ -95,7 +95,7 @@
     </div>
 
     <div class="card">
-      <h3>Konu Analizi</h3>
+      <h3>Konu analizi</h3>
       <p class="muted">Tamamlanan sınavlarda konulara göre doğru oranı; en zayıf konu en üstte.</p>
       <div id="topics" class="topics"></div>
     </div>
@@ -109,7 +109,7 @@
     <div class="row between">
       <h3 id="m-title" class="m0"></h3>
       <div class="row">
-        <button id="m-delete" type="button" class="btn red sm">Kaydı Sil</button>
+        <button id="m-delete" type="button" class="btn red sm">Kaydı sil</button>
         <button id="m-close" type="button" class="btn sm">Kapat</button>
       </div>
     </div>

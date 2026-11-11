@@ -23,7 +23,7 @@ version = { attr = "pytest_pro.__version__" }
 include = ["pytest_pro*"]
 
 [tool.setuptools.package-data]
-pytest_pro = ["templates/*.html", "static/css/*", "static/js/*"]
+pytest_pro = ["templates/*.html", "static/css/*", "static/js/*", "static/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -303,7 +303,9 @@ def test_practice_flow(client, app):
 # ---------------------------------------------------------------- genel
 def test_pages_and_security_headers(client):
     for path in ("/", "/pratik", "/ogretmen", "/static/css/style.css", "/static/js/common.js",
-                 "/static/js/student.js", "/static/js/teacher.js", "/static/js/practice.js"):
+                 "/static/js/student.js", "/static/js/teacher.js", "/static/js/practice.js",
+                 "/static/fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2",
+                 "/static/fonts/jetbrains-mono-latin-400-normal.woff2", "/static/fonts/caveat-latin-700-normal.woff2"):
         r = client.get(path)
         assert r.status_code == 200, path
         assert "script-src 'self'" in r.headers["Content-Security-Policy"]
