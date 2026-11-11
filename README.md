@@ -103,4 +103,4 @@ ve testler yeni şablonları kendiliğinden doğrular. Mimari, yeni ünite/soru/
 haritası için: **[docs/GELISTIRME.md](docs/GELISTIRME.md)**
 
 ---
-Burak ÇEKİÇ — Gülsefa Kapancıoğlu Anadolu Lisesi
+BÇ-GKAL
