@@ -1,6 +1,10 @@
 __pycache__/
 *.pyc
+.pytest_cache/
 results.db
+results.db-wal
+results.db-shm
+*.db
 .venv/
 venv/
 *.csv

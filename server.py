@@ -1,54 +1,75 @@
 """
-PyTest Pro v2 - Python Giriş Dinamik Ölçme ve Değerlendirme Sistemi
-Çalıştırma:  python server.py
+PyTest Pro - Python Giriş Dinamik Ölçme ve Değerlendirme Sistemi
+
+Çalıştırma : python server.py
 Öğrenciler : http://<IP>:5000
 Öğretmen   : http://<IP>:5000/ogretmen   (şifre konsolda yazar)
 """
-import ast
 import csv
 import io
 import json
+import math
 import os
-import random
 import secrets
 import socket
 import sqlite3
+import threading
 import time
 import uuid
+from contextlib import closing
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, Response, g, jsonify, render_template, request
+from flask import Blueprint, Flask, Response, current_app, g, jsonify, render_template, request
+
+import questions as qs
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("PYTEST_DB", os.path.join(BASE_DIR, "results.db"))
-PORT = int(os.environ.get("PYTEST_PORT", "5000"))
-EXAM_SECONDS = int(os.environ.get("PYTEST_SURE", "900"))  # 15 dk
-GRACE_SECONDS = 30  # ağ gecikmesi toleransı
-TEACHER_KEY = os.environ.get("PYTEST_SIFRE") or f"{secrets.randbelow(900000) + 100000}"
+GRACE_SECONDS = 30            # ağ gecikmesi toleransı
+MAX_FAILS, LOCK_SECONDS = 10, 60  # öğretmen şifresi: 10 hatalı denemede 60 sn kilit
+COUNT_CHOICES = (5, 10, 15, 20)
+BOOL_SETTINGS = ("exam_open", "show_solutions", "allow_retake")
 
-app = Flask(__name__)
+bp = Blueprint("pytest_pro", __name__)
+
+
+def now():
+    return time.time()
+
+
+def _env_int(name, default, lo, hi):
+    try:
+        value = int(os.environ.get(name, default))
+    except ValueError:
+        return default
+    return min(max(value, lo), hi)
 
 
 # ======================================================================
 # Veritabanı
 # ======================================================================
+def connect(path):
+    db = sqlite3.connect(path, timeout=10)
+    db.row_factory = sqlite3.Row
+    return db
+
+
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = connect(current_app.config["DB_PATH"])
     return g.db
 
 
-@app.teardown_appcontext
+@bp.teardown_app_request
 def close_db(_exc):
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
 
-def init_db():
-    with sqlite3.connect(DB_PATH) as db:
+def init_db(path, default_settings):
+    with closing(connect(path)) as db:
+        db.execute("PRAGMA journal_mode=WAL")  # eşzamanlı okuma/yazma için
         db.execute(
             """CREATE TABLE IF NOT EXISTS exams (
                 id TEXT PRIMARY KEY,
@@ -63,261 +84,226 @@ def init_db():
                 score INTEGER
             )"""
         )
+        db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        # v2 veritabanlarını yerinde güncelle
+        cols = {r["name"] for r in db.execute("PRAGMA table_info(exams)")}
+        for col, ddl in (("duration", "INTEGER"), ("results", "TEXT"), ("saved_at", "REAL"),
+                         ("auto_submitted", "INTEGER NOT NULL DEFAULT 0")):
+            if col not in cols:
+                db.execute(f"ALTER TABLE exams ADD COLUMN {col} {ddl}")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_exams_no ON exams(no)")
+        for key, value in default_settings.items():
+            db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, json.dumps(value)))
+        db.commit()
 
 
 # ======================================================================
-# Dinamik soru üreteçleri (cevaplar SADECE sunucuda kalır)
+# Ayarlar (öğretmen panelinden değiştirilir, veritabanında saklanır)
 # ======================================================================
-STR_VALUES = ["Python", "Kodlama", "Gelisim", "Yazilim", "Bilgisayar", "Algoritma"]
+def get_settings(db):
+    s = dict(current_app.config["DEFAULT_SETTINGS"])
+    for r in db.execute("SELECT key, value FROM settings"):
+        if r["key"] in s:
+            s[r["key"]] = json.loads(r["value"])
+    return s
 
 
-def unique_options(correct, wrongs):
-    """Doğru cevap + birbirinden farklı yanlışlar, karıştırılmış."""
-    opts = [correct]
-    for w in wrongs:
-        if w not in opts:
-            opts.append(w)
-    random.shuffle(opts)
-    return opts
+def validate_settings(data):
+    if not isinstance(data, dict):
+        raise ValueError("Geçersiz istek.")
+    out = {}
+    for key in BOOL_SETTINGS:
+        if key in data:
+            if not isinstance(data[key], bool):
+                raise ValueError(f"{key} true/false olmalı.")
+            out[key] = data[key]
+    if "question_count" in data:
+        if data["question_count"] not in COUNT_CHOICES or isinstance(data["question_count"], bool):
+            raise ValueError("Soru sayısı 5, 10, 15 veya 20 olmalı.")
+        out["question_count"] = data["question_count"]
+    if "duration_min" in data:
+        d = data["duration_min"]
+        if isinstance(d, bool) or not isinstance(d, int) or not 1 <= d <= 180:
+            raise ValueError("Süre 1-180 dakika arasında bir tam sayı olmalı.")
+        out["duration_min"] = d
+    return out
 
 
-def q_print_sep():
-    w1, w2 = random.sample(STR_VALUES, 2)
-    sep = random.choice(["-", "*", "#", "...", "/", "_"])
-    correct = f"{w1}{sep}{w2}"
-    return {
-        "type": "mc",
-        "topic": "Print Parametreleri (sep)",
-        "text": "Aşağıda verilen Python kodunun ekran çıktısı ne olur?",
-        "code": f'print("{w1}", "{w2}", sep="{sep}")',
-        "options": unique_options(correct, [f"{w1} {w2}", f"{w1}{w2}{sep}", f"{w1} {sep} {w2}"]),
-        "answer": correct,
-        "solution": f'<code>sep="{sep}"</code> parametresi, print\'e verilen değerlerin arasına "{sep}" koyar. Varsayılan ayırıcı tek boşluktur.',
-    }
+# ======================================================================
+# Sınav yardımcıları
+# ======================================================================
+def clean(s, n):
+    return " ".join(str(s or "").split())[:n]
 
 
-def q_type_conversion():
-    n1, n2 = random.randint(2, 9), random.randint(10, 50)
-    op = random.choice(["+", "*"])
-    res = n1 + n2 if op == "+" else n1 * n2
-    return {
-        "type": "short",
-        "topic": "Tip Dönüşümleri (int/str)",
-        "text": "Aşağıdaki kod çalıştırıldığında ekrana yazdırılacak <strong>sayısal değeri</strong> giriniz:",
-        "code": f'a = "{n1}"\nb = {n2}\nsonuc = int(a) {op} b\nprint(sonuc)',
-        "answer": str(res),
-        "solution": f'<code>a</code> metin ("{n1}") olarak tanımlanmıştır. <code>int(a)</code> ile {n1} sayısına dönüşür; {n1} {op} {n2} = {res}.',
-    }
+def exam_duration(row):
+    return row["duration"] or current_app.config["EXAM_SECONDS"]
 
 
-def q_fstring():
-    vname = random.choice(["ad", "kullanici", "isim"])
-    val = random.choice(["Ali", "Ayşe", "Can", "Deniz", "Ece"])
-    age = random.randint(14, 18)
-    correct = f"Merhaba {val}, yasiniz: {age}"
-    return {
-        "type": "mc",
-        "topic": "f-string Kullanımı",
-        "text": "Aşağıdaki f-string kodunun ekran çıktısı aşağıdakilerden hangisidir?",
-        "code": f'{vname} = "{val}"\nyas = {age}\nprint(f"Merhaba {{{vname}}}, yasiniz: {{yas}}")',
-        "options": unique_options(correct, [
-            f"Merhaba {{{vname}}}, yasiniz: {{yas}}",
-            f"Merhaba {vname}, yasiniz: yas",
-            f'f"Merhaba {val}, yasiniz: {age}"',
-        ]),
-        "answer": correct,
-        "solution": "f-string içinde süslü parantez <code>{}</code> içindeki değişkenler kendi değerleriyle değiştirilir.",
-    }
+def remaining(row, t):
+    return max(0, row["started_at"] + exam_duration(row) - t)
 
 
-def q_input_type():
-    is_true = random.random() < 0.5
-    text = (
-        "Python'da <code>input()</code> fonksiyonu kullanıcıdan alınan veriyi her zaman <strong>str (metin)</strong> tipinde döndürür."
-        if is_true else
-        "Python'da <code>input()</code> fonksiyonu kullanıcı bir sayı girdiğinde bunu otomatik olarak <strong>int (tam sayı)</strong> tipine dönüştürür."
+def is_expired(row, t):
+    return t > row["started_at"] + exam_duration(row) + GRACE_SECONDS
+
+
+def sanitize_answers(raw, questions):
+    """Yalnızca bu sınavın soru numaralarını ve makul uzunlukta metinleri kabul eder."""
+    if not isinstance(raw, dict):
+        return {}
+    ids = {str(q["id"]) for q in questions}
+    out = {}
+    for k, v in raw.items():
+        k = str(k)
+        if k in ids and isinstance(v, (str, int, float)) and not isinstance(v, bool):
+            v = str(v)[:qs.MAX_CODE_LEN]
+            if v.strip():
+                out[k] = v
+    return out
+
+
+def row_results(row, questions, answers):
+    """Kayıtlı puanlama sonuçları (eski v2 kayıtlarında yeniden hesaplanır)."""
+    if row["results"]:
+        return json.loads(row["results"])
+    return [dict(zip(("correct", "note"), qs.grade(q, answers.get(str(q["id"]), "")))) for q in questions]
+
+
+def finalize(db, row, answers, submitted_at, auto):
+    """Sınavı puanlayıp kapatır. Başka bir istek önce kapattıysa False döner."""
+    questions = json.loads(row["questions"])
+    results = []
+    for q in questions:
+        ok, note = qs.grade(q, answers.get(str(q["id"]), ""))
+        results.append({"correct": bool(ok), "note": note})
+    total = len(questions)
+    correct = sum(r["correct"] for r in results)
+    score = round(correct * 100 / total) if total else 0
+    cur = db.execute(
+        "UPDATE exams SET answers=?, results=?, submitted_at=?, correct=?, wrong=?, score=?, auto_submitted=? "
+        "WHERE id=? AND submitted_at IS NULL",
+        (json.dumps(answers, ensure_ascii=False), json.dumps(results, ensure_ascii=False),
+         submitted_at, correct, total - correct, score, int(auto), row["id"]),
     )
+    db.commit()
+    return cur.rowcount == 1
+
+
+def finalize_expired(db):
+    """Süresi dolduğu hâlde gönderilmemiş sınavları son kaydedilen cevaplarla kapatır."""
+    t = now()
+    for row in db.execute("SELECT * FROM exams WHERE submitted_at IS NULL").fetchall():
+        if is_expired(row, t):
+            finalize(db, row, json.loads(row["answers"] or "{}"),
+                     row["started_at"] + exam_duration(row), auto=True)
+
+
+def exam_state(row, t):
     return {
-        "type": "tf",
-        "topic": "input() Veri Tipi",
-        "text": text,
-        "code": 'veri = input("Bir şey giriniz: ")',
-        "answer": "True" if is_true else "False",
-        "solution": "<code>input()</code> ile alınan her girdi str türündedir. Sayısal işlem için <code>int()</code> veya <code>float()</code> dönüşümü gerekir.",
+        "exam_id": row["id"],
+        "name": row["name"],
+        "no": row["no"],
+        "remaining": int(remaining(row, t)),
+        "questions": [qs.public_question(q) for q in json.loads(row["questions"])],
+        "answers": json.loads(row["answers"] or "{}"),
     }
 
 
-def q_write_code():
-    v1 = random.choice(["sayi1", "a", "x"])
-    v2 = random.choice(["sayi2", "b", "y"])
-    n1, n2 = random.randint(5, 20), random.randint(2, 5)
-    return {
-        "type": "code",
-        "topic": "Değişken & Aritmetik",
-        "text": (
-            "Şu adımları gerçekleştiren Python kodunu yazınız:<br>"
-            f"1. <code>{v1}</code> adında bir değişken tanımlayıp <strong>{n1}</strong> değerini atayın.<br>"
-            f"2. <code>{v2}</code> adında bir değişken tanımlayıp <strong>{n2}</strong> değerini atayın.<br>"
-            "3. Bu iki değişkenin çarpımını <code>print()</code> ile ekrana yazdırın."
-        ),
-        "code": None,
-        "check": {"v1": v1, "v2": v2, "n1": n1, "n2": n2},
-        "answer": f"{v1} = {n1}\n{v2} = {n2}\nprint({v1} * {v2})",
-        "solution": "Değişkenlere değer atanır, çarpım <code>*</code> operatörüyle yapılıp <code>print()</code> ile yazdırılır.",
-    }
+def get_exam(db, exam_id):
+    return db.execute("SELECT * FROM exams WHERE id = ?", (str(exam_id or ""),)).fetchone()
 
 
-def q_type_func():
-    sel = random.choice([
-        ("3.14", "<class 'float'>"),
-        ("42", "<class 'int'>"),
-        ('"100"', "<class 'str'>"),
-        ("True", "<class 'bool'>"),
-    ])
-    opts = ["<class 'int'>", "<class 'float'>", "<class 'str'>", "<class 'bool'>"]
-    random.shuffle(opts)
-    return {
-        "type": "mc",
-        "topic": "type() ve Veri Tipleri",
-        "text": "Aşağıdaki kodun çıktısı ne olur?",
-        "code": f"x = {sel[0]}\nprint(type(x))",
-        "options": opts,
-        "answer": sel[1],
-        "solution": f"<code>type()</code> değerin tipini döndürür. <code>{sel[0]}</code> değeri {sel[1].replace('<', '&lt;').replace('>', '&gt;')} tipindedir.",
-    }
+def error(message, status):
+    return jsonify({"error": message}), status
 
 
-def q_print_end():
-    is_true = random.random() < 0.5
-    symbol = random.choice([" ", " - ", "***"])
-    shown = symbol.replace(" ", "␣")
-    text = (
-        f'<code>print("Merhaba", end="{shown}")</code> kullanımı, yazdırmadan sonra alt satıra geçmek yerine sona "{shown}" ekler.'
-        if is_true else
-        f'<code>print("Merhaba", end="{shown}")</code> kullanımı bir sonraki print komutunu siler ve çalıştırmaz.'
-    )
-    return {
-        "type": "tf",
-        "topic": "Print Parametreleri (end)",
-        "text": text + ' <span class="hint">(␣ = boşluk)</span>' if " " in symbol else text,
-        "code": f'print("Merhaba", end="{symbol}")\nprint("Dünya")',
-        "answer": "True" if is_true else "False",
-        "solution": "<code>end</code> parametresi, print'in sonuna varsayılan olarak eklenen yeni satır (\\n) karakterinin yerine geçer.",
-    }
+def _fmt(ts, fmt):
+    return datetime.fromtimestamp(ts).strftime(fmt) if ts else None
 
 
-GENERATORS = [q_print_sep, q_type_conversion, q_fstring, q_input_type,
-              q_write_code, q_type_func, q_print_end]
+def rows_with_attempts(db):
+    rows = db.execute(
+        "SELECT id, no, name, started_at, duration, submitted_at, correct, wrong, score, auto_submitted "
+        "FROM exams ORDER BY started_at, rowid"
+    ).fetchall()
+    counts, out = {}, []
+    for r in rows:
+        counts[r["no"]] = counts.get(r["no"], 0) + 1
+        out.append((r, counts[r["no"]]))
+    return out
 
 
-def generate_questions(count):
-    # Her şablondan dengeli dağılım + gerçek rastgele sıra
-    pool = []
-    while len(pool) < count:
-        batch = GENERATORS[:]
-        random.shuffle(batch)
-        pool.extend(batch)
-    pool = pool[:count]
-    random.shuffle(pool)
-    return [{"id": i + 1, **gen()} for i, gen in enumerate(pool)]
-
-
-# ======================================================================
-# Kod sorusu değerlendirme (AST ile - öğrenci kodu ÇALIŞTIRILMAZ)
-# ======================================================================
-def _is_mult_of(node, v1, v2):
-    return (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult)
-            and isinstance(node.left, ast.Name) and isinstance(node.right, ast.Name)
-            and {node.left.id, node.right.id} == {v1, v2} and v1 != v2)
-
-
-def check_code_answer(src, chk):
-    """Kriterler: v1 = n1, v2 = n2 ataması ve print(v1*v2) (veya ara değişkenle)."""
-    try:
-        tree = ast.parse(src)
-    except SyntaxError:
-        return False, "Kodda sözdizimi (syntax) hatası var."
-
-    assigns = {}
-    mult_vars = set()
-    printed_ok = False
-    for stmt in tree.body:
-        if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
-            name, val = stmt.targets[0].id, stmt.value
-            if isinstance(val, ast.Constant) and type(val.value) in (int, float):
-                assigns[name] = val.value
-            if _is_mult_of(val, chk["v1"], chk["v2"]):
-                mult_vars.add(name)
-        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
-            call = stmt.value
-            if isinstance(call.func, ast.Name) and call.func.id == "print" and call.args:
-                arg = call.args[0]
-                if _is_mult_of(arg, chk["v1"], chk["v2"]) or (isinstance(arg, ast.Name) and arg.id in mult_vars):
-                    # print'ten önce atamaların yapılmış olması gerekir
-                    if assigns.get(chk["v1"]) == chk["n1"] and assigns.get(chk["v2"]) == chk["n2"]:
-                        printed_ok = True
-
-    if assigns.get(chk["v1"]) != chk["n1"]:
-        return False, f"<code>{chk['v1']}</code> değişkenine {chk['n1']} atanmamış."
-    if assigns.get(chk["v2"]) != chk["n2"]:
-        return False, f"<code>{chk['v2']}</code> değişkenine {chk['n2']} atanmamış."
-    if not printed_ok:
-        return False, "Çarpım <code>print()</code> ile doğru şekilde yazdırılmamış."
-    return True, "Kod tüm kriterleri sağlıyor."
-
-
-def grade(question, user_ans):
-    user_ans = (user_ans or "").strip()
-    if question["type"] == "code":
-        return check_code_answer(user_ans, question["check"]) if user_ans else (False, "Boş bırakıldı.")
-    if question["type"] == "short":
-        return user_ans.replace(" ", "") == question["answer"], None
-    return user_ans == question["answer"], None
-
-
-def public_question(q):
-    """Öğrenciye giden sürüm: cevap/çözüm/kontrol bilgisi yok."""
-    return {k: q.get(k) for k in ("id", "type", "topic", "text", "code", "options")}
-
-
-# ======================================================================
-# Yardımcılar
-# ======================================================================
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("10.255.255.255", 1))  # paket gönderilmez, internet gerekmez
         ip = s.getsockname()[0]
-    except Exception:
+    except OSError:
         ip = "127.0.0.1"
     finally:
         s.close()
     return ip
 
 
+def student_url():
+    return f"http://{get_local_ip()}:{current_app.config['PORT']}"
+
+
+# ======================================================================
+# Öğretmen kimlik doğrulama + kaba kuvvet koruması
+# ======================================================================
+class LoginLimiter:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._fails = {}  # ip -> (hata sayısı, kilit bitişi)
+
+    def locked(self, ip):
+        with self._lock:
+            _, until = self._fails.get(ip, (0, 0))
+            return until > now()
+
+    def fail(self, ip):
+        with self._lock:
+            count, _ = self._fails.get(ip, (0, 0))
+            count += 1
+            if count >= MAX_FAILS:
+                self._fails[ip] = (0, now() + LOCK_SECONDS)
+            else:
+                self._fails[ip] = (count, 0)
+
+    def reset(self, ip):
+        with self._lock:
+            self._fails.pop(ip, None)
+
+
 def teacher_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        key = request.headers.get("X-Ogretmen-Sifre") or request.args.get("sifre")
-        if not key or not secrets.compare_digest(key, TEACHER_KEY):
-            return jsonify({"error": "Yetkisiz. Öğretmen şifresi hatalı."}), 401
+        ip = request.remote_addr or "?"
+        limiter = current_app.extensions["pytest_pro_limiter"]
+        if limiter.locked(ip):
+            resp = jsonify({"error": "Çok fazla hatalı deneme. 1 dakika sonra tekrar dene."})
+            resp.headers["Retry-After"] = str(LOCK_SECONDS)
+            return resp, 429
+        key = request.headers.get("X-Ogretmen-Sifre", "")
+        if not secrets.compare_digest(key.encode("utf-8"), current_app.config["TEACHER_KEY"].encode("utf-8")):
+            limiter.fail(ip)
+            return error("Yetkisiz. Öğretmen şifresi hatalı.", 401)
+        limiter.reset(ip)
         return f(*args, **kwargs)
     return wrapper
-
-
-def clean(s, n):
-    return " ".join(str(s or "").split())[:n]
 
 
 # ======================================================================
 # Sayfalar
 # ======================================================================
-@app.route("/")
+@bp.route("/")
 def student_page():
     return render_template("index.html")
 
 
-@app.route("/ogretmen")
+@bp.route("/ogretmen")
 def teacher_page():
     return render_template("teacher.html")
 
@@ -325,138 +311,233 @@ def teacher_page():
 # ======================================================================
 # Öğrenci API
 # ======================================================================
-@app.post("/api/start")
+@bp.get("/api/status")
+def api_status():
+    s = get_settings(get_db())
+    return jsonify({"open": s["exam_open"], "question_count": s["question_count"],
+                    "duration_min": s["duration_min"]})
+
+
+@bp.post("/api/start")
 def api_start():
     data = request.get_json(silent=True) or {}
     name, no = clean(data.get("name"), 60), clean(data.get("no"), 20)
-    try:
-        count = int(data.get("count", 10))
-    except (TypeError, ValueError):
-        count = 10
-    if count not in (5, 10, 15):
-        count = 10
     if not name or not no:
-        return jsonify({"error": "Ad Soyad ve Okul No zorunludur."}), 400
+        return error("Ad Soyad ve Okul No zorunludur.", 400)
+
+    db = get_db()
+    settings = get_settings(db)
+    finalize_expired(db)
+    t = now()
+
+    active = db.execute(
+        "SELECT * FROM exams WHERE no = ? AND submitted_at IS NULL ORDER BY started_at DESC", (no,)
+    ).fetchone()
+    if active:
+        # Aynı öğrenci (sayfa yenileme, cihaz değişikliği) -> kaldığı yerden devam
+        if active["name"].casefold() == name.casefold():
+            return jsonify(exam_state(active, t))
+        return error("Bu okul numarasıyla devam eden başka bir sınav var. Öğretmenine başvur.", 409)
+
+    if not settings["exam_open"]:
+        return error("Sınav şu an kapalı. Öğretmenin sınavı açınca tekrar dene.", 403)
+    if not settings["allow_retake"] and db.execute("SELECT 1 FROM exams WHERE no = ?", (no,)).fetchone():
+        return error("Bu okul numarasıyla sınav zaten tamamlandı. Tekrar giriş kapalı.", 409)
 
     exam_id = uuid.uuid4().hex
-    questions = generate_questions(count)
-    db = get_db()
+    questions = qs.generate_questions(settings["question_count"])
     db.execute(
-        "INSERT INTO exams (id, no, name, questions, started_at) VALUES (?,?,?,?,?)",
-        (exam_id, no, name, json.dumps(questions, ensure_ascii=False), time.time()),
+        "INSERT INTO exams (id, no, name, questions, answers, started_at, duration) VALUES (?,?,?,?,?,?,?)",
+        (exam_id, no, name, json.dumps(questions, ensure_ascii=False), "{}", t, settings["duration_min"] * 60),
     )
     db.commit()
-    return jsonify({
-        "exam_id": exam_id,
-        "duration": EXAM_SECONDS,
-        "questions": [public_question(q) for q in questions],
-    })
+    return jsonify(exam_state(get_exam(db, exam_id), t))
 
 
-@app.post("/api/submit")
+@bp.post("/api/resume")
+def api_resume():
+    data = request.get_json(silent=True) or {}
+    db = get_db()
+    row = get_exam(db, data.get("exam_id"))
+    if row is None:
+        return error("Sınav bulunamadı.", 404)
+    if row["submitted_at"] is not None:
+        return error("Bu sınav zaten gönderildi.", 410)
+    t = now()
+    if is_expired(row, t):
+        finalize(db, row, json.loads(row["answers"] or "{}"), row["started_at"] + exam_duration(row), auto=True)
+        return error("Süre doldu; sınavın son kaydedilen cevaplarla otomatik gönderildi.", 410)
+    return jsonify(exam_state(row, t))
+
+
+@bp.post("/api/save")
+def api_save():
+    """Cevapların ara kaydı: tarayıcı kapanır veya bağlantı koparsa cevaplar kaybolmaz."""
+    data = request.get_json(silent=True) or {}
+    db = get_db()
+    row = get_exam(db, data.get("exam_id"))
+    if row is None:
+        return error("Sınav bulunamadı.", 404)
+    if row["submitted_at"] is not None:
+        return error("Bu sınav zaten gönderildi.", 409)
+    t = now()
+    if is_expired(row, t):
+        return error("Süre doldu.", 409)
+    answers = sanitize_answers(data.get("answers"), json.loads(row["questions"]))
+    db.execute("UPDATE exams SET answers=?, saved_at=? WHERE id=? AND submitted_at IS NULL",
+               (json.dumps(answers, ensure_ascii=False), t, row["id"]))
+    db.commit()
+    return jsonify({"ok": True, "remaining": int(remaining(row, t))})
+
+
+@bp.post("/api/submit")
 def api_submit():
     data = request.get_json(silent=True) or {}
-    exam_id = str(data.get("exam_id", ""))
-    answers = data.get("answers") or {}
-    if not isinstance(answers, dict):
-        answers = {}
-
     db = get_db()
-    row = db.execute("SELECT * FROM exams WHERE id = ?", (exam_id,)).fetchone()
+    row = get_exam(db, data.get("exam_id"))
     if row is None:
-        return jsonify({"error": "Sınav bulunamadı."}), 404
+        return error("Sınav bulunamadı.", 404)
     if row["submitted_at"] is not None:
-        return jsonify({"error": "Bu sınav zaten gönderildi."}), 409
+        return error("Bu sınav zaten gönderildi.", 409)
 
-    now = time.time()
-    late = now - row["started_at"] > EXAM_SECONDS + GRACE_SECONDS
+    t = now()
     questions = json.loads(row["questions"])
+    late = is_expired(row, t)
+    if late:
+        # Süre aşıldı: gönderilen değil, süre içinde son kaydedilen cevaplar geçerlidir
+        answers = json.loads(row["answers"] or "{}")
+        submitted_at = row["started_at"] + exam_duration(row)
+    else:
+        answers = sanitize_answers(data.get("answers"), questions)
+        submitted_at = t
+    if not finalize(db, row, answers, submitted_at, auto=late):
+        return error("Bu sınav zaten gönderildi.", 409)
 
-    correct = 0
+    row = get_exam(db, row["id"])
+    show = get_settings(db)["show_solutions"]
+    results = json.loads(row["results"])
     details = []
-    for q in questions:
-        ua = "" if late else str(answers.get(str(q["id"]), ""))[:2000]
-        ok, note = grade(q, ua)
-        correct += ok
-        details.append({
-            "id": q["id"], "topic": q["topic"], "text": q["text"], "code": q.get("code"),
-            "type": q["type"], "user_answer": ua, "answer": q["answer"],
-            "correct": ok, "note": note, "solution": q["solution"],
-        })
-
-    total = len(questions)
-    wrong = total - correct
-    score = round(correct * 100 / total)
-    db.execute(
-        "UPDATE exams SET answers=?, submitted_at=?, correct=?, wrong=?, score=? WHERE id=? AND submitted_at IS NULL",
-        (json.dumps(answers, ensure_ascii=False), now, correct, wrong, score, exam_id),
-    )
-    db.commit()
-    return jsonify({"correct": correct, "wrong": wrong, "score": score,
-                    "percent": score, "late": late, "details": details})
+    for q, res in zip(questions, results):
+        item = {"id": q["id"], "topic": q["topic"], "correct": res["correct"]}
+        if show:
+            item.update({"type": q["type"], "text": q["text"], "code": q.get("code"),
+                         "user_answer": answers.get(str(q["id"]), ""), "answer": q["answer"],
+                         "note": res["note"], "solution": q["solution"]})
+        details.append(item)
+    return jsonify({"correct": row["correct"], "wrong": row["wrong"], "score": row["score"],
+                    "late": late, "show_solutions": show, "details": details})
 
 
 # ======================================================================
 # Öğretmen API (şifreli)
 # ======================================================================
-@app.get("/api/info")
+@bp.get("/api/info")
 @teacher_required
 def api_info():
-    return jsonify({"url": f"http://{get_local_ip()}:{PORT}", "duration": EXAM_SECONDS})
+    return jsonify({"url": student_url(), "settings": get_settings(get_db())})
 
 
-@app.get("/api/qr.svg")
+@bp.put("/api/settings")
+@teacher_required
+def api_settings():
+    try:
+        updates = validate_settings(request.get_json(silent=True))
+    except ValueError as exc:
+        return error(str(exc), 400)
+    db = get_db()
+    for key, value in updates.items():
+        db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, json.dumps(value)))
+    db.commit()
+    return jsonify(get_settings(db))
+
+
+@bp.get("/api/qr.svg")
 def api_qr():
     import qrcode
     import qrcode.image.svg
-    url = f"http://{get_local_ip()}:{PORT}"
-    img = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2)
+    img = qrcode.make(student_url(), image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2)
     buf = io.BytesIO()
     img.save(buf)
     return Response(buf.getvalue(), mimetype="image/svg+xml")
 
 
-@app.get("/api/results")
+@bp.get("/api/results")
 @teacher_required
 def api_results():
     db = get_db()
-    rows = db.execute(
-        "SELECT id, no, name, started_at, submitted_at, correct, wrong, score FROM exams ORDER BY started_at"
-    ).fetchall()
-    attempts = {}
-    out = []
-    for r in rows:
-        attempts[r["no"]] = attempts.get(r["no"], 0) + 1
-        out.append({
-            "id": r["id"], "no": r["no"], "name": r["name"], "attempt": attempts[r["no"]],
-            "started": datetime.fromtimestamp(r["started_at"]).strftime("%d.%m.%Y %H:%M:%S"),
-            "submitted": datetime.fromtimestamp(r["submitted_at"]).strftime("%H:%M:%S") if r["submitted_at"] else None,
+    finalize_expired(db)
+    t = now()
+    rows = []
+    for r, attempt in rows_with_attempts(db):
+        done = r["submitted_at"] is not None
+        rows.append({
+            "id": r["id"], "no": r["no"], "name": r["name"], "attempt": attempt,
+            "started": _fmt(r["started_at"], "%d.%m %H:%M:%S"),
+            "submitted": _fmt(r["submitted_at"], "%H:%M:%S"),
             "correct": r["correct"], "wrong": r["wrong"], "score": r["score"],
-            "status": "bitti" if r["submitted_at"] else (
-                "sure_doldu" if time.time() - r["started_at"] > EXAM_SECONDS + GRACE_SECONDS else "sinavda"),
+            "status": "bitti" if done else "sinavda",
+            "auto": bool(r["auto_submitted"]),
+            "remaining": None if done else int(remaining(r, t)),
         })
-    out.reverse()
-    return jsonify(out)
+    rows.reverse()
+
+    done = [r for r in rows if r["status"] == "bitti"]
+    summary = {
+        "done": len(done),
+        "live": len(rows) - len(done),
+        "average": round(sum(r["score"] for r in done) / len(done), 1) if done else None,
+        "pass_rate": round(sum(r["score"] >= 50 for r in done) * 100 / len(done)) if done else None,
+    }
+
+    topics = {}
+    for r in db.execute("SELECT questions, answers, results FROM exams WHERE submitted_at IS NOT NULL"):
+        questions = json.loads(r["questions"])
+        for q, res in zip(questions, row_results(r, questions, json.loads(r["answers"] or "{}"))):
+            stat = topics.setdefault(q["topic"], [0, 0])
+            stat[0] += bool(res["correct"])
+            stat[1] += 1
+    topic_list = sorted(
+        ({"topic": k, "correct": c, "total": n, "rate": round(c * 100 / n)} for k, (c, n) in topics.items()),
+        key=lambda x: (x["rate"], x["topic"]),
+    )
+    return jsonify({"rows": rows, "summary": summary, "topics": topic_list})
 
 
-@app.get("/api/results/<exam_id>")
+@bp.get("/api/results/<exam_id>")
 @teacher_required
 def api_result_detail(exam_id):
-    row = get_db().execute("SELECT * FROM exams WHERE id = ?", (exam_id,)).fetchone()
+    db = get_db()
+    finalize_expired(db)
+    row = get_exam(db, exam_id)
     if row is None:
-        return jsonify({"error": "Bulunamadı"}), 404
+        return error("Kayıt bulunamadı.", 404)
+    if row["submitted_at"] is None:
+        return error("Bu öğrencinin sınavı henüz bitmedi.", 409)
     questions = json.loads(row["questions"])
     answers = json.loads(row["answers"] or "{}")
     details = []
-    for q in questions:
-        ua = str(answers.get(str(q["id"]), ""))
-        ok, note = grade(q, ua)
-        details.append({"id": q["id"], "topic": q["topic"], "text": q["text"], "code": q.get("code"),
-                        "user_answer": ua, "answer": q["answer"], "correct": ok, "note": note})
-    return jsonify({"name": row["name"], "no": row["no"], "score": row["score"], "details": details})
+    for q, res in zip(questions, row_results(row, questions, answers)):
+        details.append({"id": q["id"], "type": q["type"], "topic": q["topic"], "text": q["text"],
+                        "code": q.get("code"), "user_answer": answers.get(str(q["id"]), ""),
+                        "answer": q["answer"], "correct": res["correct"], "note": res["note"]})
+    return jsonify({"id": row["id"], "name": row["name"], "no": row["no"], "score": row["score"],
+                    "correct": row["correct"], "wrong": row["wrong"], "auto": bool(row["auto_submitted"]),
+                    "started": _fmt(row["started_at"], "%d.%m.%Y %H:%M"),
+                    "submitted": _fmt(row["submitted_at"], "%H:%M"), "details": details})
 
 
-@app.delete("/api/results")
+@bp.delete("/api/results/<exam_id>")
+@teacher_required
+def api_delete_one(exam_id):
+    db = get_db()
+    cur = db.execute("DELETE FROM exams WHERE id = ?", (exam_id,))
+    db.commit()
+    if cur.rowcount == 0:
+        return error("Kayıt bulunamadı.", 404)
+    return jsonify({"status": "ok"})
+
+
+@bp.delete("/api/results")
 @teacher_required
 def api_clear():
     db = get_db()
@@ -465,38 +546,101 @@ def api_clear():
     return jsonify({"status": "ok"})
 
 
-@app.get("/api/results.csv")
+def csv_safe(value):
+    """Excel'in hücreyi formül olarak çalıştırmasını engeller (CSV enjeksiyonu)."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
+@bp.get("/api/results.csv")
 @teacher_required
 def api_csv():
-    rows = get_db().execute(
-        "SELECT no, name, started_at, submitted_at, correct, wrong, score FROM exams "
-        "WHERE submitted_at IS NOT NULL ORDER BY CAST(no AS INTEGER), no"
-    ).fetchall()
+    db = get_db()
+    finalize_expired(db)
+    rows = [(r, a) for r, a in rows_with_attempts(db) if r["submitted_at"] is not None]
+    rows.sort(key=lambda ra: (int(ra[0]["no"]) if ra[0]["no"].isdigit() else math.inf, ra[0]["no"], ra[1]))
+
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")  # Türkçe Excel ; ayırıcı kullanır
-    w.writerow(["Okul No", "Ad Soyad", "Başlama", "Bitiş", "Doğru", "Yanlış", "Puan"])
-    for r in rows:
+    w.writerow(["Okul No", "Ad Soyad", "Deneme", "Başlama", "Bitiş", "Süre (dk)",
+                "Doğru", "Yanlış", "Puan", "Gönderim"])
+    for r, attempt in rows:
+        minutes = f"{(r['submitted_at'] - r['started_at']) / 60:.1f}".replace(".", ",")
         w.writerow([
-            r["no"], r["name"],
-            datetime.fromtimestamp(r["started_at"]).strftime("%d.%m.%Y %H:%M"),
-            datetime.fromtimestamp(r["submitted_at"]).strftime("%H:%M"),
-            r["correct"], r["wrong"], r["score"],
+            csv_safe(r["no"]), csv_safe(r["name"]), attempt,
+            _fmt(r["started_at"], "%d.%m.%Y %H:%M"), _fmt(r["submitted_at"], "%H:%M"), minutes,
+            r["correct"], r["wrong"], r["score"], "Otomatik" if r["auto_submitted"] else "Öğrenci",
         ])
-    data = "﻿" + buf.getvalue()  # BOM: Excel'de Türkçe karakterler bozulmaz
+    data = "\ufeff" + buf.getvalue()  # BOM: Excel'de Türkçe karakterler bozulmaz
     fname = f"python_sinav_{datetime.now():%Y%m%d_%H%M}.csv"
     return Response(data.encode("utf-8"), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
 
 
-init_db()
-
 # ======================================================================
-if __name__ == "__main__":
-    ip = get_local_ip()
-    print("\n" + "=" * 52)
+# Uygulama
+# ======================================================================
+CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+       "connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+
+
+def security_headers(resp):
+    resp.headers.setdefault("Content-Security-Policy", CSP)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    if request.path.startswith("/api/"):
+        resp.headers.setdefault("Cache-Control", "no-store")
+    return resp
+
+
+def create_app(db_path=None, teacher_key=None, exam_seconds=None, port=None):
+    app = Flask(__name__)
+    exam_seconds = exam_seconds or _env_int("PYTEST_SURE", 900, 60, 10800)
+    app.config.update(
+        DB_PATH=db_path or os.environ.get("PYTEST_DB") or os.path.join(BASE_DIR, "results.db"),
+        TEACHER_KEY=teacher_key or os.environ.get("PYTEST_SIFRE") or f"{secrets.randbelow(900000) + 100000}",
+        EXAM_SECONDS=exam_seconds,
+        PORT=port or _env_int("PYTEST_PORT", 5000, 1, 65535),
+        MAX_CONTENT_LENGTH=256 * 1024,
+        DEFAULT_SETTINGS={
+            "exam_open": True,
+            "question_count": 10,
+            "duration_min": max(1, round(exam_seconds / 60)),
+            "show_solutions": True,
+            "allow_retake": True,
+        },
+    )
+    app.json.ensure_ascii = False
+    app.extensions["pytest_pro_limiter"] = LoginLimiter()
+    init_db(app.config["DB_PATH"], app.config["DEFAULT_SETTINGS"])
+    app.register_blueprint(bp)
+    app.after_request(security_headers)
+    return app
+
+
+def main():
+    app = create_app()
+    ip, port = get_local_ip(), app.config["PORT"]
+    print("\n" + "=" * 56)
     print("  PYTEST PRO - ÖĞRETMEN SUNUCUSU AKTİF")
-    print(f"  Öğrenci adresi : http://{ip}:{PORT}")
-    print(f"  Öğretmen paneli: http://{ip}:{PORT}/ogretmen")
-    print(f"  Öğretmen şifresi: {TEACHER_KEY}")
-    print("=" * 52 + "\n")
-    app.run(host="0.0.0.0", port=PORT, debug=False, threaded=True)
+    print(f"  Öğrenci adresi  : http://{ip}:{port}")
+    print(f"  Öğretmen paneli : http://{ip}:{port}/ogretmen")
+    print(f"  Öğretmen şifresi: {app.config['TEACHER_KEY']}")
+    print("  Kapatmak için    : Ctrl+C")
+    print("=" * 56 + "\n")
+    try:
+        try:
+            from waitress import serve
+        except ImportError:
+            app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+        else:
+            serve(app, host="0.0.0.0", port=port, threads=16)
+    except OSError as exc:
+        print(f"Sunucu başlatılamadı ({exc}). Port {port} kullanımda olabilir; "
+              f"farklı bir port için PYTEST_PORT ayarlayın.")
+
+
+if __name__ == "__main__":
+    main()
