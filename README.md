@@ -58,4 +58,4 @@ static/style.css     Yerel stil dosyası
 Fonksiyon şu alanları döndürmelidir: `type` (`mc` / `tf` / `short` / `code`), `topic`, `text`, `code`, `options` (yalnızca `mc` için), `answer`, `solution`.
 
 ---
-Burak ÇEKİÇ — Gülsefa Kapancıoğlu Anadolu Lisesi
+BÇ-GKAL
