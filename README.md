@@ -94,7 +94,7 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-GitHub Actions her push'ta testleri Linux ve Windows'ta, Python 3.9 ve 3.13 ile çalıştırır.
+GitHub Actions her push'ta testleri Linux (Python 3.10, 3.13) ve Windows'ta (Python 3.9, 3.13) çalıştırır.
 
 ## Geliştirme
 
