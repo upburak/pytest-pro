@@ -1,7 +1,8 @@
 /* PyTest Pro - öğrenci sınav ekranı */
 'use strict';
 (function () {
-  const { esc, fmtAnswer, post, renderAnswer, renderQuestionText } = window.PyTest;
+  const P = window.PyTest;
+  const { esc, fmtAnswer, post, renderAnswer, renderQuestionText } = P;
   const $ = (id) => document.getElementById(id);
   const STORE = 'pytest_aktif_sinav';
   const SAVE_DELAY_MS = 1500;     // son tuştan sonra sunucuya kaydetme gecikmesi
@@ -197,7 +198,7 @@
     const r = await post('/api/submit', { exam_id: exam.exam_id, answers });
     if (r.ok) {
       stopExamTimers(); clearLocal();
-      showResult(r.data);
+      showResult(Object.assign({ exam_id: exam.exam_id }, r.data));
       return;
     }
     if (r.status === 404 || r.status === 409) {
@@ -242,11 +243,19 @@
         ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
         <div class="sol-meta">
           <div><b>Senin cevabın:</b> <span class="ans ${q.correct ? 'green-t' : 'red-t'}">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş bırakıldı')}</span></div>
+          ${!q.correct && q.why ? P.whyNote(q.why) : ''}
           ${!q.correct ? `<div><b>Doğru cevap:</b> <span class="ans green-t">${esc(fmtAnswer(q.type, q.answer))}</span></div>` : ''}
           ${q.note ? `<div class="muted">${q.note}</div>` : ''}
           <div class="exp"><b>Açıklama:</b> ${q.solution}</div>
+          ${q.has_trace ? `<div class="row trace-row"><button type="button" class="btn sm${q.correct ? ' subtle' : ''}" data-trace="${q.id}">Kodu adım adım izle</button></div>
+          <div class="trace-box hidden" data-trace-box="${q.id}"></div>` : ''}
         </div>
       </div>`).join('');
+    const examId = d.exam_id;
+    $('solutions').querySelectorAll('[data-trace]').forEach((btn) => {
+      const box = $('solutions').querySelector(`[data-trace-box="${btn.dataset.trace}"]`);
+      P.traceToggle(btn, box, () => post('/api/exam/trace', { exam_id: examId, question_id: Number(btn.dataset.trace) }));
+    });
   }
 
   function backToLogin(message) {

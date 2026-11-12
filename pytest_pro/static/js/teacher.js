@@ -1,7 +1,8 @@
 /* PyTest Pro - öğretmen paneli */
 'use strict';
 (function () {
-  const { esc, fmtAnswer, levelBadge } = window.PyTest;
+  const P = window.PyTest;
+  const { esc, fmtAnswer, levelBadge } = P;
   const $ = (id) => document.getElementById(id);
   const KEY = 'pytest_ogretmen_sifre';
   const POLL_MS = 3000;
@@ -216,6 +217,13 @@
       val.className = 'muted';
       val.textContent = `%${t.rate} (${t.correct}/${t.total})`;
       row.append(name, bar, val);
+      if (t.common_wrong) {
+        const cw = document.createElement('div');
+        cw.className = 'common-wrong';
+        cw.innerHTML = `En sık yanlış: %${t.common_wrong.share} <span class="ans">"${esc(t.common_wrong.answer)}"</span> cevabını verdi.`
+          + (t.common_wrong.why ? P.whyNote(t.common_wrong.why) : '');
+        row.appendChild(cw);
+      }
       box.appendChild(row);
     });
   }
@@ -232,9 +240,24 @@
           <div class="sol-text">${q.text}</div>
           ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
           <div class="sol-meta"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş')}</span></div>
+          ${!q.correct && q.why ? P.whyNote(q.why) : ''}
           ${!q.correct ? `<div class="sol-meta"><b>Doğru:</b> <span class="ans green-t">${esc(fmtAnswer(q.type, q.answer))}</span></div>` : ''}
           ${q.note ? `<div class="muted">${q.note}</div>` : ''}
+          ${q.has_trace ? `<div class="row trace-row"><button type="button" class="btn sm${q.correct ? ' subtle' : ''}" data-trace="${q.id}">Kodu adım adım izle</button></div>
+          <div class="trace-box hidden" data-trace-box="${q.id}"></div>` : ''}
         </div>`).join('');
+      const examId = d.id;
+      $('m-body').querySelectorAll('[data-trace]').forEach((btn) => {
+        const box = $('m-body').querySelector(`[data-trace-box="${btn.dataset.trace}"]`);
+        P.traceToggle(btn, box, async () => {
+          try {
+            const r = await api(`/api/results/${encodeURIComponent(examId)}/trace/${btn.dataset.trace}`);
+            return { ok: true, status: r.status, data: await r.json() };
+          } catch (e) {
+            return { ok: false, status: 0, data: { error: e.message } };
+          }
+        });
+      });
       $('modal').classList.remove('hidden');
       $('m-close').focus();
     } catch (e) {

@@ -391,6 +391,11 @@ tr.click:hover, tr.click:focus-visible { background: var(--ink-wash); }
 .why-note { margin: var(--s1) 0; font: 700 1.35rem/1.25 var(--font-hand); color: var(--pen); }
 .why-note b { font-weight: 700; }
 .trace-box { margin-top: var(--s2); }
+.btn.subtle { border-color: var(--rule); color: var(--graphite-soft); }
+.trace-row { margin-top: var(--s2); }
+.common-wrong { grid-column: 1 / -1; font-size: var(--fs-sm); color: var(--graphite-soft); }
+.common-wrong .ans { font-family: var(--font-code); color: var(--pen); white-space: pre-wrap; }
+.common-wrong .why-note { font-size: 1.15rem; }
 .topic-progress { display: block; margin-top: var(--s1); font-size: var(--fs-xs); font-weight: 700; color: var(--ok); }
 #hint-box { margin-top: var(--s3); }
 @media (max-width: 560px) { .trace { grid-template-columns: 1fr; } }
