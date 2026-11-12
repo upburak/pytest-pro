@@ -391,6 +391,8 @@ tr.click:hover, tr.click:focus-visible { background: var(--ink-wash); }
 .why-note { margin: var(--s1) 0; font: 700 1.35rem/1.25 var(--font-hand); color: var(--pen); }
 .why-note b { font-weight: 700; }
 .trace-box { margin-top: var(--s2); }
+.topic-progress { display: block; margin-top: var(--s1); font-size: var(--fs-xs); font-weight: 700; color: var(--ok); }
+#hint-box { margin-top: var(--s3); }
 @media (max-width: 560px) { .trace { grid-template-columns: 1fr; } }
 
 /* ------------------------------------------------------------------ küçük ekran ve hareket */

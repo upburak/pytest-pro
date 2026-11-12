@@ -20,7 +20,11 @@
     </div>
   </div>
 
-  <div id="question-view" class="practice hidden">
+  <div id="question-view" class="practice hidden stack">
+    <div id="unit-done" class="notice hidden" role="status">
+      <span id="unit-done-text"></span>
+      <button id="btn-next-unit" type="button" class="btn sm">Sıradaki üniteye geç</button>
+    </div>
     <section class="sheet question">
       <div class="q-head">
         <span id="q-unit" class="pill"></span>
@@ -29,13 +33,16 @@
       <div id="q-text" class="q-text"></div>
       <pre id="q-code" class="snippet hidden"></pre>
       <div id="answer-box"></div>
+      <div id="hint-box" class="exp hidden" role="status"></div>
       <div id="feedback" class="hidden" role="status" aria-live="polite"></div>
+      <div id="trace-box" class="trace-box hidden"></div>
       <div class="q-foot">
         <button id="btn-units" type="button" class="btn">İçindekiler</button>
-        <div class="row">
+        <div id="ask-actions" class="row">
+          <button id="btn-hint" type="button" class="btn">İpucu</button>
           <button id="btn-check" type="button" class="btn primary">Cevabı kontrol et</button>
-          <button id="btn-next" type="button" class="btn green hidden">Yeni soru</button>
         </div>
+        <div id="after-actions" class="row hidden"></div>
       </div>
       <div id="err" class="err" role="alert"></div>
     </section>
