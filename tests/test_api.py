@@ -303,7 +303,7 @@ def test_practice_flow(client, app):
 # ---------------------------------------------------------------- genel
 def test_pages_and_security_headers(client):
     for path in ("/", "/pratik", "/ogretmen", "/static/css/style.css", "/static/js/common.js",
-                 "/static/js/student.js", "/static/js/teacher.js", "/static/js/practice.js",
+                 "/static/js/student.js", "/static/js/teacher.js", "/static/js/practice.js", "/static/js/tracer.js",
                  "/static/fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2",
                  "/static/fonts/jetbrains-mono-latin-400-normal.woff2", "/static/fonts/caveat-latin-700-normal.woff2"):
         r = client.get(path)
@@ -351,3 +351,9 @@ def test_migration_is_idempotent(tmp_path):
     path = str(tmp_path / "x.db")
     create_app(db_path=path, teacher_key=KEY)
     create_app(db_path=path, teacher_key=KEY)  # ikinci açılışta hata vermemeli
+
+
+def test_pages_load_trace_component(client):
+    for path in ("/", "/pratik", "/ogretmen"):
+        html = client.get(path).data.decode("utf-8")
+        assert html.index("js/common.js") < html.index("js/tracer.js"), path
