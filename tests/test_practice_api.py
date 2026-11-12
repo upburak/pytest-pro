@@ -25,9 +25,16 @@ def test_hint_and_trace_flow(open_client, app):
     assert t["steps"][-1]["output"].rstrip("\n") == app.extensions["pytest_pro_practice"].get(r["token"])["answer"]
 
 
-def test_hint_404_when_template_has_no_hint(open_client):
-    # Birinci teslimatta nesne ünitesinde ipucu yok; ikinci teslimatta bu test, ipucusuz bir
-    # sahte şablonla (monkeypatch) yeniden yazılır.
+def _no_hint_question(monkeypatch):
+    """Tüm ünitelerde ipucu olduğu için ipucusuz bir soruyu taklit eder."""
+    from pytest_pro import questions as qs
+    fake = {"type": "tf", "text": "?", "code": None, "answer": "True", "solution": "s", "whys": {},
+            "topic": "T", "unit": "nesne", "gen": "nesne.sahte", "trace": None}
+    monkeypatch.setattr(qs, "generate_one", lambda unit, gen=None, avoid=(): dict(fake))
+
+
+def test_hint_404_when_template_has_no_hint(open_client, monkeypatch):
+    _no_hint_question(monkeypatch)
     r = nxt(open_client, unit="nesne").get_json()
     resp = open_client.post("/api/practice/hint", json={"token": r["token"]})
     assert resp.status_code == 404 and resp.is_json and resp.get_json()["error"]
@@ -83,6 +90,7 @@ def test_catalog_lists_template_count_per_topic(open_client):
     assert set(counts) == set(units["veri_tipleri"]["topics"])
 
 
-def test_next_reports_has_hint(open_client):
-    assert nxt(open_client, unit="temel").get_json()["has_hint"] is True
+def test_next_reports_has_hint(open_client, monkeypatch):
+    assert nxt(open_client, unit="nesne").get_json()["has_hint"] is True
+    _no_hint_question(monkeypatch)
     assert nxt(open_client, unit="nesne").get_json()["has_hint"] is False

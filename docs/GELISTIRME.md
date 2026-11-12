@@ -91,7 +91,12 @@ return output_question(
   Öğrencinin cevabı puanlamadaki gibi normalleştirilerek eşleştirilir (boşluk, `3,5` = `3.5`).
 - **Elle kurulan seçenekli sorular:** Örneğin `type_func`. Bu sorularda `whys` sözlüğü
   `whys_for_options(doğru, yanlışlar, seçenekler)` ile üretilir.
-- **Doğru/yanlış soruları:** Yalnızca `hint=` alır.
+- **Doğru/yanlış soruları:** `tf_question` her iki taraf için `(ifade, açıklama)` çiftleri alır. Açıklama,
+  öğrencinin yanlış seçeneği işaretlemesi durumunda neden yanıldığını anlatır. Her tarafta en az 6 ifade yazın.
+- **Çeşitlilik:** `tests/test_content.py::test_template_variety`, her şablonun 500 üretimde en az 12 farklı
+  soru (metin, kod, cevap ve şıklar birlikte) vermesini ister. Böylece yan yana oturan iki öğrencinin aynı
+  soruyu görme olasılığı en fazla yaklaşık %8 olur. Az değişkenli şablonlara daha fazla değer, ad ya da
+  ifade ekleyin.
 - **Yedek çeldiriciler:** Seçenekler 4'ten az kalırsa eklenen yedek çeldiricilere genel bir açıklama
   kendiliğinden verilir.
 - **Ses:** İkinci tekil şahıs. Öğrencinin düşüncesini adlandırın ("... diye düşünmüş olabilirsin"),
@@ -100,7 +105,7 @@ return output_question(
   cevaplar ipucunda geçmemeli.
 - **Kapsam:** İçeriği tamamlanmış üniteler `questions/__init__.py` içindeki `CONTENT_UNITS` listesindedir.
   `tests/test_content.py::test_content_complete` bu ünitelerde ipucu ve açıklama eksiğine izin vermez.
-  Bir ünitenin içeriğini bitirince listeye ekleyin.
+  Liste artık bütün üniteleri kapsar; yeni ünite eklediğinizde içeriğini de yazmanız gerekir.
 
 ### Kod izi
 

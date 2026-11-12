@@ -1,7 +1,7 @@
 # Öğrenmeyi Derinleştirme: Tasarım
 
 - **Tarih:** 2026-11-11
-- **Durum:** Birinci teslimat uygulandı (plan: `docs/superpowers/plans/2026-11-12-ogrenmeyi-derinlestirme.md`); ikinci teslimat bekliyor
+- **Durum:** Birinci ve ikinci teslimat uygulandı (plan: `docs/superpowers/plans/2026-11-12-ogrenmeyi-derinlestirme.md`)
 - **Dal:** `ogrenme/derinlestirme` (`tasarim/yeni-gorsel-kimlik` üzerine)
 
 ## 1. Amaç ve kapsam
