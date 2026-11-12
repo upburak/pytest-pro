@@ -12,6 +12,8 @@ from .registry import UNITS, all_generators, ordered_units
 
 PUBLIC_KEYS = ("id", "type", "topic", "text", "code", "options")
 DEFAULT_UNITS = ["temel", "veri_tipleri"]
+# İpucu ve yanlış şık açıklamaları tamamlanmış üniteler (testle zorunlu tutulur)
+CONTENT_UNITS = ("temel", "veri_tipleri", "operatorler", "metinler")
 
 
 def catalog():
@@ -65,6 +67,31 @@ def _norm_short(s):
     return "".join(str(s).split()).replace(",", ".")
 
 
+def why_for(question, answer):
+    """Öğrencinin verdiği yanlış cevabın açıklaması; yoksa None."""
+    whys = question.get("whys") or {}
+    qtype = question["type"]
+    if qtype in ("mc", "tf"):
+        return whys.get(answer)
+    if qtype == "short":
+        target = _norm_short(answer or "")
+        if not target:
+            return None
+        for value, why in whys.items():
+            if _norm_short(value) == target:
+                return why
+    return None
+
+
+def trace_source(question):
+    """İzlenecek kod {code, stdin}; eski kayıtlarda soru kodundan türetilir. Yoksa None."""
+    if "trace" in question:
+        return question["trace"]
+    if question.get("type") in ("mc", "short") and question.get("code"):
+        return {"code": question["code"], "stdin": question.get("stdin", "")}
+    return None
+
+
 def grade(question, user_ans):
     """(doğru_mu, not) döndürür. Not yalnızca kod sorularında doludur."""
     raw = "" if user_ans is None else str(user_ans)
@@ -78,5 +105,5 @@ def grade(question, user_ans):
     return raw == question["answer"], None
 
 
-__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog",
+__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "CONTENT_UNITS", "why_for", "trace_source", "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog",
            "generate_one", "generate_questions", "grade", "public_question", "unit_title", "valid_unit_ids"]

@@ -34,7 +34,16 @@ class Generator:
         q.setdefault("topic", self.topic)
         q["unit"] = self.unit
         q["gen"] = self.name
+        q["trace"] = self._trace(q)
         return q
+
+    def _trace(self, q):
+        """Adım adım izlenecek kod: çıktı/hata sorularında sorunun kodu, kod yazmada örnek çözüm."""
+        if q["type"] == "code":
+            return {"code": q["answer"], "stdin": ""}
+        if self.verify in ("output", "error") and q.get("code"):
+            return {"code": q["code"], "stdin": q.get("stdin", "")}
+        return None
 
 
 @dataclass
