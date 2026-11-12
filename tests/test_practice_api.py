@@ -74,3 +74,15 @@ def test_trace_404_for_true_false(open_client):
 def test_new_endpoints_closed_when_practice_closed(client):
     for path in ("/api/practice/hint", "/api/practice/trace"):
         assert client.post(path, json={"token": "x"}).status_code == 403
+
+
+def test_catalog_lists_template_count_per_topic(open_client):
+    units = {u["id"]: u for u in open_client.get("/api/practice/units").get_json()}
+    counts = units["veri_tipleri"]["topic_templates"]
+    assert counts["Metin ve Sayı Birleştirme"] == 2 and sum(counts.values()) == units["veri_tipleri"]["templates"]
+    assert set(counts) == set(units["veri_tipleri"]["topics"])
+
+
+def test_next_reports_has_hint(open_client):
+    assert nxt(open_client, unit="temel").get_json()["has_hint"] is True
+    assert nxt(open_client, unit="nesne").get_json()["has_hint"] is False

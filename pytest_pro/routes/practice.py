@@ -43,7 +43,7 @@ def next_question():
     q["id"] = 1
     token = _store().put(q)
     return jsonify({"token": token, "unit": qs.unit_title(unit), "gen": q["gen"], "topic": q["topic"],
-                    "question": qs.public_question(q)})
+                    "has_hint": bool(q.get("hint")), "question": qs.public_question(q)})
 
 
 def _question_or_error():

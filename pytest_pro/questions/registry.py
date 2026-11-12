@@ -69,8 +69,12 @@ class Unit:
         return list(dict.fromkeys(g.topic for g in self.generators))
 
     def to_public(self):
+        topic_templates = {}
+        for g in self.generators:
+            topic_templates[g.topic] = topic_templates.get(g.topic, 0) + 1
         return {"id": self.id, "title": self.title, "level": self.level, "description": self.description,
-                "order": self.order, "templates": len(self.generators), "topics": self.topics}
+                "order": self.order, "templates": len(self.generators), "topics": self.topics,
+                "topic_templates": topic_templates}
 
 
 UNITS: Dict[str, Unit] = {}

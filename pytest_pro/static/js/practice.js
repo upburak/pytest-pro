@@ -33,13 +33,15 @@
     const recs = load()[id] || {};
     return Object.keys(recs).filter((g) => recs[g].done);
   }
-  /** Tamamlanan konu sayısı: konunun görülen tüm şablonları tamamlandıysa konu tamamdır. */
-  function topicsDone(id) {
+  /** Tamamlanan konular: konunun TÜM şablonları (görülmemiş olanlar dahil) tamamlandıysa konu tamamdır. */
+  function completedTopics(id) {
     const recs = load()[id] || {};
-    const byTopic = {};
-    Object.values(recs).forEach((r) => { (byTopic[r.topic] = byTopic[r.topic] || []).push(r.done); });
-    return Object.values(byTopic).filter((list) => list.every(Boolean)).length;
+    const info = unitInfo(id);
+    const doneCount = {};
+    Object.values(recs).forEach((r) => { if (r.done) doneCount[r.topic] = (doneCount[r.topic] || 0) + 1; });
+    return Object.keys(doneCount).filter((t) => info && doneCount[t] >= (info.topic_templates[t] || Infinity));
   }
+  function topicsDone(id) { return completedTopics(id).length; }
   function record(correct) {
     const progress = load();
     const recs = progress[unit] = progress[unit] || {};
@@ -73,9 +75,11 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'unit-card';
-      const done = topicsDone(u.id);
+      const done = completedTopics(u.id);
       const progress = load()[u.id]
-        ? `<span class="topic-progress">${done} / ${u.topics.length} konu tamamlandı</span>` : '';
+        ? `<span class="topic-progress">${done.length} / ${u.topics.length} konu tamamlandı</span>`
+          + (done.length ? `<span class="muted small">Tamamlanan: ${done.map(esc).join(', ')}</span>` : '')
+        : '';
       b.innerHTML = `<span class="unit-no">${u.order}</span>
         <span class="unit-body"><b>${esc(u.title)}</b><span class="muted">${esc(u.description)}</span>${progress}</span>
         ${levelBadge(u.level)}`;
@@ -100,6 +104,7 @@
     if (r.status === 403) { view('closed'); return; }
     if (!r.ok) { $('err').textContent = r.data.error || 'Soru alınamadı.'; return; }
     ({ token, gen, topic } = r.data);
+    const hasHint = r.data.has_hint;
     current = r.data.question;
     answer = '';
     checked = false;
@@ -112,7 +117,7 @@
     $('feedback').innerHTML = '';
     $('trace-box').innerHTML = '';
     $('ask-actions').classList.remove('hidden');
-    $('btn-hint').classList.remove('hidden');
+    $('btn-hint').classList.toggle('hidden', !hasHint);
     $('btn-hint').disabled = false;
     $('btn-check').disabled = false;
     view('question-view');
@@ -154,7 +159,7 @@
     if (d.correct) score.right += 1;
     updateScore();
     const before = topicsDone(unit);
-    const mastered = record(d.correct);
+    const mastered = record(d.correct) && completedTopics(unit).includes(topic);
 
     const fb = $('feedback');
     fb.className = 'sol ' + (d.correct ? 'ok' : 'no');
