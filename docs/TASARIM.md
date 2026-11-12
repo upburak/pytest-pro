@@ -107,6 +107,25 @@ taranmış gibidir: yeşil %75 ve üstü, kahverengi %50–74, kırmızı %50'ni
 Üniteler kitap içindekileri gibi listelenir: kırmızı ünite numarası, başlık, kısa açıklama ve seviye mührü.
 Numara kullanılır, çünkü üniteler gerçekten öğrenme sırasıdır.
 
+### Kod izi `.trace` (`static/js/tracer.js`)
+Sorunun kodu satır satır yürütülür. Solda satır numaralı kod durur; çalışmak üzere olan satır **fosforlu
+kalemle** işaretlidir (`li.now`). Sağda kapsam ("Ana program" ya da "kare() içinde"), değişkenler tablosu
+ve ekran çıktısı bulunur. Bu adımda değişen değişkenin satırı mavi mürekkep lekesiyle (`--ink-wash`)
+vurgulanır. Fosforlu kalem yalnızca "şimdi" için kullanıldığından burada kullanılmaz. Gezinme düğmelerle,
+adım çubuğuyla ve ←/→ tuşlarıyla yapılır. Hatalı son adımda hatanın türü ve satırı öğretmen kırmızısıyla,
+el yazısıyla gösterilir. Telefonda tek sütuna iner.
+
+Kullanım: `PyTest.renderTrace(kutu, iz)` izi çizer; `PyTest.traceToggle(düğme, kutu, getir)` düğmeye
+basılınca izi bir kez getirir, sonra gizler/gösterir.
+
+### "Neden yanlış" notu `.why-note`
+Öğretmenin kırmızı kalemle kâğıda düştüğü not: Caveat yazısı, `--pen` rengi. Yalnızca yanlış cevaplarda,
+seçilen şıkka özel açıklama olarak görünür. `PyTest.whyNote(metin)` ile üretilir.
+
+### Konu ilerlemesi (pratik modu)
+İçindekiler sayfasında her ünitenin altında `.topic-progress` alanı "3 / 8 konu tamamlandı" yazar.
+Bir şablonda ipucusuz üst üste iki doğru cevap, o konuyu tamamlar. Yeşil kalem rengi (`--ok`) kullanılır.
+
 ## Erişilebilirlik
 
 - Metin kontrastı WCAG AA üstündedir (en düşük ikincil metin 5,9:1).
@@ -114,6 +133,7 @@ Numara kullanılır, çünkü üniteler gerçekten öğrenme sırasıdır.
 - Doğru ve yanlış yalnızca renkle değil, ✓ ve ✗ işaretiyle ve "Doğru" ve "Yanlış" sözcükleriyle de belirtilir.
 - Sayaç `role="timer"`, kayıt durumu ve geri bildirim `aria-live` ile duyurulur.
 - `prefers-reduced-motion` tüm geçişleri kapatır.
+- Kod izi bir `group` öğesidir; adım değişince "Adım 4 / 12, satır 3" bilgisi `aria-live` ile duyurulur.
 
 ## Yapılmaması gerekenler
 

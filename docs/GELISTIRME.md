@@ -27,6 +27,7 @@ pytest_pro/
     helpers.py               Şablonlarda ortak yardımcılar (output_question, tf_question, ...)
     codecheck.py             Kod yazma sorularının AST denetleyicileri
     catalog.py               Müfredat haritası üretici (docs/MUFREDAT.md)
+    tracer.py                Adım adım kod izleme motoru (yalnızca şablon kodu çalıştırır)
     units/uNN_*.py           Her ünite ayrı bir dosya
   templates/                 base.html + sayfa şablonları
   static/css, static/js      common.js ortak yardımcılar; sayfa başına bir betik
@@ -68,6 +69,47 @@ Kurallar:
   otomatik tamamlar, yine de anlamlı çeldiriciler (öğrencilerin sık yaptığı hatalar) yazın.
 - Kod `input()` kullanıyorsa klavye girdisini `stdin=` ile verin.
 - Soru metni ve açıklama HTML'dir; içine değer gömerken `e()` ile kaçışlayın.
+
+### İpucu ve yanlış şık açıklamaları
+
+Her şablon bir **ipucu** taşır. Her yanlış şık, öğrencinin neden onu seçmiş olabileceğini açıklayan
+bir `Wrong` olarak yazılır. Bu içerik pratikte "İpucu" düğmesinde, pratikte ve sınav sonucunda
+"Neden yanlış" notunda, öğretmen panelinde de "en sık yanlış" satırında kullanılır.
+
+```python
+from ..helpers import Wrong, output_question
+
+return output_question(
+    code, answer, solution,
+    wrongs=[Wrong(str(n1 + n2), "Sayı gibi topladın; ama ikisi de tırnak içinde, yani metin..."),
+            Wrong(err("TypeError"), "İki metni + ile birleştirmek hata vermez...")],
+    hint="a ile b tırnak içinde mi? Öyleyse + ne yapar?",
+)
+```
+
+- **Kısa cevaplı sorular:** Sık yapılan yanlışlar `common_wrongs=[Wrong(...)]` ile verilir.
+  Öğrencinin cevabı puanlamadaki gibi normalleştirilerek eşleştirilir (boşluk, `3,5` = `3.5`).
+- **Elle kurulan seçenekli sorular:** Örneğin `type_func`. Bu sorularda `whys` sözlüğü
+  `whys_for_options(doğru, yanlışlar, seçenekler)` ile üretilir.
+- **Doğru/yanlış soruları:** Yalnızca `hint=` alır.
+- **Yedek çeldiriciler:** Seçenekler 4'ten az kalırsa eklenen yedek çeldiricilere genel bir açıklama
+  kendiliğinden verilir.
+- **Ses:** İkinci tekil şahıs. Öğrencinin düşüncesini adlandırın ("... diye düşünmüş olabilirsin"),
+  suçlamayın, en fazla iki cümle yazın.
+- **İpucu:** Nereye bakılacağını söyler, sonucu söylemez. Bunu bir test denetler: 3 karakterden uzun
+  cevaplar ipucunda geçmemeli.
+- **Kapsam:** İçeriği tamamlanmış üniteler `questions/__init__.py` içindeki `CONTENT_UNITS` listesindedir.
+  `tests/test_content.py::test_content_complete` bu ünitelerde ipucu ve açıklama eksiğine izin vermez.
+  Bir ünitenin içeriğini bitirince listeye ekleyin.
+
+### Kod izi
+
+Kod izi, `trace` alanından otomatik çıkarılır; şablon yazarı bir şey yapmaz:
+- `verify="output"` veya `"error"` olan sorularda sorunun kendi kodu izlenir.
+- Kod yazma sorularında örnek çözüm izlenir.
+
+`tests/test_tracer.py`, izin son çıktısının cevap anahtarıyla aynı olduğunu her şablon için doğrular.
+İzlenen kodda yalnızca `math` modülü içe aktarılabilir; `open`, `eval` gibi işlemler kapalıdır.
 
 Ekledikten sonra:
 
