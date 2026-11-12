@@ -48,8 +48,23 @@ def generate_questions(count, unit_ids=None):
     return [{"id": i + 1, **gen()} for i, gen in enumerate(pool)]
 
 
-def generate_one(unit_id):
-    return random.choice(UNITS[unit_id].generators)()
+REVISIT_CHANCE = 0.2  # tamamlanmış konudan tekrar sorusu gelme olasılığı
+
+
+def generate_one(unit_id, gen=None, avoid=()):
+    """Üniteden tek soru. gen verilirse o şablondan (aynı konudan yeni soru); verilmezse
+    avoid dışındaki şablonlardan, REVISIT_CHANCE olasılıkla avoid yok sayılarak."""
+    generators = UNITS[unit_id].generators
+    if gen is not None:
+        match = [g for g in generators if g.name == gen]
+        if not match:
+            raise ValueError(f"{gen} bu üniteye ait değil")
+        return match[0]()
+    avoid = set(avoid)
+    candidates = [g for g in generators if g.name not in avoid]
+    if not candidates or random.random() < REVISIT_CHANCE:
+        candidates = generators
+    return random.choice(candidates)()
 
 
 def public_question(q):
