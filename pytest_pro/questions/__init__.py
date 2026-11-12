@@ -13,7 +13,7 @@ from .registry import UNITS, all_generators, ordered_units
 PUBLIC_KEYS = ("id", "type", "topic", "text", "code", "options")
 DEFAULT_UNITS = ["temel", "veri_tipleri"]
 # İpucu ve yanlış şık açıklamaları tamamlanmış üniteler (testle zorunlu tutulur)
-CONTENT_UNITS = ("temel", "veri_tipleri", "operatorler", "metinler")
+CONTENT_UNITS = tuple(UNITS)  # ikinci teslimat: tüm üniteler
 
 
 def catalog():

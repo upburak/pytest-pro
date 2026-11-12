@@ -113,14 +113,20 @@ def output_question(code, answer, solution, wrongs=None, text=None, stdin=None, 
 
 
 def tf_question(statements_true, statements_false, solution, code=None, hint=None):
-    """Doğru/yanlış sorusu: verilen ifadelerden rastgele biri seçilir."""
+    """Doğru/yanlış sorusu: verilen ifadelerden rastgele biri seçilir.
+    İfadeler düz metin ya da (metin, açıklama) çifti olabilir. Açıklama, öğrencinin YANLIŞ seçeneği
+    işaretlemesi durumunda neden yanıldığını anlatır."""
     is_true = random.random() < 0.5
+    chosen = random.choice(statements_true if is_true else statements_false)
+    text, why = chosen if isinstance(chosen, tuple) else (chosen, None)
+    answer = "True" if is_true else "False"
     q = {
         "type": "tf",
-        "text": random.choice(statements_true if is_true else statements_false),
+        "text": text,
         "code": code,
-        "answer": "True" if is_true else "False",
+        "answer": answer,
         "solution": solution,
+        "whys": {("False" if is_true else "True"): why} if why else {},
     }
     if hint is not None:
         q["hint"] = hint

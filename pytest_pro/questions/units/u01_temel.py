@@ -79,13 +79,38 @@ def fstring():
 @q("input() Veri Tipi")
 def input_type():
     return tf_question(
-        ["Python'da <code>input()</code> fonksiyonu kullanıcıdan alınan veriyi her zaman "
-         "<strong>str (metin)</strong> tipinde döndürür."],
-        ["Python'da <code>input()</code> fonksiyonu kullanıcı bir sayı girdiğinde bunu otomatik olarak "
-         "<strong>int (tam sayı)</strong> tipine dönüştürür."],
+        [("Python'da <code>input()</code> fonksiyonu kullanıcıdan alınan veriyi her zaman "
+          "<strong>str (metin)</strong> tipinde döndürür.",
+          "Kullanıcı sayı yazsa bile input() bunu metin olarak döndürür; dönüşümü biz yaparız."),
+         ("Kullanıcı klavyeden 25 yazarsa <code>input()</code> sonucu <code>\"25\"</code> metnidir.",
+          "input() girilen her şeyi metin olarak döndürür; 25 de \"25\" olur."),
+         ("<code>input()</code> ile alınan bir sayıyla toplama yapmak için önce <code>int()</code> ya da "
+          "<code>float()</code> ile dönüştürmek gerekir.",
+          "input() metin döndürdüğü için sayı gibi kullanmadan önce dönüştürmek gerekir."),
+         ("<code>input(\"Adınız: \")</code> komutu parantez içindeki metni ekrana yazar ve kullanıcının "
+          "girişini bekler.",
+          "Parantez içindeki metin kullanıcıya gösterilen bir istem (soru) metnidir."),
+         ("Kullanıcı tam sayı yazarsa <code>yas = int(input())</code> satırından sonra yas değişkeni int "
+          "tipindedir.",
+          "int() metni tam sayıya çevirir; sonuç değişkene int olarak atanır."),
+         ("<code>type(input())</code> ifadesi, kullanıcı ne yazarsa yazsın <code>&lt;class 'str'&gt;</code> "
+          "verir.",
+          "input() her zaman str döndürdüğü için tipi her durumda str'dir.")],
+        [("Python'da <code>input()</code> fonksiyonu kullanıcı bir sayı girdiğinde bunu otomatik olarak "
+          "<strong>int (tam sayı)</strong> tipine dönüştürür.",
+          "input() hiçbir dönüşüm yapmaz; sayı da olsa metin döndürür."),
+         ("<code>input()</code> sonucu her zaman int tipindedir.",
+          "input() her zaman str döndürür; int'e çevirmek için int() gerekir."),
+         ("Kullanıcı 3.5 yazarsa <code>input()</code> float tipinde bir değer döndürür.",
+          "input() 3.5'i de metin olarak döndürür: \"3.5\". float() ile çevirmek gerekir."),
+         ("<code>sayi = input()</code> satırından sonra <code>sayi + 1</code> işlemi hatasız çalışır.",
+          "sayi bir metindir; metin ile sayı + ile toplanamaz ve TypeError oluşur."),
+         ("<code>input(\"Yaşınız: \")</code> komutu parantez içindeki metni değişkene atar.",
+          "Parantez içindeki metin yalnızca ekrana yazılan istemdir; değişkene kullanıcının yazdığı atanır."),
+         ("<code>input()</code> çalıştığında program kullanıcıyı beklemeden devam eder.",
+          "input() kullanıcı Enter'a basana kadar programı bekletir.")],
         "<code>input()</code> ile alınan her girdi str türündedir. Sayısal işlem için <code>int()</code> veya "
         "<code>float()</code> dönüşümü gerekir.",
-        code='veri = input("Bir şey giriniz: ")',
         hint="Sayıyla işlem yapmak için input()'tan sonra neden int() yazdığımızı hatırla.",
     )
 

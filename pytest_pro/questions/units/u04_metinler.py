@@ -89,13 +89,16 @@ def slicing():
 
 @q("len() Fonksiyonu", verify="output")
 def length():
-    word = random.choice(["Merhaba Dünya", "Python 3", "Ankara", "  boşluk  ", "a,b,c"])
+    word = random.choice(["Merhaba Dünya", "Python 3", "Ankara", "  boşluk  ", "a,b,c", "İstanbul",
+                          "Bilgisayar Bilimi", "print()", "3.14", "x = 5", "Kodlama!", "ğüşiöç", "Ders 1-2", "Okul"])
     n = len(word)
     common = [Wrong(str(n - 1), "len() son indeksi değil, karakter sayısını verir.")]
     if " " in word:
         common.append(Wrong(str(len(word.replace(" ", ""))), "Boşluklar da karakterdir ve sayılır."))
-    if "," in word:
-        common.append(Wrong(str(len(word.replace(",", ""))), "Virgüller de karakterdir ve sayılır."))
+    marks = "".join(ch for ch in word if not ch.isalnum() and ch != " ")
+    if marks:
+        common.append(Wrong(str(len([ch for ch in word if ch.isalnum() or ch == " "])),
+                            "Noktalama ve işaretler de karakterdir ve sayılır."))
     return output_question(
         f'print(len("{word}"))', str(n),
         f"<code>len()</code> metindeki karakter sayısını verir; boşluk ve noktalama da sayılır. "

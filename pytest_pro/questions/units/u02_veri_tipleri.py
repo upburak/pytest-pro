@@ -33,8 +33,10 @@ def _type_whys(literal, typ):
 @q("type() ve Veri Tipleri", verify="output")
 def type_func():
     literal, typ = random.choice([
-        ("3.14", "float"), ("0.0", "float"), ("42", "int"), ("-7", "int"),
-        ('"100"', "str"), ('"3.14"', "str"), ('"True"', "str"), ("True", "bool"), ("False", "bool"),
+        ("3.14", "float"), ("0.0", "float"), ("-2.5", "float"), ("7.0", "float"),
+        ("42", "int"), ("-7", "int"), ("0", "int"), ("100", "int"),
+        ('"100"', "str"), ('"3.14"', "str"), ('"True"', "str"), ('"-4"', "str"), ('""', "str"),
+        ("True", "bool"), ("False", "bool"),
     ])
     answer = f"<class '{typ}'>"
     note = " Tırnak içindeki her değer, içeriği ne olursa olsun metindir." if literal.startswith('"') else ""
@@ -110,6 +112,16 @@ def bool_conversion():
          "0.0 da sıfırdır; sıfır olan her sayı False sayılır."),
         ("[]", "False", "Boş liste False kabul edilir.",
          "Boş liste False sayılır; en az bir elemanı olan liste True'dur."),
+        ("-3", "True", "Negatif sayılar da sıfırdan farklıdır, True kabul edilir.",
+         "Yalnızca sıfır False sayılır; negatif sayılar da True'dur."),
+        ('"False"', "True", '"False" yazısı bir metindir; boş olmadığı için True\'dur.',
+         'Tırnak içindeki "False" mantıksal değer değil, içi dolu bir metindir; bu yüzden True\'dur.'),
+        ("0.5", "True", "0.5 sıfırdan farklıdır, True kabul edilir.",
+         "Sıfırdan farklı her sayı, kesirli olsa bile True'dur."),
+        ("[0]", "True", "İçinde bir eleman olan liste boş değildir, True'dur.",
+         "Liste boş değil; içindeki elemanın 0 olması önemli değil, liste True'dur."),
+        ("None", "False", "None 'hiçbir şey' anlamına gelir ve False kabul edilir.",
+         "None değer yokluğunu gösterir ve False sayılır."),
     ])
     return output_question(
         f"print(bool({value}))", result, f"<code>bool()</code> değerin doğruluk karşılığını verir. {e(why)}",
@@ -165,16 +177,18 @@ def str_concat():
 
 @q("Metin ve Sayı Birleştirme", verify="error")
 def str_plus_int():
-    age = random.randint(14, 18)
+    var, label = random.choice([("yas", "Yaşım"), ("puan", "Puanım"), ("sinif", "Sınıfım"), ("adet", "Adet:"),
+                                ("no", "Numaram"), ("skor", "Skor:")])
+    value = random.randint(9, 99)
     return output_question(
-        f'yas = {age}\nprint("Yaşım " + yas)', err("TypeError"),
-        "str ile int <code>+</code> ile birleştirilemez. Çözüm: <code>\"Yaşım \" + str(yas)</code>, "
-        "<code>print(\"Yaşım\", yas)</code> veya <code>f\"Yaşım {yas}\"</code>.",
+        f'{var} = {value}\nprint("{label} " + {var})', err("TypeError"),
+        f"str ile int <code>+</code> ile birleştirilemez. Çözüm: <code>\"{label} \" + str({var})</code>, "
+        f"<code>print(\"{label}\", {var})</code> veya <code>f\"{label} {{{var}}}\"</code>.",
         wrongs=[
-            Wrong(f"Yaşım {age}", "Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını ister. "
-                                  "Önce str(yas) ile çevirmek gerekir."),
-            Wrong(f"Yaşım{age}", "Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını ister."),
-            Wrong(f"Yaşım + {age}", "+ ekrana yazılmaz; iki değeri birleştirmeye çalışan bir işlemdir."),
+            Wrong(f"{label} {value}", f"Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını "
+                                      f"ister. Önce str({var}) ile çevirmek gerekir."),
+            Wrong(f"{label}{value}", "Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını ister."),
+            Wrong(f"{label} + {value}", "+ ekrana yazılmaz; iki değeri birleştirmeye çalışan bir işlemdir."),
         ],
         hint="+ işaretinin iki yanındaki değerlerin tipine bak: ikisi de metin mi?",
     )

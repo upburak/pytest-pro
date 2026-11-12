@@ -74,3 +74,28 @@ def test_content_complete(gen):
                     assert q["whys"].get(opt), f"açıklamasız şık: {opt!r}"
         if q["type"] == "short":
             assert q["whys"], "sık yanlış yok"
+        if q["type"] == "tf":
+            wrong = "False" if q["answer"] == "True" else "True"
+            assert q.get("whys", {}).get(wrong), "doğru/yanlış sorusunda yanlış seçeneğin açıklaması yok"
+
+
+VARIETY_MIN = 12  # yan yana iki öğrencinin aynı soruyu görme olasılığı en fazla ~%8
+
+
+@pytest.mark.parametrize("gen", [g for u in UNITS.values() for g in u.generators], ids=lambda g: g.name)
+def test_template_variety(gen):
+    seen = set()
+    for seed in range(500):
+        random.seed(seed)
+        q = gen()
+        seen.add((q["text"], q.get("code"), q["answer"], tuple(sorted(q.get("options") or []))))
+    assert len(seen) >= VARIETY_MIN, f"yalnızca {len(seen)} farklı soru"
+
+
+def test_tf_statement_reasons_become_whys():
+    from pytest_pro.questions.helpers import tf_question
+    for seed in range(20):
+        random.seed(seed)
+        q = tf_question([("D", "neden-d")], [("Y", "neden-y")], "s")
+        wrong = "False" if q["answer"] == "True" else "True"
+        assert q["whys"] == {wrong: "neden-d" if q["text"] == "D" else "neden-y"}
