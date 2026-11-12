@@ -69,6 +69,8 @@ def results():
             "status": "bitti" if done else "sinavda",
             "auto": bool(r["auto_submitted"]),
             "remaining": None if done else int(exams.remaining(r, t)),
+            "answered": len(json.loads(r["answers"] or "{}")),
+            "total": len(json.loads(r["questions"])),
         })
     rows.reverse()
 

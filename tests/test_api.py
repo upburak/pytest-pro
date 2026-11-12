@@ -305,7 +305,7 @@ def test_pages_and_security_headers(client):
     for path in ("/", "/pratik", "/ogretmen", "/static/css/style.css", "/static/js/common.js",
                  "/static/js/student.js", "/static/js/teacher.js", "/static/js/practice.js", "/static/js/tracer.js",
                  "/static/fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2",
-                 "/static/fonts/jetbrains-mono-latin-400-normal.woff2", "/static/fonts/caveat-latin-700-normal.woff2"):
+                 "/static/fonts/jetbrains-mono-latin-400-normal.woff2", "/static/fonts/fraunces-latin-700-normal.woff2"):
         r = client.get(path)
         assert r.status_code == 200, path
         assert "script-src 'self'" in r.headers["Content-Security-Policy"]
@@ -367,3 +367,13 @@ def test_non_object_json_is_rejected_cleanly(client, path, body):
     client.put("/api/settings", json={"practice_open": True}, headers=TEACHER)
     r = client.post(path, json=body)
     assert r.status_code < 500 and r.is_json, (path, body, r.status_code)
+
+
+def test_results_show_live_progress(client):
+    _, d = start(client)
+    client.post("/api/save", json={"exam_id": d["exam_id"], "answers": {"1": "x", "2": "y"}})
+    row = client.get("/api/results", headers=TEACHER).get_json()["rows"][0]
+    assert (row["answered"], row["total"]) == (2, 10)
+    submit(client, d["exam_id"])
+    row = client.get("/api/results", headers=TEACHER).get_json()["rows"][0]
+    assert row["total"] == 10

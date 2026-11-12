@@ -25,76 +25,182 @@ window.PyTest = (function () {
     return request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   }
 
+  // ---------- Python sözdizimi renklendirme (yalnızca görünüm; kod çalıştırılmaz) ----------
+  const KEYWORDS = new Set(('and as assert break class continue def del elif else except finally for from global if import ' +
+    'in is lambda nonlocal not or pass raise return try while with yield True False None').split(' '));
+  const BUILTINS = new Set(('print input int float str bool len range type list dict set tuple abs round min max sum ' +
+    'sorted reversed enumerate zip map filter open isinstance chr ord').split(' '));
+  const TOKEN = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_À-ɏ][\wÀ-ɏ]*)/g;
+
+  /** Kodu renklendirilmiş, satır satır HTML'e çevirir (her satır bir <span class="ln">). */
+  function highlight(code) {
+    code = String(code);
+    let html = '';
+    let last = 0;
+    code.replace(TOKEN, (m, cm, st, nu, id, at) => {
+      html += esc(code.slice(last, at));
+      last = at + m.length;
+      let cls = '';
+      if (cm) cls = 'tk-cm';
+      else if (st) cls = 'tk-st';
+      else if (nu) cls = 'tk-nu';
+      else if (KEYWORDS.has(id)) cls = 'tk-kw';
+      else if (BUILTINS.has(id)) cls = 'tk-fn';
+      // çok satırlı dizgiler satır sınırında kapanıp yeniden açılır
+      html += cls ? esc(m).split('\n').map((part) => `<span class="${cls}">${part}</span>`).join('\n') : esc(m);
+      return m;
+    });
+    html += esc(code.slice(last));
+    return html.split('\n').map((line) => `<span class="ln">${line || ' '}</span>`).join('');
+  }
+
+  /** Salt okunur kod görünümü: satır numaralı ve renklendirilmiş. */
+  function renderCode(el, code) {
+    el.innerHTML = `<code class="codeview">${highlight(code)}</code>`;
+  }
+
+  /** Satır numaralı kod yazma alanı (kod sorusu). */
+  function codeEditor(saved, onChange, focus) {
+    const wrap = document.createElement('div');
+    wrap.className = 'code-editor';
+    const gutter = document.createElement('pre');
+    gutter.className = 'gutter';
+    gutter.setAttribute('aria-hidden', 'true');
+    const ta = document.createElement('textarea');
+    ta.className = 'code'; ta.value = saved; ta.spellcheck = false;
+    ta.placeholder = '# Python kodunu buraya yaz...'; ta.setAttribute('aria-label', 'Python kodun');
+    const lines = () => {
+      const n = Math.max(ta.value.split('\n').length, 12);
+      gutter.textContent = Array.from({ length: n }, (_, i) => i + 1).join('\n');
+    };
+    ta.addEventListener('input', () => { lines(); onChange(ta.value); });
+    ta.addEventListener('scroll', () => { gutter.scrollTop = ta.scrollTop; });
+    ta.addEventListener('keydown', (e) => { // Tab tuşu 4 boşluk eklesin
+      if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        const s = ta.selectionStart;
+        ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = s + 4;
+        lines();
+        onChange(ta.value);
+      }
+    });
+    lines();
+    wrap.append(gutter, ta);
+    if (focus) setTimeout(() => ta.focus(), 0);
+    return wrap;
+  }
+
   /**
    * Soru tipine göre cevap alanını çizer (çoktan seçmeli, doğru/yanlış, kısa cevap, kod).
+   * Kod sorusunda yazma alanı codeBox'a (ortadaki editör) çizilir.
    * onChange(değer) her değişiklikte çağrılır.
    */
-  function renderAnswer(box, q, saved, onChange, focus) {
+  function renderAnswer(box, q, saved, onChange, focus, codeBox) {
     box.innerHTML = '';
     saved = saved || '';
     if (q.type === 'mc' || q.type === 'tf') {
-      // Optik form: her şık harfli bir yuvarlak; seçilince kurşun kalemle doldurulmuş gibi kararır.
       const opts = q.type === 'mc' ? q.options : ['True', 'False'];
       const letters = q.type === 'mc' ? 'ABCDE' : 'DY';
       const group = document.createElement('div');
+      group.className = 'opts';
       group.setAttribute('role', 'radiogroup');
       group.setAttribute('aria-label', 'Şıklar');
       opts.forEach((opt, i) => {
         const lab = document.createElement('label');
         lab.className = 'opt' + (q.type === 'tf' ? ' opt-tf' : '') + (saved === opt ? ' sel' : '');
+        lab.dataset.key = letters[i];
         const inp = document.createElement('input');
         inp.type = 'radio'; inp.name = 'ans-' + q.id; inp.value = opt; inp.checked = saved === opt;
         inp.addEventListener('change', () => {
           group.querySelectorAll('.opt').forEach((l) => l.classList.toggle('sel', l.contains(inp)));
           onChange(opt);
         });
-        const bubble = document.createElement('span');
-        bubble.className = 'bubble';
-        bubble.setAttribute('aria-hidden', 'true');
-        bubble.textContent = letters[i];
+        const dot = document.createElement('span');
+        dot.className = 'radio';
+        dot.setAttribute('aria-hidden', 'true');
         const sp = document.createElement('span');
         sp.className = 'opt-text';
         sp.textContent = q.type === 'tf' ? tfLabel(opt) : opt;
-        lab.append(inp, bubble, sp);
+        const key = document.createElement('kbd');
+        key.textContent = letters[i];
+        key.setAttribute('aria-hidden', 'true');
+        lab.append(inp, dot, sp, key);
         group.appendChild(lab);
       });
       box.appendChild(group);
       return;
     }
     if (q.type === 'short') {
+      const lab = document.createElement('label');
+      lab.className = 'field';
+      lab.textContent = 'Cevabın';
       const inp = document.createElement('input');
-      inp.type = 'text'; inp.value = saved; inp.className = 'mono'; inp.autocomplete = 'off';
-      inp.placeholder = 'Cevabını buraya yaz...'; inp.setAttribute('aria-label', 'Cevabın');
+      inp.type = 'text'; inp.value = saved; inp.className = 'mono short-answer'; inp.autocomplete = 'off';
+      inp.placeholder = 'Buraya yaz';
       inp.addEventListener('input', (e) => onChange(e.target.value));
-      box.appendChild(inp);
+      lab.appendChild(inp);
+      box.appendChild(lab);
       if (focus) inp.focus();
       return;
     }
     if (q.type === 'code') {
-      const ta = document.createElement('textarea');
-      ta.className = 'code'; ta.value = saved; ta.spellcheck = false;
-      ta.placeholder = '# Python kodunu buraya yaz...'; ta.setAttribute('aria-label', 'Python kodun');
-      ta.addEventListener('input', (e) => onChange(e.target.value));
-      ta.addEventListener('keydown', (e) => { // Tab tuşu 4 boşluk eklesin
-        if (e.key === 'Tab' && !e.shiftKey) {
-          e.preventDefault();
-          const s = ta.selectionStart;
-          ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ta.selectionEnd);
-          ta.selectionStart = ta.selectionEnd = s + 4;
-          onChange(ta.value);
-        }
-      });
-      box.appendChild(ta);
-      if (focus) ta.focus();
+      const note = document.createElement('p');
+      note.className = 'pane-note';
+      note.textContent = 'Kodunu ortadaki editöre yaz. Tab tuşu 4 boşluk ekler.';
+      box.appendChild(note);
+      const target = codeBox || box;
+      target.innerHTML = '';
+      target.appendChild(codeEditor(saved, onChange, focus));
     }
   }
 
-  /** Soru metnini ve kod parçasını gösterir. Metin sunucunun şablonlardan ürettiği güvenli HTML'dir. */
-  function renderQuestionText(textEl, codeEl, q) {
-    textEl.innerHTML = q.text;
-    if (q.code) { codeEl.textContent = q.code; codeEl.classList.remove('hidden'); }
-    else codeEl.classList.add('hidden');
+  /**
+   * Soruyu editör düzenine yerleştirir. els: {tab, code, prose, slot, text}
+   * - kodlu soru: ortada renklendirilmiş kod, sağda soru metni
+   * - kodsuz soru: soru metni ortada büyük, sağda kısa yönerge
+   * - kod yazma sorusu: ortada yazma alanı, sağda görev metni
+   * Metin sunucunun şablonlardan ürettiği güvenli HTML'dir.
+   */
+  function renderQuestion(els, q, n) {
+    const isCode = q.type === 'code';
+    const ext = q.code || isCode ? '.py' : '.txt';
+    els.tab.textContent = (isCode ? 'cevap_' : 'soru_') + String(n).padStart(2, '0') + ext;
+    els.code.classList.toggle('hidden', !q.code);
+    els.prose.classList.toggle('hidden', !!q.code || isCode);
+    els.slot.classList.toggle('hidden', !isCode);
+    if (!isCode) els.slot.innerHTML = '';
+    // uzun görev metinleri başlık yazısıyla değil, okunaklı gövde yazısıyla gösterilir
+    const plain = String(q.text).replace(/<[^>]*>/g, '');
+    els.text.classList.toggle('long', plain.length > 90 && (!!q.code || isCode));
+    if (q.code) {
+      renderCode(els.code, q.code);
+      els.text.innerHTML = q.text;
+    } else if (isCode) {
+      els.text.innerHTML = q.text;
+    } else {
+      els.prose.innerHTML = q.text;
+      els.text.textContent = q.type === 'tf' ? 'Bu ifade doğru mu, yanlış mı?' : 'Doğru cevabı seç.';
+    }
   }
 
-  return { esc, tfLabel, fmtAnswer, levelBadge, request, post, renderAnswer, renderQuestionText };
+  /** Klavye kısayolu: yazı alanında değilken harf ya da rakamla şık seçer. true dönerse olay işlendi. */
+  function pickByKey(box, e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    const t = e.target;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && t.type !== 'radio'))) return false;
+    const labels = [...box.querySelectorAll('.opt')];
+    if (!labels.length) return false;
+    const key = e.key.toLocaleUpperCase('tr');
+    let i = labels.findIndex((l) => l.dataset.key === key);
+    if (i < 0 && /^[1-5]$/.test(e.key)) i = Number(e.key) - 1;
+    if (i < 0 || i >= labels.length) return false;
+    const inp = labels[i].querySelector('input');
+    inp.checked = true;
+    inp.dispatchEvent(new Event('change'));
+    inp.focus();
+    return true;
+  }
+
+  return { esc, tfLabel, fmtAnswer, levelBadge, request, post, highlight, renderCode, renderAnswer, renderQuestion, pickByKey };
 })();

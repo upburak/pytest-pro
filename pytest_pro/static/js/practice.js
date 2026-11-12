@@ -2,7 +2,7 @@
 'use strict';
 (function () {
   const P = window.PyTest;
-  const { esc, fmtAnswer, levelBadge, post, request, renderAnswer, renderQuestionText } = P;
+  const { esc, fmtAnswer, post, request, renderAnswer, renderQuestion, pickByKey } = P;
   const $ = (id) => document.getElementById(id);
   const STORE = 'pytest_pratik';
   const STREAK_TO_MASTER = 2; // ipucusuz üst üste 2 doğru = konu tamamlandı
@@ -55,12 +55,22 @@
 
   // ---------- görünümler ----------
   function view(id) {
-    ['closed', 'units-view', 'question-view'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
+    $('closed').classList.toggle('hidden', id !== 'closed');
+    $('practice').classList.toggle('hidden', id === 'closed');
+    const asking = id === 'question-view';
+    $('question-view').classList.toggle('hidden', !asking);
+    $('pane-idle').classList.toggle('hidden', asking);
+    $('welcome').classList.toggle('hidden', asking);
+    document.body.classList.toggle('in-exam', asking);
+    if (!asking) {
+      ['q-code', 'q-prose', 'q-slot', 'trace-box'].forEach((x) => $(x).classList.add('hidden'));
+      $('q-tab').textContent = 'baslarken.txt';
+      $('q-topic').textContent = '';
+    }
   }
 
   function updateScore() {
-    $('score').classList.toggle('hidden', score.total === 0);
-    $('score').textContent = `${score.right} / ${score.total} doğru`;
+    $('score').textContent = score.total ? `Bu oturumda ${score.right} / ${score.total} doğru` : '';
   }
 
   async function loadUnits() {
@@ -68,30 +78,32 @@
     if (r.status === 403) { view('closed'); return; }
     if (!r.ok) { view('closed'); $('closed').querySelector('h2').textContent = r.data.error || 'Sunucuya ulaşılamadı.'; return; }
     units = r.data;
+    renderUnits();
+    view('units-view');
+  }
+
+  function renderUnits() {
     const grid = $('unit-grid');
     grid.innerHTML = '';
     units.forEach((u) => {
-      const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'unit-card';
+      b.className = 'unit-item' + (u.id === unit ? ' current' : '');
       const done = completedTopics(u.id);
-      const progress = load()[u.id]
-        ? `<span class="topic-progress">${done.length} / ${u.topics.length} konu tamamlandı</span>`
-          + (done.length ? `<span class="muted small">Tamamlanan: ${done.map(esc).join(', ')}</span>` : '')
-        : '';
-      b.innerHTML = `<span class="unit-no">${u.order}</span>
-        <span class="unit-body"><b>${esc(u.title)}</b><span class="muted">${esc(u.description)}</span>${progress}</span>
-        ${levelBadge(u.level)}`;
+      const meta = done.length
+        ? `<span class="unit-meta done">${done.length} / ${u.topics.length} konu tamamlandı</span>`
+        : `<span class="unit-meta">${u.topics.length} konu · ${esc(u.level)}</span>`;
+      b.innerHTML = `<span class="unit-no">${u.order}</span><span class="unit-name">${esc(u.title)}${meta}</span>`;
+      b.title = u.description + (done.length ? '\nTamamlanan: ' + done.join(', ') : '');
+      if (u.id === unit) b.setAttribute('aria-current', 'true');
       b.addEventListener('click', () => startUnit(u.id));
-      li.appendChild(b);
-      grid.appendChild(li);
+      grid.appendChild(b);
     });
-    view('units-view');
   }
 
   function startUnit(id) {
     unit = id;
+    renderUnits();
     $('unit-done').classList.add('hidden');
     nextQuestion(null);
   }
@@ -111,8 +123,9 @@
     usedHint = false;
     $('q-unit').textContent = r.data.unit;
     $('q-topic').textContent = topic;
-    renderQuestionText($('q-text'), $('q-code'), current);
-    renderAnswer($('answer-box'), current, '', (v) => { answer = v; }, true);
+    view('question-view');
+    renderQuestion({ tab: $('q-tab'), code: $('q-code'), prose: $('q-prose'), slot: $('q-slot'), text: $('q-text') }, current, score.total + 1);
+    renderAnswer($('answer-box'), current, '', (v) => { answer = v; }, true, $('q-slot'));
     ['hint-box', 'feedback', 'trace-box', 'after-actions'].forEach((id) => $(id).classList.add('hidden'));
     $('feedback').innerHTML = '';
     $('trace-box').innerHTML = '';
@@ -120,7 +133,6 @@
     $('btn-hint').classList.toggle('hidden', !hasHint);
     $('btn-hint').disabled = false;
     $('btn-check').disabled = false;
-    view('question-view');
   }
 
   async function showHint() {
@@ -161,16 +173,27 @@
     const before = topicsDone(unit);
     const mastered = record(d.correct) && completedTopics(unit).includes(topic);
 
+    const group = $('answer-box').querySelector('.opts');
+    if (group) {
+      group.classList.add('locked');
+      group.querySelectorAll('.opt').forEach((l) => {
+        const inp = l.querySelector('input');
+        inp.disabled = true;
+        l.classList.toggle('right', inp.value === d.answer);
+        l.classList.toggle('wrong', inp.checked && !d.correct);
+        if (inp.checked && !d.correct) l.classList.remove('sel');
+      });
+    }
     const fb = $('feedback');
     fb.className = 'sol ' + (d.correct ? 'ok' : 'no');
     if (d.correct) {
       fb.innerHTML = `
-        <div class="sol-head"><span class="pen-note green-t">Doğru${usedHint ? ' (ipucuyla)' : ''}</span></div>
+        <div class="sol-head"><span class="verdict">Doğru${usedHint ? ' (ipucuyla)' : ''}</span></div>
         ${mastered ? `<p class="muted">Bu konuyu tamamladın: ${esc(topic)}</p>` : ''}
         <div class="sol-meta"><div class="exp"><b>Açıklama:</b> ${d.solution}</div></div>`;
     } else {
       fb.innerHTML = `
-        <div class="sol-head"><span class="pen-note">Yanlış</span></div>
+        <div class="sol-head"><span class="verdict">Yanlış</span></div>
         ${d.why ? P.whyNote(d.why) : ''}
         <div class="sol-meta">
           <div><b>Doğru cevap:</b> <span class="ans green-t">${esc(fmtAnswer(d.type, d.answer))}</span></div>
@@ -181,12 +204,12 @@
 
     const actions = $('after-actions');
     actions.innerHTML = '';
-    const nextBtn = button('Yeni soru', d.correct ? 'green' : '', () => nextQuestion(null));
+    const nextBtn = button('Yeni soru', d.correct ? 'primary' : '', () => nextQuestion(null));
     if (d.correct) {
       primaryAction = () => nextQuestion(null);
     } else {
       const sameGen = gen;
-      actions.appendChild(button('Bu konudan yeni soru', 'green', () => nextQuestion(sameGen)));
+      actions.appendChild(button('Bu konudan yeni soru', 'primary', () => nextQuestion(sameGen)));
       primaryAction = () => nextQuestion(sameGen);
     }
     if (d.has_trace) {
@@ -197,7 +220,9 @@
     actions.appendChild(nextBtn);
     $('ask-actions').classList.add('hidden');
     actions.classList.remove('hidden');
-    actions.querySelector('button').focus();
+    actions.querySelector('button').focus({ preventScroll: true });
+    fb.scrollIntoView({ block: 'nearest' });
+    renderUnits();
 
     const info = unitInfo(unit);
     if (info && before < info.topics.length && topicsDone(unit) === info.topics.length) {
@@ -211,11 +236,12 @@
     }
   }
 
-  $('btn-units').addEventListener('click', loadUnits);
   $('btn-hint').addEventListener('click', showHint);
   $('btn-check').addEventListener('click', check);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.ctrlKey && !$('question-view').classList.contains('hidden')) {
+    if ($('question-view').classList.contains('hidden')) return;
+    if (!checked && pickByKey($('answer-box'), e)) { e.preventDefault(); return; }
+    if (e.key === 'Enter' && e.ctrlKey) {
       if (checked) { if (primaryAction) primaryAction(); } else check();
     }
   });

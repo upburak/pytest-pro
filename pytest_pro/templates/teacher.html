@@ -1,119 +1,126 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Öğretmen Paneli{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/teacher.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro{% endblock %}
 {% block subheading %}Öğretmen paneli{% endblock %}
-{% block header_right %}<button id="btn-logout" type="button" class="btn sm hidden">Çıkış</button>{% endblock %}
-
-{% block content %}
-  <!-- ŞİFRE -->
-  <form id="login" class="card narrow center stack">
-    <h2>Öğretmen Girişi</h2>
-    <p class="muted">Şifre, <code>server.py</code> çalıştırıldığında konsolda yazar.</p>
-    <input type="password" id="pw" placeholder="Öğretmen şifresi" autocomplete="current-password" aria-label="Öğretmen şifresi">
-    <div id="login-err" class="err" role="alert"></div>
-    <button class="btn primary block" type="submit">Giriş</button>
-  </form>
-
-  <!-- PANEL -->
-  <div id="panel" class="hidden stack">
-    <div class="card row between">
-      <div class="stack grow">
-        <div class="muted">Öğrencilerin gireceği adres</div>
-        <div id="url" class="url">...</div>
-        <div class="muted">Pratik modu: <span id="practice-url" class="mono"></span></div>
-        <div class="muted">Öğrenci ve öğretmen bilgisayarı aynı ağda olmalı.</div>
-      </div>
-      <img id="qr" class="qr" alt="Öğrenci adresinin QR kodu">
-    </div>
-
-    <div class="card stack">
-      <div class="row between">
-        <h3>Sınav ayarları</h3>
-        <div class="row">
-          <span id="open-state" class="badge"></span>
-          <button id="btn-toggle-open" type="button" class="btn sm"></button>
-        </div>
-      </div>
-      <form id="settings-form" class="stack">
-        <div class="form-grid">
-          <label class="field">Sınav başlığı
-            <input type="text" id="set-title" maxlength="80" placeholder="Örn: 9-A Python 1. Sınav">
-          </label>
-          <label class="field">Soru sayısı
-            <select id="set-count"></select>
-          </label>
-          <label class="field">Süre (dakika)
-            <input type="number" id="set-duration" min="1" max="180" step="1" required>
-          </label>
-        </div>
-        <fieldset class="units-box">
-          <legend>Sınava girecek üniteler <span class="muted small">(sorular seçilen ünitelere eşit dağıtılır)</span></legend>
-          <div id="set-units" class="unit-checks"></div>
-        </fieldset>
-        <div class="form-grid">
-          <label class="check"><input type="checkbox" id="set-solutions"> Sınav sonunda çözümleri göster</label>
-          <label class="check"><input type="checkbox" id="set-retake"> Aynı numarayla tekrar girişe izin ver</label>
-          <label class="check"><input type="checkbox" id="set-practice"> Pratik modunu aç</label>
-        </div>
-        <div class="row">
-          <button type="submit" class="btn primary sm">Ayarları kaydet</button>
-          <span id="settings-msg" class="muted" role="status"></span>
-        </div>
-      </form>
-      <p class="muted">Başlık, soru sayısı, süre ve üniteler yeni başlayan sınavlara uygulanır; devam eden sınavlar
-        etkilenmez. Sınavı kapatmak yeni girişleri durdurur, sınavdaki öğrenciler devam edebilir.
-        Pratik modu çözümleri gösterdiği için sınav sırasında kapalı tutmanız önerilir.</p>
-    </div>
-
-    <div class="grid4">
-      <div class="stat"><p>Sınavı bitiren</p><b id="s-done">0</b></div>
-      <div class="stat"><p>Şu an sınavda</p><b id="s-live" class="blue-t">0</b></div>
-      <div class="stat"><p>Sınıf ortalaması</p><b id="s-avg">—</b></div>
-      <div class="stat"><p>50 ve üstü alan</p><b id="s-pass">—</b></div>
-    </div>
-
-    <div class="card">
-      <div class="row between mb-12">
-        <h3>Öğrenci sonuçları <span class="dot" title="3 saniyede bir yenilenir"></span></h3>
-        <div class="row">
-          <select id="title-filter" class="filter" aria-label="Sınava göre filtrele"></select>
-          <input type="search" id="search" class="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
-          <button id="btn-csv" type="button" class="btn sm">Excel için indir</button>
-          <button id="btn-clear" type="button" class="btn red sm">Tümünü sil</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Okul no</th><th>Ad soyad</th><th>Başlama</th><th>Doğru / yanlış</th><th>Puan</th><th>Durum</th></tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <p class="muted">Ayrıntı için tamamlanmış bir satıra tıkla. Aynı sınava aynı numarayla birden fazla girilirse
-        "Deneme #" olarak işaretlenir. Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
-      <div id="net-err" class="err" role="alert"></div>
-    </div>
-
-    <div class="card">
-      <h3>Konu analizi</h3>
-      <p class="muted">Tamamlanan sınavlarda konulara göre doğru oranı; en zayıf konu en üstte.</p>
-      <div id="topics" class="topics"></div>
-    </div>
+{% block header_right %}
+  <div id="top-tools" class="top-tools hidden">
+    <span id="open-state" class="badge"></span>
+    <button id="btn-toggle-open" type="button" class="btn sm"></button>
+    <button id="btn-logout" type="button" class="btn sm">Çıkış</button>
   </div>
 {% endblock %}
 
-{% block after_main %}
-<!-- DETAY -->
-<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="m-title">
-  <div class="card">
-    <div class="row between">
-      <h3 id="m-title" class="m0"></h3>
-      <div class="row">
-        <button id="m-delete" type="button" class="btn red sm">Kaydı sil</button>
-        <button id="m-close" type="button" class="btn sm">Kapat</button>
-      </div>
+{% block content %}
+  <!-- ŞİFRE -->
+  <div id="login-stage" class="center-stage">
+    <div class="window single">
+      <form id="login" class="pane">
+        <h2>Öğretmen girişi</h2>
+        <p class="pane-note">Şifre, <code>server.py</code> çalıştırıldığında konsolda yazar.</p>
+        <label class="field">Şifre
+          <input type="password" id="pw" autocomplete="current-password">
+        </label>
+        <div id="login-err" class="err" role="alert"></div>
+        <button class="btn primary block" type="submit">Giriş yap</button>
+      </form>
     </div>
-    <div id="m-body" class="modal-body"></div>
   </div>
-</div>
+
+  <!-- PANEL: öğrenciler | sınıf özeti ya da öğrenci ayrıntısı | adres ve ayarlar -->
+  <div id="panel" class="ide hidden">
+    <nav class="files" aria-label="Öğrenciler">
+      <div class="files-tools">
+        <select id="title-filter" aria-label="Sınava göre filtrele"></select>
+        <input type="search" id="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
+      </div>
+      <div id="tiles" aria-live="off"></div>
+    </nav>
+
+    <section class="editor">
+      <div class="tabs">
+        <button id="tab-overview" type="button" class="tab active">sinif_ozeti.txt</button>
+        <span id="tab-detail" class="tab hidden"><span id="tab-detail-name"></span>
+          <button id="m-close" type="button" class="btn sm subtle" aria-label="Öğrenci ayrıntısını kapat">✕</button></span>
+      </div>
+      <div id="overview" class="doc"><div class="doc-inner">
+        <div class="stats">
+          <div class="stat"><p>Sınavı bitiren</p><b id="s-done">0</b></div>
+          <div class="stat"><p>Şu an sınavda</p><b id="s-live">0</b></div>
+          <div class="stat"><p>Sınıf ortalaması</p><b id="s-avg">—</b></div>
+          <div class="stat"><p>50 ve üstü alan</p><b id="s-pass">—</b></div>
+        </div>
+        <div>
+          <div class="row between">
+            <h3>Konu analizi</h3>
+            <div class="row">
+              <button id="btn-csv" type="button" class="btn sm">Excel için indir</button>
+              <button id="btn-clear" type="button" class="btn sm danger">Tümünü sil</button>
+            </div>
+          </div>
+          <p class="muted">Tamamlanan sınavlarda konulara göre doğru oranı; en zayıf konu en üstte.</p>
+          <div id="topics" class="topics"></div>
+        </div>
+        <p class="muted small">Soldaki listede sınavdaki öğrencilerin kaç soru cevapladığı canlı görünür; ayrıntı için sınavı biten bir öğrenciye tıkla.
+          Aynı numarayla birden fazla girilirse "Deneme #" olarak işaretlenir. Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
+      </div></div>
+      <div id="detail" class="doc hidden"><div class="doc-inner">
+        <div class="row between">
+          <h2 id="m-title"></h2>
+          <button id="m-delete" type="button" class="btn sm danger">Kaydı sil</button>
+        </div>
+        <div id="m-body"></div>
+      </div></div>
+    </section>
+
+    <aside class="pane" aria-label="Sınav adresi ve ayarlar">
+      <section class="pane-section">
+        <p class="pane-kicker">Öğrencilerin gireceği adres</p>
+        <div class="row">
+          <div class="grow">
+            <div id="url" class="url">...</div>
+            <p class="pane-note">Pratik: <span id="practice-url" class="mono"></span></p>
+          </div>
+          <img id="qr" class="qr" alt="Öğrenci adresinin QR kodu">
+        </div>
+        <p class="pane-note">Öğrenci ve öğretmen bilgisayarı aynı ağda olmalı.</p>
+      </section>
+      <section class="pane-section">
+        <h3>Sınav ayarları</h3>
+        <form id="settings-form" class="stack">
+          <label class="field">Sınav başlığı
+            <input type="text" id="set-title" maxlength="80" placeholder="Örn: 9-A Python 1. Sınav">
+          </label>
+          <div class="form-grid">
+            <label class="field">Soru sayısı
+              <select id="set-count"></select>
+            </label>
+            <label class="field">Süre (dakika)
+              <input type="number" id="set-duration" min="1" max="180" step="1" required>
+            </label>
+          </div>
+          <fieldset class="units-box">
+            <legend>Sınava girecek üniteler <span class="muted small">(sorular eşit dağıtılır)</span></legend>
+            <div id="set-units" class="unit-checks"></div>
+          </fieldset>
+          <div>
+            <label class="check"><input type="checkbox" id="set-solutions"> Sınav sonunda çözümleri göster</label>
+            <label class="check"><input type="checkbox" id="set-retake"> Aynı numarayla tekrar girişe izin ver</label>
+            <label class="check"><input type="checkbox" id="set-practice"> Pratik modunu aç</label>
+          </div>
+          <div class="row">
+            <button type="submit" class="btn primary">Ayarları kaydet</button>
+            <span id="settings-msg" class="muted" role="status"></span>
+          </div>
+        </form>
+        <p class="pane-note">Başlık, soru sayısı, süre ve üniteler yeni başlayan sınavlara uygulanır; devam eden sınavlar
+          etkilenmez. Sınavı kapatmak yeni girişleri durdurur, sınavdaki öğrenciler devam edebilir.
+          Pratik modu çözümleri gösterdiği için sınav sırasında kapalı tutmanız önerilir.</p>
+      </section>
+    </aside>
+  </div>
+{% endblock %}
+
+{% block status %}
+  <span id="live-note"></span>
+  <span id="net-err" class="bad" role="alert"></span>
 {% endblock %}

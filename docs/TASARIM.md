@@ -1,150 +1,72 @@
-# Tasarım Sistemi: "Optik form ve kareli defter"
+# Tasarım Sistemi: "Editör"
 
-PyTest Pro'nun görsel dili, bir lise öğrencisinin sınav masasından gelir: kareli defter kâğıdı,
-optik form, kurşun kalem, tükenmez kalem, öğretmenin kırmızı kalemi ve fosforlu kalem.
-Her renk ve şekil bu nesnelerden birine karşılık gelir; o nesnenin sınıftaki anlamını taşır.
+PyTest Pro bir kod editörü gibi görünür: öğrenci Python sınavına girerken gerçekten kod
+okuyormuş ve yazıyormuş gibi hisseder. Ekran iki dünyaya ayrılır:
+
+- **Okunacak taraf (solda ve ortada):** editör. Solda dosya listesi (`soru_01.py`, `soru_02.txt` ...),
+  ortada satır numaralı, renklendirilmiş kod.
+- **Cevaplanacak taraf (sağda):** adaçayı yeşili cevap paneli. Soru başlığı, şıklar ve düğmeler burada.
 
 Kaynak: `pytest_pro/static/css/style.css`. Tüm değerler dosyanın başındaki değişkenlerden gelir.
 
 ## İlkeler
 
-1. **Cesaret tek yerde.** Dikkat çeken iki öğe var: optik yuvarlaklar ve kırmızı kalemle okunmuş sonuç.
-   Geri kalan her şey sade kalır. Yeni bir bileşen eklerken bunlarla yarışmamalı.
-2. **Renk anlam taşır.** Mavi eylem, kırmızı düzeltme ve yanlış, yeşil doğru, sarı "şimdi" demektir.
-   Bir rengi yalnızca süs için kullanmayın.
-3. **Kâğıt nesneleri farklı görünür.** Soru kâğıdı (kırmızı kenar çizgili), cevap kâğıdı (kırmızı üst şeritli)
-   ve sınıf defteri (çizgili tablo) aynı kartın kopyaları değildir.
-4. **Sade Türkçe.** Cümle düzeninde yazılır (yalnızca ilk harf büyük). BÜYÜK HARF etiket, `·` ile bağlanmış
-   meta yazıları ve düğmelerde ok işareti kullanılmaz. Düğme, yaptığı işi söyler: "Sınavı bitir ve gönder".
-5. **İnternetsiz.** Yazı tipleri `static/fonts` içindedir; dış kaynak yüklenmez.
-6. **Satır içi stil ve betik yok.** İçerik Güvenlik Politikası (CSP) bunları engeller; görünüm sınıflarla verilir.
+1. **Okunan ortada, cevaplanan sağda.** Kodlu soruda kod ortada, soru ve şıklar sağdadır. Kodsuz soruda
+   soru metni ortada büyük yazılır, sağda kısa bir yönerge ("Doğru cevabı seç.") kalır. Kod yazma
+   sorusunda orta alan yazılabilir bir editöre dönüşür, görev metni sağdadır.
+2. **Tek vurgu rengi yeşil.** Seçili şık, ilerleme, gönder düğmesi ve durum çubuğu yeşildir. Kırmızı yalnızca
+   yanlış cevap ve son dakika uyarısı içindir; sarı yalnızca boş soru uyarısı ve kod izindeki çalışan satır içindir.
+3. **Dosya listesi = soru haritası.** `✓` cevaplandı, `●` şu anki soru, `○` boş. Gönderirken boş sorular
+   sarıyla işaretlenir; ikinci basış boş haliyle gönderir.
+4. **Klavyeyle çalışılabilir.** A–E (ya da 1–5) şık seçer, D/Y doğru/yanlış seçer, ←/→ soru değiştirir.
+   Pratikte Ctrl+Enter kontrol eder ve sonraki soruya geçer. Kısayollar durum çubuğunda yazar.
+5. **Sade Türkçe.** Cümle düzeninde yazılır. Düğme yaptığı işi söyler: "Sınavı gönder", "Cevabı kontrol et".
+6. **İnternetsiz.** Yazı tipleri `static/fonts` içindedir; dış kaynak yüklenmez.
+7. **Satır içi stil ve betik yok.** İçerik Güvenlik Politikası (CSP) bunları engeller; görünüm sınıflarla verilir.
 
 ## Renkler
 
-| Değişken | Değer | Karşılığı | Kullanım |
-|---|---|---|---|
-| `--paper` | `#F6F8FB` | Defter kâğıdı | Sayfa zemini |
-| `--grid` | `#DCE5F0` | Defter kareleri | Zemin ızgarası, kod alanı satırları |
-| `--sheet` | `#FFFFFF` | Soru kâğıdı | Kâğıt yüzeyleri |
-| `--rule` | `#C9D5E6` | Cetvel çizgisi | Kenarlık, tablo satırı |
-| `--graphite` | `#2A2F36` | Kurşun kalem | Ana metin, dolu optik yuvarlak |
-| `--graphite-soft` | `#5B6472` | Silik kurşun kalem | İkincil metin (beyaz üstünde 5,9:1 kontrast) |
-| `--ink` | `#1C3FAA` | Tükenmez mavisi | Düğme, bağlantı, odak halkası |
-| `--pen` | `#C8102E` | Öğretmen kırmızısı | Yanlış, düzeltme, puan, optik baskı, kenar çizgisi |
-| `--ok` | `#17784A` | Yeşil kalem | Doğru işareti, başarılı durum |
-| `--marker` | `#FFE24D` | Fosforlu kalem | Yalnızca "şimdi": bulunulan soru, son dakika, ipucu |
+| Değişken | Değer | Kullanım |
+|---|---|---|
+| `--chrome` | `#E4E9F0` | Üst şerit ve pencere zemini |
+| `--side` | `#EEF2F6` | Dosya listesi, sekme çubuğu |
+| `--editor` | `#FBFCFE` | Kod alanı |
+| `--line` | `#D3DAE3` | Editör çizgileri |
+| `--ink` | `#1C2733` | Ana metin |
+| `--mute` | `#66768A` | İkincil metin |
+| `--sage` | `#F1F4EF` | Cevap paneli |
+| `--green` | `#2F7D5B` | Tek vurgu: seçim, gönder, ilerleme, durum çubuğu |
+| `--forest` | `#1B2A22` | Panel metni, koyu düğme ("Sonraki") |
+| `--bad` | `#B3261E` | Yanlış, son dakika |
+| `--warn` | `#8A5A00` | Boş soru uyarısı |
 
-Açık tonlar (`--ink-wash`, `--pen-wash`, `--ok-wash`) seçili veya üzerine gelinen satırlar içindir.
+Sözdizimi renkleri: anahtar kelime `--tk-kw` mor, metin `--tk-st` yeşil, sayı `--tk-nu` turuncu,
+hazır fonksiyon `--tk-fn` mavi, yorum `--tk-cm` gri ve eğik.
 
 ## Yazı
 
-| Rol | Yazı tipi | Not |
+| Rol | Yazı tipi | Kullanım |
 |---|---|---|
-| Arayüz ve metin | Atkinson Hyperlegible Next | Okunurluk için tasarlandı; 0/O, 1/l/I ayrımı belirgin. Türkçe harflerin tamamını içerir. |
-| Kod | JetBrains Mono | Soru kodu, şıklar, öğrenci cevapları |
-| El yazısı | Caveat | **Yalnızca** öğretmenin kalemi: puan ve düzeltme notları |
+| Arayüz | Atkinson Hyperlegible Next | Gövde metni, düğmeler, etiketler (okunaklılık için tasarlandı) |
+| Kod | JetBrains Mono | Kod, şıklar, dosya adları. Bitişik harfler kapalı: `==` iki ayrı işaret görünür |
+| Başlık | Fraunces | Cevap panelindeki soru başlığı, puan, sınıf istatistikleri |
 
-Ölçek (1,25 oranlı): `--fs-xs` 13, `--fs-sm` 15, `--fs-md` 17 (gövde), `--fs-lg` 21, `--fs-xl` 28, `--fs-score` 88 piksel.
-Sayılar `font-variant-numeric: tabular-nums` ile hizalanır (sayaç, istatistikler).
-Okunan metinler en fazla 62–70 karakter genişliğindedir.
+Uzun görev metinleri (90 karakteri aşan kodlu ya da kod yazma soruları) başlık yazısıyla değil,
+gövde yazısıyla gösterilir.
 
-Atkinson Hyperlegible'ın ilk sürümünde büyük "İ" harfi yoktur; bu yüzden **Next** sürümü kullanılır.
+## Ekranlar
 
-## Ölçü
+- **Öğrenci girişi:** solda `hosgeldin.py` kodu, sağda giriş formu.
+- **Sınav:** dosya listesi, kod, cevap paneli; üstte süre ve "Sınavı gönder", altta durum çubuğu
+  (cevaplanan sayısı, kayıt durumu, kısayollar).
+- **Sonuç:** solda `✓`/`✗` soru listesi (tıklayınca o soruya gider), ortada puan kartı ve çözümler;
+  varsayılan olarak yalnız yanlışlar gösterilir.
+- **Pratik:** solda üniteler ve tamamlanan konu sayısı, ortada soru ve kod izi, sağda cevap ve geri bildirim.
+  Kontrolden sonra doğru şık yeşil, seçilen yanlış şık kırmızı olur.
+- **Öğretmen:** solda öğrenciler (sınavdakiler ilerleme çubuğuyla, bitirenler puanla), ortada sınıf özeti
+  ya da seçilen öğrencinin ayrıntısı (sekme olarak açılır, Esc ile kapanır), sağda adres, QR ve ayarlar.
 
-Boşluk: `--s1` 4 · `--s2` 8 · `--s3` 12 · `--s4` 16 · `--s5` 24 · `--s6` 32 · `--s7` 48 piksel.
-Köşe: kâğıt `--radius-paper` 3 piksel (kâğıt köşesi neredeyse keskindir), düğme ve giriş `--radius-ctl` 6 piksel.
-Gölge: tek bir `--lift` (kâğıdın masadan hafifçe kalkması). Dokunma hedefleri en az 44 piksel.
+## Dar ekran
 
-## Bileşenler
-
-### Soru kâğıdı `.sheet`
-Beyaz kâğıt; soldan `--margin-x` kadar içeride kırmızı kenar çizgisi. Soru numarası (`.q-num`)
-kenar boşluğunda durur, defterde numaranın yazıldığı yer gibi. Telefonda kenar boşluğu daralır.
-
-### Optik şık `.opt` + `.bubble`
-Her şık harfli bir yuvarlaktır (A–D; doğru/yanlış sorularında D ve Y). Yuvarlağın çizgisi optik form
-baskısı gibi kırmızıdır. Seçilince kurşun kalemle doldurulmuş gibi koyulaşır ve harf beyaza döner.
-Gerçek `<input type="radio">` görünmez ama klavyeyle odaklanabilir; odak halkası yuvarlağın çevresinde görünür.
-
-| Durum | Görünüm |
-|---|---|
-| Boş | Kırmızı çizgili yuvarlak, kırmızı harf |
-| Üzerine gelme | Satırın arkasında açık mavi leke |
-| Seçili | Koyu kurşun dolgu, beyaz harf |
-| Odak | Mavi odak halkası |
-
-### Cevap kâğıdı `.answer-sheet` + `.nav-grid`
-Üstünde kırmızı şerit olan optik form. Her soru bir numara ve yuvarlak; cevaplanan sorunun yuvarlağı dolu,
-bulunulan soru fosforlu kalemle işaretli. Masaüstünde sayfa kaydırılırken yerinde kalır; telefonda kalmaz.
-Son dakikada sayaç kırmızıya döner ve fosforlu kalemle işaretlenir.
-
-### Sonuç `.grade` + `.score-mark`
-Puan, Caveat ile kırmızı el yazısıyla yazılır ve elle çizilmiş bir çemberle çevrilir. Çember sayfa açılırken
-bir kez çizilir; uygulamadaki tek kendiliğinden hareket budur. "Hareketi azalt" tercihi olan cihazlarda çizilmiş hâlde gelir.
-Soru listesinde (`.sol`) kenar boşluğunda kırmızı ✗ veya yeşil ✓ kalem işareti bulunur; açıklamalar fosforlu
-kalemle işaretlenmiş bir not kutusundadır (`.exp`).
-
-### Düğme `.btn`
-| Tür | Görünüm | Kullanım |
-|---|---|---|
-| (varsayılan) | Mavi çizgi, beyaz zemin | İkincil eylem |
-| `.primary` | Dolu mavi | Sayfadaki ana eylem (bir tane) |
-| `.green` | Dolu yeşil | Bitirme eylemi: "Sınavı bitir ve gönder", "Yeni soru" |
-| `.red` | Kırmızı çizgi | Silme |
-| `.sm` / `.block` | Küçük / tam genişlik | |
-
-### Rozet `.badge`
-Mühür gibi çizgili kutu: `.b-ok` başarılı veya Başlangıç, `.b-no` tekrar etmeli, `.b-live` sınavda veya İleri,
-`.b-time` deneme numarası, otomatik gönderim, Orta.
-
-### Sınıf defteri (öğretmen paneli)
-Tablo başlığı kalın kurşun çizgiyle ayrılır, satırlar ince cetvel çizgileriyle. İstatistikler ayrı kartlar
-değil, dikey çizgilerle bölünmüş tek bir şerittir (`.grid4`). Konu analizi çubukları (`.meter`) elle
-taranmış gibidir: yeşil %75 ve üstü, kahverengi %50–74, kırmızı %50'nin altı.
-
-### İçindekiler (pratik modu)
-Üniteler kitap içindekileri gibi listelenir: kırmızı ünite numarası, başlık, kısa açıklama ve seviye mührü.
-Numara kullanılır, çünkü üniteler gerçekten öğrenme sırasıdır.
-
-### Kod izi `.trace` (`static/js/tracer.js`)
-Sorunun kodu satır satır yürütülür. Solda satır numaralı kod durur; çalışmak üzere olan satır **fosforlu
-kalemle** işaretlidir (`li.now`). Sağda kapsam ("Ana program" ya da "kare() içinde"), değişkenler tablosu
-ve ekran çıktısı bulunur. Bu adımda değişen değişkenin satırı mavi mürekkep lekesiyle (`--ink-wash`)
-vurgulanır. Fosforlu kalem yalnızca "şimdi" için kullanıldığından burada kullanılmaz. Gezinme düğmelerle,
-adım çubuğuyla ve ←/→ tuşlarıyla yapılır. Hatalı son adımda hatanın türü ve satırı öğretmen kırmızısıyla,
-el yazısıyla gösterilir. Telefonda tek sütuna iner.
-
-Kullanım: `PyTest.renderTrace(kutu, iz)` izi çizer; `PyTest.traceToggle(düğme, kutu, getir)` düğmeye
-basılınca izi bir kez getirir, sonra gizler/gösterir.
-
-### "Neden yanlış" notu `.why-note`
-Öğretmenin kırmızı kalemle kâğıda düştüğü not: Caveat yazısı, `--pen` rengi. Yalnızca yanlış cevaplarda,
-seçilen şıkka özel açıklama olarak görünür. `PyTest.whyNote(metin)` ile üretilir.
-
-### Konu ilerlemesi (pratik modu)
-İçindekiler sayfasında her ünitenin altında `.topic-progress` alanı "3 / 8 konu tamamlandı" yazar.
-Bir şablonda ipucusuz üst üste iki doğru cevap, o konuyu tamamlar. Yeşil kalem rengi (`--ok`) kullanılır.
-
-## Erişilebilirlik
-
-- Metin kontrastı WCAG AA üstündedir (en düşük ikincil metin 5,9:1).
-- Tüm denetimler klavyeyle kullanılabilir; odak her yerde aynı mavi halkayla gösterilir.
-- Doğru ve yanlış yalnızca renkle değil, ✓ ve ✗ işaretiyle ve "Doğru" ve "Yanlış" sözcükleriyle de belirtilir.
-- Sayaç `role="timer"`, kayıt durumu ve geri bildirim `aria-live` ile duyurulur.
-- `prefers-reduced-motion` tüm geçişleri kapatır.
-- Kod izi bir `group` öğesidir; adım değişince "Adım 4 / 12, satır 3" bilgisi `aria-live` ile duyurulur.
-
-## Yapılmaması gerekenler
-
-| Yapın | Yapmayın |
-|---|---|
-| Yeni renk gerekiyorsa sınıftaki bir nesneye bağlayın | Süs için degrade veya yeni vurgu rengi eklemek |
-| Fosforlu kalemi yalnızca "şimdi" için kullanın | Başlıkları veya düğmeleri sarıyla vurgulamak |
-| Caveat'i yalnızca öğretmenin kalemi için kullanın | El yazısını başlık veya gövde metninde kullanmak |
-| Cümle düzeninde, eylemi söyleyen düğme metni yazın | BÜYÜK HARF etiket, "Gönder →" gibi oklu düğme |
-| Kâğıt nesnelerini farklı tutun | Her şeyi aynı gölgeli, yuvarlak kartlara koymak |
-
-## Yazı tipi lisansları
-
-Üç yazı tipi de SIL Açık Font Lisansı 1.1 ile dağıtılır; lisans metinleri `pytest_pro/static/fonts/OFL-*.txt` dosyalarındadır.
+860 pikselin altında sütunlar alt alta dizilir: dosya listesi yatay kaydırılan bir şerit olur,
+cevap paneli kodun altına iner.

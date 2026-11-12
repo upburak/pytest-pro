@@ -1,50 +1,67 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Pratik Modu{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/practice.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro{% endblock %}
 {% block subheading %}Pratik{% endblock %}
-{% block header_right %}<span id="score" class="score-pill hidden" aria-live="polite"></span>{% endblock %}
+{% block header_right %}<a class="btn sm" href="/">Sınav sayfası</a>{% endblock %}
 
 {% block content %}
-  <div id="closed" class="card narrow center stack hidden">
-    <h2>Pratik şu an kapalı</h2>
-    <p class="muted">Öğretmenin pratiği açtığında buradan çalışabilirsin.</p>
-    <a class="btn" href="/">Sınav sayfasına dön</a>
-  </div>
-
-  <div id="units-view" class="stack hidden">
-    <div class="card practice stack">
-      <h2>İçindekiler</h2>
-      <p class="muted">Bir ünite seç. Her soru yeniden üretilir, cevabın hemen kontrol edilir ve hiçbir yere kaydedilmez.</p>
-      <ul id="unit-grid" class="unit-grid"></ul>
-    </div>
-  </div>
-
-  <div id="question-view" class="practice hidden stack">
-    <div id="unit-done" class="notice hidden" role="status">
-      <span id="unit-done-text"></span>
-      <button id="btn-next-unit" type="button" class="btn sm">Sıradaki üniteye geç</button>
-    </div>
-    <section class="sheet question">
-      <div class="q-head">
-        <span id="q-unit" class="pill"></span>
-        <span id="q-topic"></span>
+  <div id="closed" class="center-stage hidden">
+    <div class="window single">
+      <div class="pane">
+        <h2>Pratik şu an kapalı</h2>
+        <p class="pane-note">Öğretmenin pratiği açtığında buradan çalışabilirsin.</p>
+        <a class="btn primary" href="/">Sınav sayfasına dön</a>
       </div>
-      <div id="q-text" class="q-text"></div>
-      <pre id="q-code" class="snippet hidden"></pre>
+    </div>
+  </div>
+
+  <div id="practice" class="ide hidden">
+    <nav class="files" aria-label="Üniteler">
+      <p class="files-head">Üniteler</p>
+      <div id="unit-grid"></div>
+    </nav>
+    <section class="editor" aria-label="Soru">
+      <div class="tabs"><span id="q-tab" class="tab active">baslarken.txt</span><span id="q-topic" class="tab tab-topic"></span></div>
+      <div class="editor-body">
+        <div id="welcome" class="welcome">
+          <h2>Soldan bir ünite seç</h2>
+          <p>Her soru yeniden üretilir, cevabın hemen kontrol edilir ve hiçbir yere kaydedilmez.</p>
+          <p class="muted">Bir konudaki iki soruyu ipucusuz üst üste doğru çözdüğünde o konu tamamlanmış sayılır.</p>
+        </div>
+        <div id="q-code" class="hidden"></div>
+        <div id="q-prose" class="prose hidden"></div>
+        <div id="q-slot" class="code-slot hidden"></div>
+        <div id="trace-box" class="trace-box welcome hidden"></div>
+      </div>
+    </section>
+    <aside id="question-view" class="pane hidden" aria-labelledby="q-text">
+      <div id="unit-done" class="notice ok hidden" role="status">
+        <span id="unit-done-text"></span>
+        <button id="btn-next-unit" type="button" class="btn sm">Sıradaki üniteye geç</button>
+      </div>
+      <p id="q-unit" class="pane-kicker"></p>
+      <h2 id="q-text" class="pane-title"></h2>
       <div id="answer-box"></div>
       <div id="hint-box" class="exp hidden" role="status"></div>
       <div id="feedback" class="hidden" role="status" aria-live="polite"></div>
-      <div id="trace-box" class="trace-box hidden"></div>
-      <div class="q-foot">
-        <button id="btn-units" type="button" class="btn">İçindekiler</button>
+      <div id="err" class="err" role="alert"></div>
+      <div class="pane-nav">
         <div id="ask-actions" class="row">
           <button id="btn-hint" type="button" class="btn">İpucu</button>
           <button id="btn-check" type="button" class="btn primary">Cevabı kontrol et</button>
         </div>
         <div id="after-actions" class="row hidden"></div>
       </div>
-      <div id="err" class="err" role="alert"></div>
-    </section>
+    </aside>
+    <aside id="pane-idle" class="pane">
+      <p class="pane-kicker">Nasıl çalışır?</p>
+      <p>Soru ortada, cevap burada. Cevabını verip kontrol et; yanlışsa nedenini ve doğru cevabı görürsün.</p>
+      <p class="pane-note">Kodlu sorularda kodu adım adım izleyip değişkenlerin nasıl değiştiğini görebilirsin.</p>
+    </aside>
   </div>
+{% endblock %}
+
+{% block status %}
+  <span id="score" aria-live="polite"></span>
+  <span class="hint-keys">Kısayollar: A–E şık seç · Ctrl+Enter kontrol et ve sonraki soru</span>
 {% endblock %}

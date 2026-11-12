@@ -46,9 +46,9 @@
       const info = await (await api('/api/info')).json();
       try { sessionStorage.setItem(KEY, pw); } catch (e) { /* yok say */ }
       $('pw').value = '';
-      $('login').classList.add('hidden');
+      $('login-stage').classList.add('hidden');
       $('panel').classList.remove('hidden');
-      $('btn-logout').classList.remove('hidden');
+      $('top-tools').classList.remove('hidden');
       $('url').textContent = info.url;
       $('practice-url').textContent = info.url + '/pratik';
       $('qr').src = '/api/qr.svg';
@@ -65,9 +65,9 @@
     pw = '';
     try { sessionStorage.removeItem(KEY); } catch (e) { /* yok say */ }
     $('panel').classList.add('hidden');
-    $('btn-logout').classList.add('hidden');
-    $('modal').classList.add('hidden');
-    $('login').classList.remove('hidden');
+    $('top-tools').classList.add('hidden');
+    closeDetail();
+    $('login-stage').classList.remove('hidden');
     $('login-err').textContent = typeof message === 'string' ? message : '';
   }
 
@@ -81,7 +81,7 @@
       <label class="unit-check" title="${esc(u.description)}">
         <input type="checkbox" value="${esc(u.id)}">
         <span><b>${u.order}. ${esc(u.title)}</b> ${levelBadge(u.level)}
-        <span class="muted small">${u.templates} soru şablonu · ${esc(u.topics.join(', '))}</span></span>
+        <span class="muted small">${u.templates} soru şablonu, ${u.topics.length} konu</span></span>
       </label>`).join('');
   }
 
@@ -158,6 +158,7 @@
       $('s-live').textContent = s.live;
       $('s-avg').textContent = s.average === null ? '—' : s.average.toFixed(1);
       $('s-pass').textContent = s.pass_rate === null ? '—' : '%' + s.pass_rate;
+      $('live-note').textContent = `${s.live} öğrenci sınavda, ${s.done} bitirdi · 3 saniyede bir yenilenir`;
       renderTable();
       renderTopics(data.topics);
     } catch (e) {
@@ -166,32 +167,39 @@
   }
 
   function renderTable() {
+    const box = $('tiles');
     const q = $('search').value.trim().toLocaleLowerCase('tr');
     const list = q ? rows.filter((r) => (r.name + ' ' + r.no).toLocaleLowerCase('tr').includes(q)) : rows;
     if (!list.length) {
-      $('tbody').innerHTML = `<tr><td colspan="6" class="muted center">${
-        rows.length ? 'Aramaya uyan öğrenci yok.' : 'Henüz sınava giren öğrenci yok.'}</td></tr>`;
+      box.innerHTML = `<p class="files-empty">${rows.length ? 'Aramaya uyan öğrenci yok.' : 'Henüz sınava giren öğrenci yok. Adresi ya da QR kodu öğrencilerle paylaş.'}</p>`;
       return;
     }
     const showTitle = $('title-filter').value === ALL;
-    $('tbody').innerHTML = list.map((r) => {
-      let status;
-      if (r.status === 'sinavda') status = `<span class="badge b-live">Sınavda, ${mmss(r.remaining)} kaldı</span>`;
-      else status = (r.score >= 50 ? '<span class="badge b-ok">Başarılı</span>' : '<span class="badge b-no">Tekrar etmeli</span>') +
-        (r.auto ? ' <span class="badge b-time" title="Süre dolunca son kaydedilen cevaplarla otomatik gönderildi">Otomatik</span>' : '');
-      const attempt = r.attempt > 1 ? ` <span class="badge b-time">Deneme #${r.attempt}</span>` : '';
-      const title = showTitle && r.title ? `<div class="muted small">${esc(r.title)}</div>` : '';
-      const done = r.status === 'bitti';
-      return `<tr class="${done ? 'click' : ''}" data-id="${esc(r.id)}"${done ? ' tabindex="0"' : ''}>
-        <td class="mono">${esc(r.no)}</td><td><b>${esc(r.name)}</b>${attempt}${title}</td>
-        <td class="muted">${esc(r.started)}</td>
-        <td>${done ? `<span class="green-t">${r.correct}</span> / <span class="red-t">${r.wrong}</span>` : '-'}</td>
-        <td><b>${r.score ?? '-'}</b></td><td>${status}</td></tr>`;
-    }).join('');
-    document.querySelectorAll('#tbody tr.click').forEach((tr) => {
-      tr.addEventListener('click', () => detail(tr.dataset.id));
-      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') detail(tr.dataset.id); });
-    });
+    const live = list.filter((r) => r.status === 'sinavda');
+    const done = list.filter((r) => r.status !== 'sinavda');
+    const sub = (r) => [`No ${esc(r.no)}`, r.attempt > 1 ? `Deneme #${r.attempt}` : '', showTitle && r.title ? esc(r.title) : '']
+      .filter(Boolean).join(' · ');
+    let html = '';
+    if (live.length) {
+      html += `<p class="group-label">Sınavda (${live.length})</p>` + live.map((r) => {
+        const pct = r.total ? Math.round(r.answered * 100 / r.total) : 0;
+        return `<div class="student"><span class="student-name">${esc(r.name)}</span>
+          <span class="muted small">${mmss(r.remaining)}</span>
+          <span class="student-meter" role="img" aria-label="${r.answered} / ${r.total} soru cevaplandı"><span data-w="${pct}"></span></span>
+          <span class="student-sub">${r.answered} / ${r.total} cevaplandı · ${sub(r)}</span></div>`;
+      }).join('');
+    }
+    if (done.length) {
+      html += `<p class="group-label">Bitirdi (${done.length})</p>` + done.map((r) => `
+        <button type="button" class="student${r.id === detailId ? ' current' : ''}" data-id="${esc(r.id)}">
+          <span class="student-name">${esc(r.name)}</span>
+          <span class="student-score${r.score < 50 ? ' low' : ''}">${r.score}</span>
+          <span class="student-sub">${r.correct} D · ${r.wrong} Y${r.auto ? ' · otomatik' : ''} · ${sub(r)}</span>
+        </button>`).join('');
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('[data-w]').forEach((el) => { el.style.width = el.dataset.w + '%'; });
+    box.querySelectorAll('button.student').forEach((b) => b.addEventListener('click', () => detail(b.dataset.id)));
   }
 
   function renderTopics(topics) {
@@ -233,12 +241,13 @@
       const d = await (await api('/api/results/' + encodeURIComponent(id))).json();
       detailId = d.id;
       $('m-title').textContent = `${d.name} (${d.no}), ${d.score} puan${d.auto ? ', otomatik gönderildi' : ''}`;
+      $('tab-detail-name').textContent = `ogrenci_${d.no}.txt`;
       $('m-body').innerHTML = `<p class="muted">${d.title ? esc(d.title) + '. ' : ''}Başlama ${esc(d.started)}, bitiş ${esc(d.submitted)}. ${d.correct} doğru, ${d.wrong} yanlış ya da boş.</p>` +
         d.details.map((q, i) => `
         <div class="sol ${q.correct ? 'ok' : 'no'}">
-          <div class="sol-head"><span>Soru ${i + 1}: ${esc(q.topic)}</span><span class="muted small">${esc(q.unit)}</span></div>
+          <div class="sol-head"><span>Soru ${i + 1}: ${esc(q.topic)} <span class="muted small">${esc(q.unit)}</span></span><span class="mark">${q.correct ? 'Doğru' : 'Yanlış'}</span></div>
           <div class="sol-text">${q.text}</div>
-          ${q.code ? `<pre>${esc(q.code)}</pre>` : ''}
+          ${q.code ? `<pre class="snippet"><code class="codeview">${P.highlight(q.code)}</code></pre>` : ''}
           <div class="sol-meta"><b>Öğrenci:</b> <span class="ans">${esc(q.user_answer ? fmtAnswer(q.type, q.user_answer) : 'Boş')}</span></div>
           ${!q.correct && q.why ? P.whyNote(q.why) : ''}
           ${!q.correct ? `<div class="sol-meta"><b>Doğru:</b> <span class="ans green-t">${esc(fmtAnswer(q.type, q.answer))}</span></div>` : ''}
@@ -258,20 +267,33 @@
           }
         });
       });
-      $('modal').classList.remove('hidden');
-      $('m-close').focus();
+      $('overview').classList.add('hidden');
+      $('detail').classList.remove('hidden');
+      $('detail').scrollTop = 0;
+      $('tab-detail').classList.remove('hidden');
+      $('tab-detail').classList.add('active');
+      $('tab-overview').classList.remove('active');
+      renderTable();
     } catch (e) {
       $('net-err').textContent = 'Ayrıntı alınamadı: ' + e.message;
     }
   }
 
-  function closeModal() { $('modal').classList.add('hidden'); detailId = null; }
+  function closeDetail() {
+    detailId = null;
+    $('detail').classList.add('hidden');
+    $('overview').classList.remove('hidden');
+    $('tab-detail').classList.add('hidden');
+    $('tab-detail').classList.remove('active');
+    $('tab-overview').classList.add('active');
+    renderTable();
+  }
 
   async function deleteOne() {
     if (!detailId || !confirm('Bu öğrencinin sınav kaydı kalıcı olarak silinecek. Emin misin?')) return;
     try {
       await api('/api/results/' + encodeURIComponent(detailId), { method: 'DELETE' });
-      closeModal();
+      closeDetail();
       refresh();
     } catch (e) { alert('Silinemedi: ' + e.message); }
   }
@@ -309,10 +331,10 @@
   $('title-filter').addEventListener('change', refresh);
   $('btn-csv').addEventListener('click', downloadCSV);
   $('btn-clear').addEventListener('click', clearAll);
-  $('m-close').addEventListener('click', closeModal);
+  $('m-close').addEventListener('click', closeDetail);
+  $('tab-overview').addEventListener('click', closeDetail);
   $('m-delete').addEventListener('click', deleteOne);
-  $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && detailId) closeDetail(); });
   document.addEventListener('visibilitychange', () => {
     if (!pw || $('panel').classList.contains('hidden')) return;
     if (document.hidden) stopPolling(); else startPolling();

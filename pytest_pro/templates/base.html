@@ -10,25 +10,19 @@
 {% block scripts %}{% endblock %}
 </head>
 <body>
-<header>
-  <div class="bar">
-    <div class="logo">
-      <div class="logo-badge" aria-hidden="true">Py</div>
-      <div>
-        <h1>{% block heading %}PyTest Pro{% endblock %}</h1>
-        <p>{% block subheading %}{% endblock %}</p>
-      </div>
-    </div>
-    {% block header_right %}{% endblock %}
-  </div>
+<header class="topbar">
+  <span class="brand"><span class="brand-mark" aria-hidden="true">py</span>{% block heading %}PyTest Pro{% endblock %}</span>
+  <span class="topbar-sub">{% block subheading %}{% endblock %}</span>
+  <span class="sp"></span>
+  {% block header_right %}{% endblock %}
 </header>
 
-<main>
+<main class="work">
 {% block content %}{% endblock %}
 </main>
 
 {% block after_main %}{% endblock %}
 
-<footer>PyTest Pro {{ version }}, Python dersi için ölçme ve değerlendirme</footer>
+<footer class="status">{% block status %}{% endblock %}<span class="sp"></span><span>PyTest Pro {{ version }}</span></footer>
 </body>
 </html>

@@ -115,8 +115,8 @@ def create(db, name, no, settings, t, exam_id):
 def rows_with_attempts(db, title=None):
     """Tüm kayıtlar + her okul numarasının kaçıncı denemesi olduğu (başlangıç sırasına göre)."""
     rows = db.execute(
-        "SELECT id, no, name, title, started_at, duration, submitted_at, correct, wrong, score, auto_submitted "
-        "FROM exams ORDER BY started_at, rowid"
+        "SELECT id, no, name, title, started_at, duration, submitted_at, correct, wrong, score, auto_submitted, "
+        "answers, questions FROM exams ORDER BY started_at, rowid"
     ).fetchall()
     counts, out = {}, []
     for r in rows:

@@ -1,83 +1,108 @@
 {% extends "base.html" %}
 {% block title %}PyTest Pro - Python Sınavı{% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/student.js') }}" defer></script>{% endblock %}
-{% block heading %}PyTest Pro{% endblock %}
-{% block subheading %}Python sınavı{% endblock %}
+{% block subheading %}<span id="exam-name">Python sınavı</span>{% endblock %}
+{% block header_right %}
+  <div id="exam-tools" class="top-tools hidden">
+    <span class="who"><span id="disp-name"></span> · <span id="disp-no"></span></span>
+    <span id="timer" class="timer" role="timer" aria-label="Kalan süre">--:--</span>
+    <button id="btn-submit" type="button" class="btn primary">Sınavı gönder</button>
+  </div>
+{% endblock %}
 
 {% block content %}
   <!-- GİRİŞ -->
-  <form id="login-card" class="card narrow stack" novalidate>
-    <h2 id="exam-title">Sınava başla</h2>
-    <p id="exam-info" class="info-line"></p>
-    <div id="closed-msg" class="notice hidden" role="status">
-      Sınav henüz açılmadı. Öğretmenin açtığında bu sayfa kendiliğinden güncellenir.
+  <div id="login-card" class="center-stage">
+    <div class="window">
+      <div class="window-code" aria-hidden="true">
+        <div class="tabs"><span class="tab active">hosgeldin.py</span></div>
+        <div class="editor-body"><code class="codeview"><span class="ln"><span class="tk-cm"># Sorular sana özel üretilir.</span></span><span class="ln"><span class="tk-cm"># Sayfa kapanırsa aynı ad ve numarayla</span></span><span class="ln"><span class="tk-cm"># girip kaldığın yerden devam edersin.</span></span><span class="ln"> </span><span class="ln">ad = <span class="tk-fn">input</span>(<span class="tk-st">"Ad soyad: "</span>)</span><span class="ln">no = <span class="tk-fn">input</span>(<span class="tk-st">"Okul no: "</span>)</span><span class="ln"><span class="tk-fn">print</span>(<span class="tk-st">"Başarılar,"</span>, ad)</span></code></div>
+      </div>
+      <form id="login-form" class="pane" novalidate>
+        <p id="exam-info" class="pane-kicker"></p>
+        <h2 id="exam-title">Sınava başla</h2>
+        <div id="closed-msg" class="notice hidden" role="status">
+          Sınav henüz açılmadı. Öğretmenin açtığında bu sayfa kendiliğinden güncellenir.
+        </div>
+        <label class="field">Ad soyad
+          <input type="text" id="std-name" maxlength="60" placeholder="Ahsen Yılmaz" autocomplete="off" required>
+        </label>
+        <label class="field">Okul numarası
+          <input type="text" id="std-no" maxlength="20" placeholder="1042" inputmode="numeric" autocomplete="off" required>
+        </label>
+        <div id="login-err" class="err" role="alert"></div>
+        <button id="btn-start" type="submit" class="btn primary block">Sınavı başlat</button>
+        <a id="practice-link" class="btn block hidden" href="/pratik">Pratik yap</a>
+      </form>
     </div>
-    <label class="field">Ad soyad
-      <input type="text" id="std-name" maxlength="60" placeholder="Ahsen Yılmaz" autocomplete="off" required>
-    </label>
-    <label class="field">Okul numarası
-      <input type="text" id="std-no" maxlength="20" placeholder="1042" inputmode="numeric" autocomplete="off" required>
-    </label>
-    <div id="login-err" class="err" role="alert"></div>
-    <button id="btn-start" type="submit" class="btn primary block">Sınavı başlat</button>
-    <p class="muted small">Sorular sana özel üretilir. Sayfa kapanırsa aynı ad ve numarayla girip kaldığın yerden devam edersin.</p>
-    <a id="practice-link" class="btn block hidden" href="/pratik">Pratik yap</a>
-  </form>
+  </div>
 
-  <!-- SINAV -->
-  <div id="exam-card" class="exam hidden">
-    <aside class="card answer-sheet stack" aria-label="Cevap kâğıdı">
-      <div class="row between">
-        <span class="sheet-title">Cevap kâğıdı</span>
-        <span id="timer" class="timer" role="timer" aria-label="Kalan süre">--:--</span>
-      </div>
-      <div class="muted"><span id="disp-name"></span><br>No <span id="disp-no"></span></div>
-      <div id="nav-grid" class="nav-grid" aria-label="Sorular"></div>
-      <div id="save-state" class="save-state" role="status" aria-live="polite"></div>
-      <button id="btn-submit" type="button" class="btn green block">Sınavı bitir ve gönder</button>
-      <div id="submit-err" class="err" role="alert"></div>
-    </aside>
-
-    <section class="sheet question" aria-labelledby="q-badge">
-      <div id="q-num" class="q-num" aria-hidden="true"></div>
-      <div class="q-head">
-        <span id="q-badge"></span>
-        <span id="q-topic"></span>
-      </div>
-      <div id="q-text" class="q-text"></div>
-      <pre id="q-code" class="snippet hidden"></pre>
-      <div id="answer-box"></div>
-      <div class="q-foot">
-        <button id="btn-prev" type="button" class="btn">Önceki soru</button>
-        <span id="answered-count" class="muted"></span>
-        <button id="btn-next" type="button" class="btn primary">Sonraki soru</button>
+  <!-- SINAV: sorular | kod | cevap -->
+  <div id="exam-card" class="ide hidden">
+    <nav class="files" aria-label="Sorular">
+      <p class="files-head">Sorular</p>
+      <div id="nav-grid"></div>
+    </nav>
+    <section class="editor" aria-label="Soru">
+      <div class="tabs"><span id="q-tab" class="tab active"></span><span id="q-topic" class="tab tab-topic"></span></div>
+      <div class="editor-body">
+        <div id="q-code"></div>
+        <div id="q-prose" class="prose hidden"></div>
+        <div id="q-slot" class="code-slot hidden"></div>
       </div>
     </section>
+    <aside class="pane" aria-labelledby="q-text">
+      <p id="q-badge" class="pane-kicker"></p>
+      <h2 id="q-text" class="pane-title"></h2>
+      <div id="answer-box"></div>
+      <div id="submit-note" class="submit-note hidden" role="status"></div>
+      <div id="submit-err" class="err" role="alert"></div>
+      <div class="pane-nav">
+        <button id="btn-prev" type="button" class="btn">Önceki</button>
+        <button id="btn-next" type="button" class="btn dark">Sonraki</button>
+      </div>
+    </aside>
   </div>
 
-  <!-- SONUÇ: öğretmenin kırmızı kalemle okuduğu kâğıt -->
-  <div id="result-card" class="result-wrap hidden stack">
-    <div class="card grade">
-      <div class="score-mark" aria-label="Puan">
-        <svg viewBox="0 0 190 150" aria-hidden="true" focusable="false">
-          <ellipse cx="95" cy="76" rx="84" ry="62" transform="rotate(-6 95 76)"></ellipse>
-        </svg>
-        <b id="res-score">0</b>
-      </div>
-      <div class="stack">
-        <h2>Sınavın okundu</h2>
-        <p class="muted" id="res-msg">Sonucun öğretmenine iletildi.</p>
-        <div class="tally">
-          <div><b id="res-correct">0</b>doğru</div>
-          <div><b id="res-wrong">0</b>yanlış ya da boş</div>
-          <div><b id="res-percent">%0</b>başarı</div>
+  <!-- SONUÇ -->
+  <div id="result-card" class="ide two hidden">
+    <nav class="files" aria-label="Soru listesi">
+      <p class="files-head">Sonuç</p>
+      <div id="res-files"></div>
+    </nav>
+    <section class="editor">
+      <div class="tabs"><span class="tab active">sonuc.txt</span></div>
+      <div class="result-body"><div class="result-inner">
+        <div class="scorecard">
+          <div id="res-score" class="score-num" aria-label="Puan">0</div>
+          <div>
+            <h2>Sınavın okundu</h2>
+            <p class="muted" id="res-msg">Sonucun öğretmenine iletildi.</p>
+            <div class="tally">
+              <div><b id="res-correct">0</b>doğru</div>
+              <div><b id="res-wrong">0</b>yanlış ya da boş</div>
+              <div><b id="res-percent">%0</b>başarı</div>
+            </div>
+          </div>
         </div>
-        <div><button id="btn-reset" type="button" class="btn">Giriş ekranına dön</button></div>
-      </div>
-    </div>
-    <div class="card">
-      <h3 id="solutions-title">Sorular ve çözümleri</h3>
-      <div id="solutions"></div>
-    </div>
+        <div class="row between sol-list">
+          <h3 id="solutions-title">Sorular ve çözümleri</h3>
+          <div class="row">
+            <div id="sol-filter" class="seg" role="group" aria-label="Gösterilen sorular">
+              <button type="button" class="seg-btn" data-filter="wrong" aria-pressed="true">Yalnız yanlışlar</button>
+              <button type="button" class="seg-btn" data-filter="all" aria-pressed="false">Tümü</button>
+            </div>
+            <button id="btn-reset" type="button" class="btn sm">Giriş ekranına dön</button>
+          </div>
+        </div>
+        <div id="solutions"></div>
+      </div></div>
+    </section>
   </div>
+{% endblock %}
+
+{% block status %}
+  <span id="answered-count"></span>
+  <span id="save-state" role="status" aria-live="polite"></span>
+  <span class="hint-keys">Kısayollar: A–E ya da 1–5 şık seç · D/Y doğru/yanlış · ←/→ soru değiştir</span>
 {% endblock %}
