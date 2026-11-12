@@ -286,7 +286,7 @@ def test_practice_flow(client, app):
     assert units[0]["id"] == "temel"
 
     r = client.post("/api/practice/next", json={"unit": "listeler"}).get_json()
-    assert set(r) == {"token", "unit", "question"} and "answer" not in r["question"]
+    assert set(r) == {"token", "unit", "gen", "topic", "question"} and "answer" not in r["question"]
     secret = app.extensions["pytest_pro_practice"].get(r["token"])
 
     wrong = client.post("/api/practice/check", json={"token": r["token"], "answer": "yanlış cevap"}).get_json()
