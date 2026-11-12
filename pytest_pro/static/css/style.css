@@ -235,7 +235,9 @@ input.short-answer { font-size: var(--fs-lg); padding: 14px 16px; }
 .file.missing { background: var(--warn-wash); }
 .file.wrong i { color: var(--bad); }
 
-.editor { background: var(--editor); display: grid; grid-template-rows: 38px auto; align-content: start; min-width: 0; }
+.editor { background: var(--editor); display: grid; grid-template-rows: 38px auto; grid-template-columns: minmax(0, 1fr); align-content: start; min-width: 0; }
+/* uzun kod satırları sütunu genişletmesin; kendi içinde kaydırılsın */
+.editor > *, .doc-inner, .result-inner, .sol, .sol-meta, .trace-box { min-width: 0; }
 .tabs { display: flex; background: var(--side); border-bottom: 1px solid var(--line); overflow: hidden; }
 .tab {
   display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s4); white-space: nowrap; cursor: default;
@@ -470,6 +472,12 @@ td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); }
 @media (max-width: 1100px) {
   :root { --pane-w: 380px; --side-w: 200px; }
   .result-body, .doc { padding: var(--s5); }
+}
+/* öğretmen paneli dar ekranda: ayarlar sağ yerine ortadaki içeriğin altında */
+@media (max-width: 1280px) {
+  .ide:not(.stacked):not(.two) { grid-template-columns: var(--side-w) minmax(0, 1fr); }
+  .ide:not(.stacked):not(.two) > .files { grid-row: 1 / span 2; }
+  .ide:not(.stacked):not(.two) > .pane { grid-column: 2; border-left: 0; border-top: 1px solid var(--sage-line); }
 }
 @media (max-width: 860px) {
   main.work { padding: 0; }
