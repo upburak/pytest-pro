@@ -1,7 +1,7 @@
 """Ünite 1 - Temel Giriş/Çıkış ve Değişkenler."""
 import random
 
-from ..helpers import PEOPLE, STR_VALUES, e, output_question, shown, tf_question, unique_options
+from ..helpers import PEOPLE, STR_VALUES, Wrong, e, output_question, shown, tf_question, unique_options, whys_for_options
 from ..registry import register_unit
 
 UNIT = register_unit(
@@ -20,7 +20,14 @@ def print_sep():
         f'print("{w1}", "{w2}", sep="{sep}")', f"{w1}{sep}{w2}",
         f'<code>sep="{e(sep)}"</code> parametresi, print\'e verilen değerlerin arasına "{e(sep)}" koyar. '
         "Varsayılan ayırıcı tek boşluktur.",
-        wrongs=[f"{w1} {w2}", f"{w1}{w2}{sep}", f"{w1} {sep} {w2}"],
+        wrongs=[
+            Wrong(f"{w1} {w2}", "Varsayılan ayırıcıyı (boşluk) yazdın; ama burada <code>sep</code> ile başka bir "
+                                "ayırıcı verilmiş."),
+            Wrong(f"{w1}{w2}{sep}", "<code>sep</code> değerlerin sonuna değil, <strong>arasına</strong> konur."),
+            Wrong(f"{w1} {sep} {w2}", "<code>sep</code> boşluğun yerine geçer; ayırıcının çevresine ayrıca boşluk "
+                                      "eklenmez."),
+        ],
+        hint="<code>sep</code> parametresinin değerlerin neresine konduğunu düşün.",
     )
 
 
@@ -32,7 +39,18 @@ def print_end():
         f'print("{w1}", end="{end}")\nprint("{w2}")', f"{w1}{end}{w2}",
         "<code>end</code> parametresi print'in sonuna eklenecek metni belirler; varsayılanı yeni satırdır "
         f"(<code>\\n</code>). Burada sona {e(shown(end))} eklendiği için ikinci print aynı satırdan devam eder.",
-        wrongs=[f"{w1}\n{w2}", f"{w1} {w2}", f"{w1}{w2}", f"{w1}{end}\n{w2}", f"{w2}{end}{w1}"],
+        wrongs=[
+            Wrong(f"{w1}\n{w2}", "Her print'in yeni satıra geçtiğini düşündün; ama ilk print'te <code>end</code> "
+                                 "değiştirildiği için alt satıra geçilmez."),
+            Wrong(f"{w1} {w2}", "Araya kendiliğinden boşluk girmez; sona yalnızca <code>end</code> ile verilen metin "
+                                "eklenir."),
+            Wrong(f"{w1}{w2}", "<code>end</code> ile verilen metni atladın; o metin ilk kelimenin hemen arkasına "
+                               "yazılır."),
+            Wrong(f"{w1}{end}\n{w2}", "<code>end</code> yeni satırın <strong>yerine</strong> geçer; ikisi birden "
+                                      "yazılmaz."),
+            Wrong(f"{w2}{end}{w1}", "print komutları yukarıdan aşağı sırayla çalışır; ilk yazılan ilk kelimedir."),
+        ],
+        hint="İlk print'in sonunda normalde ne olur, burada onun yerine ne yazılıyor?",
     )
 
 
@@ -45,9 +63,16 @@ def fstring():
         f'{vname} = "{val}"\nyas = {age}\nprint(f"Merhaba {{{vname}}}, yasiniz: {{yas}}")',
         f"Merhaba {val}, yasiniz: {age}",
         "f-string içinde süslü parantez <code>{}</code> içindeki değişkenler kendi değerleriyle değiştirilir.",
-        wrongs=[f"Merhaba {{{vname}}}, yasiniz: {{yas}}", f"Merhaba {vname}, yasiniz: yas",
-                f'f"Merhaba {val}, yasiniz: {age}"'],
+        wrongs=[
+            Wrong(f"Merhaba {{{vname}}}, yasiniz: {{yas}}", "Metnin başındaki <code>f</code> harfi süslü parantezleri "
+                                                           "etkin hâle getirir; parantezler olduğu gibi yazılmaz."),
+            Wrong(f"Merhaba {vname}, yasiniz: yas", "Parantez içindeki ad değişkenin <strong>değeriyle</strong> "
+                                                   "değiştirilir, adının kendisi yazılmaz."),
+            Wrong(f'f"Merhaba {val}, yasiniz: {age}"', "<code>f</code> ve tırnaklar metnin yazımına aittir; ekrana "
+                                                      "yalnızca metnin içi çıkar."),
+        ],
         text="Aşağıdaki f-string kodunun ekran çıktısı aşağıdakilerden hangisidir?",
+        hint="Metnin başındaki f harfinin süslü parantezlere ne yaptığını düşün.",
     )
 
 
@@ -61,19 +86,35 @@ def input_type():
         "<code>input()</code> ile alınan her girdi str türündedir. Sayısal işlem için <code>int()</code> veya "
         "<code>float()</code> dönüşümü gerekir.",
         code='veri = input("Bir şey giriniz: ")',
+        hint="Sayıyla işlem yapmak için input()'tan sonra neden int() yazdığımızı hatırla.",
     )
+
+
+INVALID_NAMES = {
+    "2sayi": "Rakamla başlıyor; değişken adları harf ya da _ ile başlamalı.",
+    "ogrenci no": "İçinde boşluk var; boşluk yerine _ kullanılır (ogrenci_no).",
+    "ad-soyad": "Tire (-) çıkarma işaretidir, adda kullanılamaz; ad_soyad yazılır.",
+    "class": "class, Python'un ayrılmış anahtar kelimesidir; değişken adı olamaz.",
+    "for": "for, Python'un ayrılmış anahtar kelimesidir; değişken adı olamaz.",
+    "toplam$": "$ gibi özel işaretler adda kullanılamaz; yalnızca harf, rakam ve _ olabilir.",
+    "1_deger": "Rakamla başlıyor; değişken adları harf ya da _ ile başlamalı.",
+    "if": "if, Python'un ayrılmış anahtar kelimesidir; değişken adı olamaz.",
+}
 
 
 @q("Değişken Adlandırma", verify="identifier")
 def var_name():
     valid = random.choice(["ogrenci_no", "_sayac", "toplam2", "adSoyad", "yas_1", "not_ortalamasi"])
-    invalid = random.sample(["2sayi", "ogrenci no", "ad-soyad", "class", "for", "toplam$", "1_deger", "if"], 3)
+    wrongs = [Wrong(name, INVALID_NAMES[name]) for name in random.sample(sorted(INVALID_NAMES), 3)]
+    options = unique_options(valid, wrongs)
     return {
         "type": "mc",
         "text": "Aşağıdakilerden hangisi Python'da <strong>geçerli</strong> bir değişken adıdır?",
         "code": None,
-        "options": unique_options(valid, invalid),
+        "options": options,
         "answer": valid,
+        "whys": whys_for_options(valid, wrongs, options),
+        "hint": "Her seçeneğin ilk karakterine ve içinde boşluk ya da işaret olup olmadığına bak.",
         "solution": "Değişken adları harf veya alt çizgi (_) ile başlar; yalnızca harf, rakam ve _ içerebilir. "
                     "Boşluk, - ve $ gibi işaretler kullanılamaz; <code>class</code>, <code>for</code>, "
                     "<code>if</code> gibi anahtar kelimeler değişken adı olamaz.",
@@ -87,7 +128,13 @@ def reassign():
         f"a = {n1}\nb = a\na = {n2}\nprint(b)", str(n1),
         f"<code>b = a</code> satırında b, a'nın <strong>o anki</strong> değerini ({n1}) alır. "
         "a'ya sonradan yeni değer atanması b'yi değiştirmez.",
-        wrongs=[str(n2), str(n1 + n2), "a"],
+        wrongs=[
+            Wrong(str(n2), "b'nin a'ya bağlı kaldığını düşündün; ama b, atandığı andaki değeri kopyalar ve a "
+                           "sonradan değişse de aynı kalır."),
+            Wrong(str(n1 + n2), "Kodda toplama yok; her atama değişkenin eski değerinin yerine yenisini koyar."),
+            Wrong("a", "print(b) b'nin değerini yazar; b'ye a'nın adı değil, o anki değeri atanmıştır."),
+        ],
+        hint="b = a satırı çalıştığında a'nın değeri neydi? Sonraki satır b'ye dokunuyor mu?",
     )
 
 
@@ -98,7 +145,14 @@ def swap():
         f"a, b = {x}, {y}\na, b = b, a\nprint(a, b)", f"{y} {x}",
         "<code>a, b = b, a</code> satırında önce sağ taraf hesaplanır, sonra değerler aynı anda atanır; "
         f"böylece a ile b yer değiştirir: a = {y}, b = {x}.",
-        wrongs=[f"{x} {y}", f"{y} {y}", f"{x} {x}"],
+        wrongs=[
+            Wrong(f"{x} {y}", "İkinci satırı atladın; o satır a ile b'nin değerlerini yer değiştirir."),
+            Wrong(f"{y} {y}", "Atamaları tek tek yaptığını düşündün (önce a = b, sonra b = a). Python sağ tarafı "
+                              "önce hesaplar, sonra ikisini aynı anda atar."),
+            Wrong(f"{x} {x}", "Atamaları sırayla yapıp ilk değeri ikisine de verdin. Sağ taraf önce bütünüyle "
+                              "hesaplanır, sonra atama yapılır."),
+        ],
+        hint="İkinci satırda önce sağ taraf (b, a) hesaplanır; o anda a ve b neydi?",
     )
 
 
@@ -118,6 +172,7 @@ def write_mult():
         "code": None,
         "check": {"kind": "mult", "v1": v1, "v2": v2, "n1": n1, "n2": n2},
         "answer": f"{v1} = {n1}\n{v2} = {n2}\nprint({v1} * {v2})",
+        "hint": "Üç satır yeterli: iki atama ve bir print. Çarpma işareti * dır.",
         "solution": "Değişkenlere değer atanır, çarpım <code>*</code> operatörüyle yapılıp <code>print()</code> "
                     "ile yazdırılır.",
     }

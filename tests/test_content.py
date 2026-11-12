@@ -47,3 +47,30 @@ def test_public_question_hides_new_fields():
     for q in qs.generate_questions(20, list(qs.UNITS)):
         pub = qs.public_question(q)
         assert not {"hint", "whys", "trace", "gen", "unit"} & set(pub)
+
+
+# ---------------------------------------------------------------- içerik kapsamı
+import random  # noqa: E402
+
+import pytest  # noqa: E402
+
+from pytest_pro.questions.registry import UNITS  # noqa: E402
+
+COVERED = [g for u in qs.CONTENT_UNITS for g in UNITS[u].generators]
+
+
+@pytest.mark.parametrize("gen", COVERED, ids=lambda g: g.name)
+def test_content_complete(gen):
+    for seed in range(40):
+        random.seed(seed)
+        q = gen()
+        assert q.get("hint"), "ipucu yok"
+        if len(q["answer"]) > 3:
+            assert q["answer"] not in q["hint"], "ipucu cevabı içeriyor"
+        assert q["answer"] not in q.get("whys", {})
+        if q["type"] == "mc":
+            for opt in q["options"]:
+                if opt != q["answer"]:
+                    assert q["whys"].get(opt), f"açıklamasız şık: {opt!r}"
+        if q["type"] == "short":
+            assert q["whys"], "sık yanlış yok"

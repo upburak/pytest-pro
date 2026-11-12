@@ -33,7 +33,6 @@ def test_hint_404_when_template_has_no_hint(open_client):
     assert resp.status_code == 404 and resp.is_json and resp.get_json()["error"]
 
 
-@pytest.mark.xfail(reason="veri_tipleri içeriği Görev 8'de yazılacak", strict=True)
 def test_check_returns_why_for_wrong_option(open_client, app):
     r = nxt(open_client, unit="veri_tipleri", gen="veri_tipleri.str_concat").get_json()
     q = app.extensions["pytest_pro_practice"].get(r["token"])
