@@ -6,6 +6,7 @@ asla buraya gelmez. Her satır çalışmadan hemen önce o anki değişkenler ve
 kaydedilir; program bitince son adım nihai çıktıyla güncellenir.
 """
 import builtins
+import copy
 import functools
 import io
 import sys
@@ -61,7 +62,12 @@ def _safe_builtins(out, stdin_lines):
     safe = {k: v for k, v in builtins.__dict__.items() if k not in BLOCKED_BUILTINS}
 
     def _print(*args, sep=" ", end="\n", file=None, flush=False):
-        out.write((" " if sep is None else sep).join(str(a) for a in args) + ("\n" if end is None else end))
+        text = (" " if sep is None else sep).join(str(a) for a in args) + ("\n" if end is None else end)
+        room = MAX_OUTPUT - out.tell()
+        if len(text) > room:
+            out.write(text[:max(room, 0)])
+            raise _StopTrace
+        out.write(text)
 
     def _input(prompt=""):
         out.write(str(prompt))
@@ -89,8 +95,13 @@ def _error_line(tb):
     return line
 
 
-@functools.lru_cache(maxsize=512)
 def trace(code, stdin=""):
+    """Kodun adım adım izi. Önbellekteki sonucun kopyası döner; çağıran değiştirse de önbellek bozulmaz."""
+    return copy.deepcopy(_trace(code, stdin))
+
+
+@functools.lru_cache(maxsize=512)
+def _trace(code, stdin=""):
     out = io.StringIO()
     steps = []
     last_vars = {}  # çerçeve kimliği -> önceki adımdaki değişkenler

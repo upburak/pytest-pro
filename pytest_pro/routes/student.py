@@ -2,14 +2,14 @@
 import json
 import uuid
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from .. import clock, exams
 from .. import questions as qs
 from ..questions.tracer import trace
 from ..db import get_db
 from ..settings import get_settings
-from .common import error
+from .common import error, json_body
 
 bp = Blueprint("student", __name__, url_prefix="/api")
 
@@ -23,7 +23,7 @@ def status():
 
 @bp.post("/start")
 def start():
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     name, no = exams.clean(data.get("name"), 60), exams.clean(data.get("no"), 20)
     if not name or not no:
         return error("Ad Soyad ve Okul No zorunludur.", 400)
@@ -54,7 +54,7 @@ def start():
 
 @bp.post("/resume")
 def resume():
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     db = get_db()
     row = exams.get(db, data.get("exam_id"))
     if row is None:
@@ -71,7 +71,7 @@ def resume():
 @bp.post("/save")
 def save():
     """Cevapların ara kaydı: tarayıcı kapanır veya bağlantı koparsa cevaplar kaybolmaz."""
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     db = get_db()
     row = exams.get(db, data.get("exam_id"))
     if row is None:
@@ -90,7 +90,7 @@ def save():
 
 @bp.post("/submit")
 def submit():
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     db = get_db()
     row = exams.get(db, data.get("exam_id"))
     if row is None:
@@ -130,7 +130,7 @@ def submit():
 @bp.post("/exam/trace")
 def exam_trace():
     """Gönderilmiş sınavda bir sorunun kod izi; yalnızca öğretmen çözümleri göstermeyi açtıysa."""
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     db = get_db()
     row = exams.get(db, data.get("exam_id"))
     if row is None:

@@ -357,3 +357,13 @@ def test_pages_load_trace_component(client):
     for path in ("/", "/pratik", "/ogretmen"):
         html = client.get(path).data.decode("utf-8")
         assert html.index("js/common.js") < html.index("js/tracer.js"), path
+
+
+@pytest.mark.parametrize("path", ["/api/start", "/api/resume", "/api/save", "/api/submit", "/api/exam/trace",
+                                  "/api/practice/next", "/api/practice/hint", "/api/practice/trace",
+                                  "/api/practice/check"])
+@pytest.mark.parametrize("body", [[1, 2], "metin", 5])
+def test_non_object_json_is_rejected_cleanly(client, path, body):
+    client.put("/api/settings", json={"practice_open": True}, headers=TEACHER)
+    r = client.post(path, json=body)
+    assert r.status_code < 500 and r.is_json, (path, body, r.status_code)

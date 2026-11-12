@@ -1,7 +1,13 @@
 """Rotalarda ortak yardımcılar."""
 import socket
 
-from flask import current_app, jsonify
+from flask import current_app, jsonify, request
+
+
+def json_body():
+    """İstek gövdesindeki JSON nesnesi; nesne değilse (liste, metin, sayı) boş sözlük."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
 
 
 def error(message, status):

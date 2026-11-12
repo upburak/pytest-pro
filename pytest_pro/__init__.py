@@ -1,5 +1,5 @@
 """PyTest Pro - Python öğretimi için dinamik ölçme ve değerlendirme sistemi."""
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 
 def create_app(*args, **kwargs):

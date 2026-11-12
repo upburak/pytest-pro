@@ -1,11 +1,11 @@
 """Pratik modu API'si: kayıt tutulmaz, cevap anında kontrol edilir."""
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify
 
 from .. import questions as qs
 from ..questions.tracer import trace
 from ..db import get_db
 from ..settings import get_settings
-from .common import error
+from .common import error, json_body
 
 bp = Blueprint("practice", __name__, url_prefix="/api/practice")
 
@@ -29,7 +29,7 @@ def units():
 def next_question():
     if _closed():
         return error("Pratik modu şu an kapalı.", 403)
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     unit = str(data.get("unit", ""))
     if unit not in qs.UNITS:
         return error("Ünite bulunamadı.", 404)
@@ -50,7 +50,7 @@ def _question_or_error():
     """(soru, None) ya da (None, hata yanıtı)."""
     if _closed():
         return None, error("Pratik modu şu an kapalı.", 403)
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     q = _store().get(data.get("token"))
     if q is None:
         return None, error("Bu soru artık yok, yeni soru al.", 404)
@@ -83,7 +83,7 @@ def check():
     q, err = _question_or_error()
     if err:
         return err
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     answer = str(data.get("answer") or "")[:qs.MAX_CODE_LEN]
     ok, note = qs.grade(q, answer)
     if ok:

@@ -86,3 +86,15 @@ def test_trace_agrees_with_answer_key(gen):
             assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == echo + q["answer"]
         else:
             assert t["error"]["type"] in q["answer"]
+
+
+def test_output_cap_holds_for_single_print():
+    from pytest_pro.questions.tracer import MAX_OUTPUT
+    t = trace("print('a' * 100000)")
+    assert len(t["steps"][-1]["output"]) <= MAX_OUTPUT + 1
+
+
+def test_trace_result_is_not_shared_between_callers():
+    first = trace("a = 1\nprint(a)")
+    first["steps"].clear()
+    assert len(trace("a = 1\nprint(a)")["steps"]) == 2
