@@ -5,6 +5,8 @@ import uuid
 from flask import Blueprint, jsonify, request
 
 from .. import clock, exams
+from .. import questions as qs
+from ..questions.tracer import trace
 from ..db import get_db
 from ..settings import get_settings
 from .common import error
@@ -117,7 +119,26 @@ def submit():
         if show:
             item.update({"type": q["type"], "text": q["text"], "code": q.get("code"),
                          "user_answer": answers.get(str(q["id"]), ""), "answer": q["answer"],
-                         "note": res["note"], "solution": q["solution"]})
+                         "note": res["note"], "solution": q["solution"],
+                         "why": exams.why_of(q, answers.get(str(q["id"]), ""), res["correct"]),
+                         "has_trace": bool(qs.trace_source(q))})
         details.append(item)
     return jsonify({"correct": row["correct"], "wrong": row["wrong"], "score": row["score"],
                     "late": late, "show_solutions": show, "details": details})
+
+
+@bp.post("/exam/trace")
+def exam_trace():
+    """Gönderilmiş sınavda bir sorunun kod izi; yalnızca öğretmen çözümleri göstermeyi açtıysa."""
+    data = request.get_json(silent=True) or {}
+    db = get_db()
+    row = exams.get(db, data.get("exam_id"))
+    if row is None:
+        return error("Sınav bulunamadı.", 404)
+    if row["submitted_at"] is None or not get_settings(db)["show_solutions"]:
+        return error("Kod izi şu an görüntülenemez.", 403)
+    q = exams.question_by_id(row, data.get("question_id"))
+    source = qs.trace_source(q) if q else None
+    if not source:
+        return error("Bu soru için adım adım izlenecek kod yok.", 404)
+    return jsonify(trace(source["code"], source.get("stdin", "")))

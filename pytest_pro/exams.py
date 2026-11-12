@@ -127,6 +127,22 @@ def rows_with_attempts(db, title=None):
     return out
 
 
+def why_of(question, answer, correct):
+    """Sınav sonucunda gösterilecek 'neden yanlış' açıklaması (doğru ve kod sorularında yok)."""
+    if correct or question["type"] == "code":
+        return None
+    return qs.why_for(question, answer)
+
+
+def question_by_id(row, question_id):
+    """Sınav kaydındaki soru; numara geçersizse veya yoksa None."""
+    try:
+        qid = int(question_id)
+    except (TypeError, ValueError):
+        return None
+    return next((q for q in json.loads(row["questions"]) if q["id"] == qid), None)
+
+
 def topic_stats(db, title=None):
     """Tamamlanan sınavlarda ünite/konu bazında doğru oranı; en zayıf konu önce."""
     sql = "SELECT questions, answers, results FROM exams WHERE submitted_at IS NOT NULL"
@@ -135,13 +151,29 @@ def topic_stats(db, title=None):
         sql += " AND title = ?"
         params = (title,)
     stats = {}
+    wrongs = {}  # konu -> {normalleştirilmiş cevap: [adet, gösterilen cevap, açıklama]}
     for r in db.execute(sql, params):
         questions = json.loads(r["questions"])
-        for q, res in zip(questions, results_of(r, questions, json.loads(r["answers"] or "{}"))):
+        answers = json.loads(r["answers"] or "{}")
+        for q, res in zip(questions, results_of(r, questions, answers)):
             key = (qs.unit_title(q.get("unit")), q["topic"])
             s = stats.setdefault(key, [0, 0])
             s[0] += bool(res["correct"])
             s[1] += 1
-    items = [{"unit": u, "topic": t, "correct": c, "total": n, "rate": round(c * 100 / n)}
+            answer = answers.get(str(q["id"]), "")
+            if res["correct"] or q["type"] not in ("mc", "short") or not str(answer).strip():
+                continue
+            norm = qs._norm_short(answer) if q["type"] == "short" else answer
+            w = wrongs.setdefault(key, {}).setdefault(norm, [0, answer, qs.why_for(q, answer)])
+            w[0] += 1
+
+    def common(key, total):
+        if key not in wrongs:
+            return None
+        count, shown, why = max(wrongs[key].values(), key=lambda w: w[0])
+        return {"answer": shown, "share": round(count * 100 / total), "why": why}
+
+    items = [{"unit": u, "topic": t, "correct": c, "total": n, "rate": round(c * 100 / n),
+              "common_wrong": common((u, t), n)}
              for (u, t), (c, n) in stats.items()]
     return sorted(items, key=lambda x: (x["rate"], x["unit"], x["topic"]))

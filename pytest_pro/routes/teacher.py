@@ -11,6 +11,7 @@ from .. import clock, exams, settings
 from .. import questions as qs
 from ..auth import teacher_required
 from ..db import get_db
+from ..questions.tracer import trace
 from .common import error, student_url
 
 bp = Blueprint("teacher", __name__, url_prefix="/api")
@@ -98,11 +99,29 @@ def result_detail(exam_id):
     for q, res in zip(questions, exams.results_of(row, questions, answers)):
         details.append({"id": q["id"], "type": q["type"], "unit": qs.unit_title(q.get("unit")), "topic": q["topic"],
                         "text": q["text"], "code": q.get("code"), "user_answer": answers.get(str(q["id"]), ""),
-                        "answer": q["answer"], "correct": res["correct"], "note": res["note"]})
+                        "answer": q["answer"], "correct": res["correct"], "note": res["note"],
+                        "why": exams.why_of(q, answers.get(str(q["id"]), ""), res["correct"]),
+                        "has_trace": bool(qs.trace_source(q))})
     return jsonify({"id": row["id"], "name": row["name"], "no": row["no"], "title": row["title"],
                     "score": row["score"], "correct": row["correct"], "wrong": row["wrong"],
                     "auto": bool(row["auto_submitted"]), "started": exams.fmt(row["started_at"], "%d.%m.%Y %H:%M"),
                     "submitted": exams.fmt(row["submitted_at"], "%H:%M"), "details": details})
+
+
+@bp.get("/results/<exam_id>/trace/<question_id>")
+@teacher_required
+def result_trace(exam_id, question_id):
+    db = get_db()
+    row = exams.get(db, exam_id)
+    if row is None:
+        return error("Kayıt bulunamadı.", 404)
+    if row["submitted_at"] is None:
+        return error("Bu öğrencinin sınavı henüz bitmedi.", 409)
+    q = exams.question_by_id(row, question_id)
+    source = qs.trace_source(q) if q else None
+    if not source:
+        return error("Bu soru için adım adım izlenecek kod yok.", 404)
+    return jsonify(trace(source["code"], source.get("stdin", "")))
 
 
 @bp.delete("/results/<exam_id>")
