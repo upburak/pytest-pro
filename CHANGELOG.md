@@ -1,5 +1,23 @@
 # Sürüm Notları
 
+## 3.2.0
+
+### Editör tasarımı
+- Yeni görsel dil: sınav bir kod editörü gibi. Solda soru dosyaları (`soru_01.py`), üstte satır numaralı ve
+  renklendirilmiş kod, hemen altında adaçayı yeşili cevap paneli. Ayrıntılar: `docs/TASARIM.md`.
+- Kısa şıklar iki sütunda; klavye kısayolları (A–E ya da 1–5 şık, D/Y doğru/yanlış, ←/→ soru değiştir).
+- Gönderirken boş sorular listede işaretlenir; ikinci basış boş haliyle gönderir (açılır onay penceresi yok).
+- Kod yazma sorusunda görev metni editörün üstünde, yazma alanı satır numaralı.
+- Sonuç ekranında soru listesinden çözüme atlama ve "yalnız yanlışlar" filtresi.
+- Pratikte kontrol sonrası doğru şık yeşil, seçilen yanlış şık kırmızı.
+- Öğretmen paneli: sınavdaki öğrencilerin kaç soru cevapladığı canlı görünür; öğrenci ayrıntısı sekmede açılır,
+  adres, QR ve ayarlar yan panelde.
+- Kodda bitişik harfler kapalı (`==` iki ayrı işaret görünür). Başlık yazı tipi Fraunces; Caveat kaldırıldı.
+
+### Kolay başlatma
+- `baslat.bat` (Windows) ve `baslat.command` (Mac): çift tıklayınca ilk açılışta Python ortamını ve paketleri
+  kurar, sunucuyu başlatır ve öğretmen panelini tarayıcıda açar.
+
 ## 3.1.0
 
 ### Öğrenme yardımları

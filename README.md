@@ -20,7 +20,20 @@ temel giriş/çıkıştan nesne yönelimli programlamaya kadar. Ayrıntılı lis
 
 ## Kurulum ve çalıştırma
 
-Python 3.9 veya üstü gerekir.
+Python 3.9 veya üstü gerekir ([python.org/downloads](https://www.python.org/downloads/); Windows'ta kurulumda
+**Add python.exe to PATH** kutusunu işaretleyin).
+
+### Çift tıklayarak başlatma
+
+- **Windows:** `baslat.bat` dosyasına çift tıklayın.
+- **Mac:** `baslat.command` dosyasına çift tıklayın. İlk seferde "açılamıyor" uyarısı çıkarsa dosyaya sağ tıklayıp
+  **Aç**'ı seçin. Dosya hiç çalışmazsa Terminal'de proje klasöründe bir kez `chmod +x baslat.command` çalıştırın.
+
+İlk açılışta proje klasöründe ayrı bir Python ortamı (`.venv`) kurulur ve paketler indirilir (internet gerekir);
+sonraki açılışlar internetsiz çalışır. Sunucu açılınca öğretmen paneli tarayıcıda kendiliğinden açılır.
+Sunucuyu kapatmak için açılan pencerede **Ctrl+C**'ye basın ya da pencereyi kapatın.
+
+### Komut satırından
 
 ```bash
 pip install -r requirements.txt
