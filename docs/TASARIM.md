@@ -5,15 +5,19 @@ okuyormuş ve yazıyormuş gibi hisseder. Ekran iki dünyaya ayrılır:
 
 - **Okunacak taraf (solda ve ortada):** editör. Solda dosya listesi (`soru_01.py`, `soru_02.txt` ...),
   ortada satır numaralı, renklendirilmiş kod.
-- **Cevaplanacak taraf (sağda):** adaçayı yeşili cevap paneli. Soru başlığı, şıklar ve düğmeler burada.
+- **Cevaplanacak taraf (kodun hemen altında):** adaçayı yeşili cevap paneli. Soru başlığı, şıklar ve düğmeler burada.
+  Göz koddan şıklara kısa bir yol alır; kısa şıklar iki sütunda dizilir.
+
+Ekran boydan boya kaplanmaz: içerik ortalanmış, kendi yüksekliğinde bir pencerededir. Üst şerit (süre,
+gönder) ve alt durum çubuğu sayfa kaydırılsa da görünür kalır.
 
 Kaynak: `pytest_pro/static/css/style.css`. Tüm değerler dosyanın başındaki değişkenlerden gelir.
 
 ## İlkeler
 
-1. **Okunan ortada, cevaplanan sağda.** Kodlu soruda kod ortada, soru ve şıklar sağdadır. Kodsuz soruda
-   soru metni ortada büyük yazılır, sağda kısa bir yönerge ("Doğru cevabı seç.") kalır. Kod yazma
-   sorusunda orta alan yazılabilir bir editöre dönüşür, görev metni sağdadır.
+1. **Önce oku, hemen altında cevapla.** Kodlu soruda kod üstte, soru ve şıklar altta. Kodsuz soruda
+   soru metni editörde büyük yazılır, cevap panelinde kısa bir yönerge ("Doğru cevabı seç.") kalır. Kod yazma
+   sorusunda görev metni editörün üstünde, yazma alanı hemen altındadır.
 2. **Tek vurgu rengi yeşil.** Seçili şık, ilerleme, gönder düğmesi ve durum çubuğu yeşildir. Kırmızı yalnızca
    yanlış cevap ve son dakika uyarısı içindir; sarı yalnızca boş soru uyarısı ve kod izindeki çalışan satır içindir.
 3. **Dosya listesi = soru haritası.** `✓` cevaplandı, `●` şu anki soru, `○` boş. Gönderirken boş sorular
@@ -57,11 +61,11 @@ gövde yazısıyla gösterilir.
 ## Ekranlar
 
 - **Öğrenci girişi:** solda `hosgeldin.py` kodu, sağda giriş formu.
-- **Sınav:** dosya listesi, kod, cevap paneli; üstte süre ve "Sınavı gönder", altta durum çubuğu
+- **Sınav:** solda dosya listesi; sağ sütunda üstte kod, altta cevap paneli; üstte süre ve "Sınavı gönder", altta durum çubuğu
   (cevaplanan sayısı, kayıt durumu, kısayollar).
 - **Sonuç:** solda `✓`/`✗` soru listesi (tıklayınca o soruya gider), ortada puan kartı ve çözümler;
   varsayılan olarak yalnız yanlışlar gösterilir.
-- **Pratik:** solda üniteler ve tamamlanan konu sayısı, ortada soru ve kod izi, sağda cevap ve geri bildirim.
+- **Pratik:** solda üniteler ve tamamlanan konu sayısı; üstte soru ve kod izi, altta cevap ve geri bildirim.
   Kontrolden sonra doğru şık yeşil, seçilen yanlış şık kırmızı olur.
 - **Öğretmen:** solda öğrenciler (sınavdakiler ilerleme çubuğuyla, bitirenler puanla), ortada sınıf özeti
   ya da seçilen öğrencinin ayrıntısı (sekme olarak açılır, Esc ile kapanır), sağda adres, QR ve ayarlar.
@@ -69,4 +73,4 @@ gövde yazısıyla gösterilir.
 ## Dar ekran
 
 860 pikselin altında sütunlar alt alta dizilir: dosya listesi yatay kaydırılan bir şerit olur,
-cevap paneli kodun altına iner.
+pencere kenarlıkları kalkar ve şıklar tek sütuna iner.

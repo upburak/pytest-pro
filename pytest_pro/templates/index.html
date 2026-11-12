@@ -37,8 +37,8 @@
     </div>
   </div>
 
-  <!-- SINAV: sorular | kod | cevap -->
-  <div id="exam-card" class="ide hidden">
+  <!-- SINAV: solda sorular; ortada kod, hemen altında cevap -->
+  <div id="exam-card" class="ide stacked hidden">
     <nav class="files" aria-label="Sorular">
       <p class="files-head">Sorular</p>
       <div id="nav-grid"></div>
@@ -52,8 +52,7 @@
       </div>
     </section>
     <aside class="pane" aria-labelledby="q-text">
-      <p id="q-badge" class="pane-kicker"></p>
-      <h2 id="q-text" class="pane-title"></h2>
+      <div class="pane-head"><p id="q-badge" class="pane-kicker"></p><h2 id="q-text" class="pane-title"></h2></div>
       <div id="answer-box"></div>
       <div id="submit-note" class="submit-note hidden" role="status"></div>
       <div id="submit-err" class="err" role="alert"></div>

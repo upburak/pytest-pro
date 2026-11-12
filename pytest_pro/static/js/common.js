@@ -103,7 +103,9 @@ window.PyTest = (function () {
       const opts = q.type === 'mc' ? q.options : ['True', 'False'];
       const letters = q.type === 'mc' ? 'ABCDE' : 'DY';
       const group = document.createElement('div');
-      group.className = 'opts';
+      // kısa şıklar iki sütunda: göz ve fare daha az yol alır
+      const short = opts.every((o) => String(o).length <= 26 && !String(o).includes('\n'));
+      group.className = 'opts' + (short ? ' cols-2' : '');
       group.setAttribute('role', 'radiogroup');
       group.setAttribute('aria-label', 'Şıklar');
       opts.forEach((opt, i) => {
@@ -147,7 +149,7 @@ window.PyTest = (function () {
     if (q.type === 'code') {
       const note = document.createElement('p');
       note.className = 'pane-note';
-      note.textContent = 'Kodunu ortadaki editöre yaz. Tab tuşu 4 boşluk ekler.';
+      note.textContent = 'Tab tuşu 4 boşluk ekler. Kodun yazdıkça kaydedilir.';
       box.appendChild(note);
       const target = codeBox || box;
       target.innerHTML = '';
@@ -159,7 +161,7 @@ window.PyTest = (function () {
    * Soruyu editör düzenine yerleştirir. els: {tab, code, prose, slot, text}
    * - kodlu soru: ortada renklendirilmiş kod, sağda soru metni
    * - kodsuz soru: soru metni ortada büyük, sağda kısa yönerge
-   * - kod yazma sorusu: ortada yazma alanı, sağda görev metni
+   * - kod yazma sorusu: görev metni ve altında yazma alanı ortada, cevap panelinde kısa yönerge
    * Metin sunucunun şablonlardan ürettiği güvenli HTML'dir.
    */
   function renderQuestion(els, q, n) {
@@ -167,17 +169,20 @@ window.PyTest = (function () {
     const ext = q.code || isCode ? '.py' : '.txt';
     els.tab.textContent = (isCode ? 'cevap_' : 'soru_') + String(n).padStart(2, '0') + ext;
     els.code.classList.toggle('hidden', !q.code);
-    els.prose.classList.toggle('hidden', !!q.code || isCode);
+    els.prose.classList.toggle('hidden', !!q.code);
+    els.prose.classList.toggle('task', isCode);
     els.slot.classList.toggle('hidden', !isCode);
     if (!isCode) els.slot.innerHTML = '';
     // uzun görev metinleri başlık yazısıyla değil, okunaklı gövde yazısıyla gösterilir
     const plain = String(q.text).replace(/<[^>]*>/g, '');
-    els.text.classList.toggle('long', plain.length > 90 && (!!q.code || isCode));
+    els.text.classList.toggle('long', plain.length > 90 && !!q.code);
     if (q.code) {
       renderCode(els.code, q.code);
       els.text.innerHTML = q.text;
     } else if (isCode) {
-      els.text.innerHTML = q.text;
+      // görev editörün üstünde okunur, kod hemen altına yazılır
+      els.prose.innerHTML = q.text;
+      els.text.textContent = 'Kodunu yukarıdaki editöre yaz.';
     } else {
       els.prose.innerHTML = q.text;
       els.text.textContent = q.type === 'tf' ? 'Bu ifade doğru mu, yanlış mı?' : 'Doğru cevabı seç.';
