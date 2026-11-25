@@ -1,9 +1,27 @@
 """Ünite 4 - Metinler (str)."""
+import ast
 import random
 from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 
-from ..helpers import STR_VALUES, Wrong, e, err, output_question
+from ..codecheck import (
+    OK,
+    UNREADABLE,
+    Tracker,
+    assigned_names,
+    assignments,
+    checker,
+    const_value,
+    find_prints,
+    loop_problems,
+    print_texts,
+    print_values,
+    range_values,
+    same_value,
+    uses_name,
+)
+from ..helpers import STR_VALUES, Wrong, e, err, fill_question, output_question, tf_claim
 from ..registry import register_unit
+from .u01_temel import UNSET
 
 UNIT = register_unit(
     "metinler", "Metinler (String)", "Başlangıç",
@@ -331,3 +349,599 @@ def fstring_format():
         ],
         hint=":.Nf biçimindeki N neyi belirtir? Sayı yuvarlanır mı, kesilir mi?",
     )
+
+
+# ================================================================= yeni şablonlar (ölçme raporu Ö4.1-Ö4.8)
+CLAIM_WORDS = ["Bilgisayar", "Kalem", "Defter", "Python", "Kitap", "Klavye", "Ekran", "Program", "Öğrenci",
+               "Değişken", "Sözlük", "Pencere"]
+
+
+@q("İndeks İddiası (Doğru/Yanlış)", verify="tf_output")
+def index_claim():
+    """Kazanım: pozitif ve negatif indeksi doğru okur · Bloom: U"""
+    word = random.choice(CLAIM_WORDS)
+    while True:
+        i = random.randint(-3, min(4, len(word) - 2))
+        if i >= 0:
+            wrongs = [Wrong(word[i + 1], f"Bir sonraki karakteri aldın; [{i}] ilk karakterden {i} adım sonradır.")]
+            if i > 0:
+                wrongs.append(Wrong(word[i - 1], f"Saymaya 1'den başlamış olabilirsin; indeksler 0'dan başlar, [{i}] "
+                                                 f"{i + 1}. karakterdir."))
+        else:
+            wrongs = [Wrong(word[i - 1], f"Sondan bir fazla saydın; [-1] son karakterdir, [{i}] sondan {-i}. "
+                                         "karakterdir.")]
+            if i == -1:
+                wrongs.append(Wrong(word[0], "[-1] ilk karakter değil, son karakterdir."))
+            else:
+                wrongs.append(Wrong(word[i + 1], f"Sondan bir eksik saydın; [-1] son karakterdir, [{i}] sondan {-i}. "
+                                                 "karakterdir."))
+        wrongs = [w for w in wrongs if w.value != word[i]]
+        if wrongs:
+            break
+    return tf_claim(
+        f'metin = "{word}"\nprint(metin[{i}])', word[i], wrongs,
+        "İndeksler 0'dan başlar: ilk karakter <code>[0]</code>. Negatif indeksler sondan sayar: son karakter "
+        f"<code>[-1]</code>. <code>\"{e(word)}\"[{i}]</code> = \"{e(word[i])}\".",
+        hint="[0] ilk karakter, [-1] son karakterdir. Bu indeks baştan mı sondan mı sayılıyor?",
+    )
+
+
+SLICE_WORDS = ["Python", "Bilgisayar", "Kalemlik", "Defter", "Klavye", "Program", "Ankara", "Algoritma",
+               "Kodlama", "Ekranlar", "Yazılım", "Sözlük"]
+
+
+def _slice_text(word, s, t):
+    return word[(None if s == "" else s):(None if t == "" else t)]
+
+
+@q("Dilimi Tamamla (Boşluk Doldurma)", verify="fill")
+def slice_blank():
+    """Kazanım: istenen parçayı verecek dilimi kurar; eşdeğer dilimleri görür · Bloom: An"""
+    word = random.choice(SLICE_WORDS)
+    n = len(word)
+    size = random.randint(2, 4)
+    a = random.randint(0, n - size)
+    target = word[a:a + size]
+    canonical = f"{a}:{a + size}"
+    found = [f"{s}:{t}" for s in [""] + list(range(-n, n + 1)) for t in [""] + list(range(-n, n + 1))
+             if _slice_text(word, s, t) == target]
+    alts = [canonical] + [x for x in found if x != canonical]
+    pool = [Wrong(f"{a}:{a + size - 1}", "Bitiş indeksi dilime dahil değildir; dilim bitişten bir karakter önce "
+                                         "biter. Bitişi bir artır."),
+            Wrong(f"{a + 1}:{a + size + 1}", "Saymaya 1'den başlamış olabilirsin; indeksler 0'dan başlar."),
+            Wrong(f"{a}:{size}", "İkinci sayı parçanın uzunluğu değil, bitiş indeksidir.")]
+    wrongs = [w for w in pool if w.value not in alts
+              and _slice_text(word, *[int(x) if x else "" for x in w.value.split(":")]) != target]
+    return fill_question(
+        f'metin = "{word}"\nprint(metin[____])', [alts], target,
+        f"Aşağıdaki kod ekrana <code>{e(target)}</code> yazmalı. Boşluğa gereken dilimi "
+        "(<code>başlangıç:bitiş</code>) yazın.",
+        f"Parça {a}. indeksten başlıyor ve {size} karakter uzunluğunda; bitiş indeksi dahil olmadığı için "
+        f"<code>[{a}:{a + size}]</code> yazılır. Negatif indeksli ya da boş bırakılan eşdeğer dilimler de kabul "
+        "edilir.",
+        hint="İlk karakterin indeksi kaç? Bitiş indeksi dilime dahil mi?",
+        wrongs=[wrongs],
+    )
+
+
+METHOD_TEXTS = ["okul zamanı", "python dersi", "Merhaba Dünya", "bilgisayar", "ANKARA kalesi", "kitap OKUMA",
+                "istanbul", "yazılım dersi", "  python  ", "  Okul Zamanı  ", "  kodlama dersi  ", "KOD yazmak",
+                "yapay zeka", "Dünya kupası", "bilgi yarışması", "sınav haftası", "  Kitap Kurdu  ", "  ödev  "]
+CASE_DESC = {
+    "upper": "tüm harfleri büyütür", "lower": "tüm harfleri küçültür",
+    "title": "her kelimenin ilk harfini büyütür, diğerlerini küçültür",
+    "capitalize": "yalnızca metnin ilk harfini büyütür, diğerlerini küçültür",
+    "strip": "baştaki ve sondaki boşlukları siler", "lstrip": "yalnızca baştaki boşlukları siler",
+    "rstrip": "yalnızca sondaki boşlukları siler", "swapcase": "büyük harfleri küçük, küçükleri büyük yapar",
+}
+TARGET_METHODS = ["upper", "lower", "title", "capitalize", "strip"]
+
+
+@q("Metot Bul (Boşluk Doldurma)", verify="fill")
+def method_blank():
+    """Kazanım: çıktıdan metodu belirler; Türkçe büyük harf sorununu tanır · Bloom: An"""
+    while True:
+        text = random.choice(METHOD_TEXTS)
+        method = random.choice(TARGET_METHODS)
+        results = {m: getattr(text, m)() for m in CASE_DESC}
+        target = results[method]
+        if target != text and list(results.values()).count(target) == 1:
+            break
+    padded = text != text.strip()
+    code = f'metin = "{text}"\n' + ('print("[" + metin.____() + "]")' if padded else "print(metin.____())")
+    expect = f"[{target}]" if padded else target
+    wrongs = [Wrong(m, f"<code>{m}()</code> {CASE_DESC[m]}; sonuç <code>{e(r)}</code> olur.")
+              for m, r in results.items() if m != method]
+    note = ""
+    if "i" in text and method in ("upper", "title", "capitalize") and "I" in target:
+        note = (" Dikkat: Python küçük <code>i</code> harfini Türkçedeki gibi <code>İ</code> değil, <code>I</code> "
+                "yapar.")
+    return fill_question(
+        code, [[method]], expect,
+        f"Aşağıdaki kod ekrana <code>{e(expect)}</code> yazmalı. Boşluğa gereken metot adını yazın."
+        + (" (Köşeli parantezler boşlukları görünür kılmak için eklendi.)" if padded else ""),
+        f"<code>{method}()</code> {CASE_DESC[method]}. Metotlar orijinal metni değiştirmez, yeni bir metin "
+        f"döndürür.{note}",
+        hint="Çıktıda ne değişmiş: harflerin büyüklüğü mü, baştaki ve sondaki boşluklar mı?",
+        wrongs=[wrongs],
+    )
+
+
+FIND_WORDS = ["Bilgisayar", "Kalemlik", "Defterim", "Programlama", "Klavye", "Algoritma", "Pencere", "Ankara",
+              "Kodlama", "Matematik", "Sözlük", "Yazılım"]
+
+
+@q("find() ve count()", verify="output")
+def find_index():
+    """Kazanım: aranan parçanın konumunu bulur; bulunamayınca -1 döndüğünü bilir · Bloom: U"""
+    word = random.choice(FIND_WORDS)
+    form = random.choices(["find", "absent", "index", "count"], weights=[3, 2, 2, 3])[0]
+    letters = sorted(set(word))
+    hint = "Saymaya 0'dan başla. Aranan bulunamazsa find() ne döndürür? count() neyi sayar?"
+    if form == "absent":
+        ch = random.choice([c for c in "xzqwçğ" if c not in word.lower()])
+        call, answer = f'find("{ch}")', "-1"
+        common = [Wrong("None", "find() aradığını bulamazsa -1 döndürür."),
+                  Wrong("0", "0 ilk karakterin indeksidir; bulunamayınca find() -1 döndürür."),
+                  Wrong(err("ValueError"), "find() bulamayınca hata vermez, -1 döndürür; hata veren index()'tir.")]
+    elif form in ("find", "index"):
+        ch = random.choice(letters)
+        method = form
+        call, pos = f'{method}("{ch}")', word.find(ch)
+        answer = str(pos)
+        common = [Wrong(str(pos + 1), f"İndeksler 0'dan başlar; \"{e(ch)}\" {pos + 1}. karakterdir ama indeksi {pos}.")]
+        if word.rfind(ch) != pos:
+            common.append(Wrong(str(word.rfind(ch)), f"<code>{method}()</code> aranan parçanın ilk geçtiği yeri "
+                                                     "verir; son geçtiği yeri değil."))
+        if word.lower().find(ch.lower()) != pos:
+            common.append(Wrong(str(word.lower().find(ch.lower())), "Arama büyük/küçük harfe duyarlıdır."))
+        common.append(Wrong(str(word.count(ch)), "Bu count() sonucu (kaç kez geçtiği); burada konum soruluyor."))
+    else:
+        ch = random.choice([c for c in letters if c.isalpha()])
+        call, answer = f'count("{ch}")', str(word.count(ch))
+        common = [Wrong(str(word.find(ch)), "Bu find() sonucu (ilk konum); count() kaç kez geçtiğini sayar."),
+                  Wrong(str(len(word)), "count() bütün karakterleri değil, yalnızca aranan parçayı sayar.")]
+        if word.lower().count(ch.lower()) != word.count(ch):
+            common.append(Wrong(str(word.lower().count(ch.lower())), "count() büyük/küçük harfe duyarlıdır."))
+    return output_question(
+        f'metin = "{word}"\nprint(metin.{call})', answer,
+        "<code>find()</code> ve <code>index()</code> aranan parçanın ilk geçtiği indeksi verir (0'dan sayılır). "
+        "Bulunamazsa <code>find()</code> -1 döndürür, <code>index()</code> hata verir. <code>count()</code> kaç kez "
+        f"geçtiğini sayar. Sonuç: {answer}.",
+        common_wrongs=common, norm="sayi", hint=hint,
+    )
+
+
+IMMUTABLE_WORDS = ["kalem", "defter", "kutu", "masa", "okul", "ekran", "dolap", "bardak", "tahta", "kapak"]
+
+
+@q("Metinler Değiştirilemez", verify="outcome")
+def str_immutable():
+    """Kazanım: metnin karakterine atama yapılamayacağını, metotların yeni metin döndürdüğünü bilir · Bloom: H/U"""
+    word = random.choice(IMMUTABLE_WORDS)
+    var = random.choice(["s", "kelime", "metin"])
+    i = random.randint(0, min(3, len(word) - 1))
+    new = random.choice([c for c in "KTMZR" if c != word[i].upper()])
+    fixed = word[:i] + new + word[i + 1:]
+    variant = random.choices(["assign", "rebuild", "method", "method_assign"], weights=[35, 25, 20, 20])[0]
+    hint = "Metin oluşturulduktan sonra tek bir karakteri değiştirilebilir mi? Metot sonucu bir yere atanıyor mu?"
+    rebuilt = f'"{new}" + {var}[1:]' if i == 0 else f'{var}[:{i}] + "{new}" + {var}[{i + 1}:]'
+    if variant == "assign":
+        code, answer = f'{var} = "{word}"\n{var}[{i}] = "{new}"\nprint({var})', err("TypeError")
+        expl = ("Metinler değiştirilemez (immutable): bir karakterine atama yapılamaz ve TypeError oluşur. Yeni bir "
+                f"metin oluşturulmalı: <code>{var} = {e(rebuilt)}</code>.")
+        wrongs = [Wrong(fixed, "Metnin tek bir karakteri değiştirilemez; atama satırı hata verir."),
+                  Wrong(word, "Atama satırı hata verir; program print satırına ulaşmaz."),
+                  Wrong(err("IndexError"), f"[{i}] geçerli bir indeks; sorun atamanın kendisinde.")]
+    elif variant == "rebuild":
+        code, answer = f'{var} = "{word}"\n{var} = {rebuilt}\nprint({var})', fixed
+        expl = (f"Karakter değiştirilmiyor; parçalardan <strong>yeni</strong> bir metin oluşturulup <code>{var}</code> "
+                "değişkenine atanıyor. Bu geçerlidir.")
+        wrongs = [Wrong(err("TypeError"), "Burada karaktere değil, değişkenin tamamına yeni metin atanıyor; bu "
+                                          "geçerlidir."),
+                  Wrong(word, f"<code>{var}</code> yeni metne bağlandı; print yeni metni yazar."),
+                  Wrong(word[:i] + new + word[i:], f"<code>[{i + 1}:]</code> değiştirilen karakteri atlar; harf araya "
+                                                   "eklenmez, onun yerine geçer.")]
+    elif variant == "method":
+        call, result = random.choice([("upper()", word.upper()), (f'replace("{word[i]}", "{new}")',
+                                                                  word.replace(word[i], new))])
+        code, answer = f'{var} = "{word}"\n{var}.{call}\nprint({var})', word
+        expl = (f"Metotlar metni değiştirmez, yeni bir metin döndürür. <code>{var}.{e(call)}</code> sonucu bir "
+                f"değişkene atanmadığı için kaybolur; <code>{var}</code> aynı kalır.")
+        wrongs = [Wrong(result, f"Metot yeni metin döndürür ama sonuç atanmadı; <code>{var}</code> değişmez."),
+                  Wrong(err("TypeError"), "Metot çağırmak hata vermez; yalnızca sonucu kullanılmaz."),
+                  Wrong(err("AttributeError"), "Metinlerde bu metot vardır; çağrı hatasız çalışır.")]
+    else:
+        call, result = random.choice([("upper()", word.upper()), (f'replace("{word[i]}", "{new}")',
+                                                                  word.replace(word[i], new))])
+        code, answer = f'{var} = "{word}"\n{var} = {var}.{call}\nprint({var})', result
+        expl = (f"Metot yeni bir metin döndürür ve bu metin <code>{var}</code> değişkenine yeniden atanır. Metin "
+                "değiştirilemez ama değişkene yeni metin atanabilir.")
+        wrongs = [Wrong(word, f"Sonuç <code>{var}</code> değişkenine yeniden atandı; print yeni metni yazar."),
+                  Wrong(err("TypeError"), "Metinler değiştirilemez ama değişkene yeni bir metin atanabilir; hata "
+                                          "oluşmaz.")]
+        if call == "upper()":
+            wrongs.append(Wrong(word.capitalize(), "upper() tüm harfleri büyütür; yalnızca ilk harfi büyüten "
+                                                   "capitalize()'dır."))
+        else:
+            wrongs.append(Wrong(word.replace(word[i], new, 1), "replace() yalnızca ilk eşleşmeyi değil, bütün "
+                                                               "eşleşmeleri değiştirir."))
+        wrongs.append(Wrong(err("AttributeError"), "Metinlerde bu metot vardır; çağrı hatasız çalışır."))
+    return output_question(code, answer, expl, wrongs=wrongs, hint=hint)
+
+
+@q("Metin İşlemleri İddiası (Doğru/Yanlış)", verify="tf_output")
+def str_method_claim():
+    """Kazanım: split, join ve replace sonuçlarını izler · Bloom: U"""
+    items = random.sample(["elma", "armut", "kiraz", "muz", "nar", "erik"], 3)
+    op = random.choice(["join", "split", "replace"])
+    if op == "join":
+        sep = random.choice(["-", ", ", "/", "+"])
+        code, output = f'print("{sep}".join({items}))', sep.join(items)
+        wrongs = [Wrong(sep.join(items) + sep, "join ayırıcıyı yalnızca elemanların <strong>arasına</strong> koyar; "
+                                               "sona eklemez."),
+                  Wrong(" ".join(items), "Ayırıcı olarak join'in önündeki metin kullanılır; boşluk değil."),
+                  Wrong(str(items), "join bir liste değil, elemanları birleştirilmiş tek bir metin döndürür.")]
+        solution = "<code>ayirici.join(liste)</code> elemanları aralarına ayırıcı koyarak tek bir metinde birleştirir."
+    elif op == "split":
+        sep = random.choice([",", "-", ";"])
+        text = sep.join(items)
+        code, output = f'print("{text}".split("{sep}"))', str(items)
+        wrongs = [Wrong(" ".join(items), "split bir metin değil, liste döndürür; print listeyi köşeli parantezle "
+                                         "yazar."),
+                  Wrong(f"['{text}']", f'Ayırıcı verildiği için metin her "{sep}" karakterinden bölünür.'),
+                  Wrong(str([x + sep for x in items[:-1]] + items[-1:]), "Ayırıcı parçalara eklenmez; split onu "
+                                                                       "atar.")]
+        solution = "<code>split(ayirici)</code> metni ayırıcıdan bölerek bir <strong>liste</strong> döndürür."
+    else:
+        phrase = random.choice(["ana kara", "masa ve kasa", "araba", "kalabalık", "bal ve kaymak", "sarı lale"])
+        new = random.choice(["e", "*", "o"])
+        code, output = f'print("{phrase}".replace("a", "{new}"))', phrase.replace("a", new)
+        wrongs = [Wrong(phrase.replace("a", new, 1), "replace yalnızca ilk eşleşmeyi değil, bütün eşleşmeleri "
+                                                     "değiştirir."),
+                  Wrong(phrase, "replace yeni bir metin döndürür ve print onu yazar; değişiklik görünür."),
+                  Wrong(phrase.replace("a", ""), f'replace harfleri silmez; her "a" yerine "{new}" koyar.')]
+        solution = ("<code>replace(eski, yeni)</code> metindeki <strong>bütün</strong> eşleşmeleri değiştirip yeni "
+                    "bir metin döndürür.")
+    return tf_claim(
+        code, output, wrongs, solution,
+        hint="join ayırıcıyı nereye koyar? split ne tür bir değer döndürür? replace kaç eşleşmeyi değiştirir?",
+    )
+
+
+REVERSE_WORDS = ["kalem", "Python", "kitap", "defter", "okul", "ekran", "Ankara", "sınav", "bilgi", "masa", "örnek",
+                 "klavye"]
+
+
+@q("Kelimeyi Ters Çevir (Kod Yazma)")
+def write_reverse():
+    """Kazanım: dilimleme ya da döngüyle metni ters çevirir · Bloom: O"""
+    var = random.choice(["kelime", "metin", "s"])
+    word = random.choice(REVERSE_WORDS)
+    return {
+        "type": "code",
+        "text": (
+            f"<code>{var} = \"{e(word)}\"</code> satırıyla başlayan ve kelimeyi <strong>ters</strong> çevirip yazdıran "
+            f"kodu yazınız (çıktı: <code>{e(word[::-1])}</code>). Ters metni elle yazmayın; kod her kelime için "
+            "çalışmalı."
+        ),
+        "code": None,
+        "check": {"kind": "reverse_text", "var": var, "word": word},
+        "answer": f'{var} = "{word}"\nprint({var}[::-1])',
+        "hint": "Dilimlemede adım -1 ne yapar? Döngüyle yapacaksan her harfi yeni metnin başına mı sonuna mı "
+                "eklemelisin?",
+        "solution": "<code>[::-1]</code> dilimi metni sondan başa doğru okur. Döngüyle de yapılabilir: boş bir "
+                    "metinle başlayıp her harfi başa eklemek (<code>ters = h + ters</code>).",
+    }
+
+
+VOWEL_WORDS = ["bilgisayar", "okul", "kitap", "defter", "öğretmen", "kalem", "pencere", "çanta", "üzüm",
+               "programlama", "klavye", "sözlük", "güneş", "matematik"]
+VOWELS = "aeıioöuü"
+
+
+@q("Sesli Harf Sayısı (Kod Yazma)")
+def write_vowels():
+    """Kazanım: döngü, in ve sayaçla metin işler · Bloom: O"""
+    var = random.choice(["metin", "kelime", "s"])
+    word = random.choice(VOWEL_WORDS)
+    count = sum(ch in VOWELS for ch in word)
+    return {
+        "type": "code",
+        "text": (
+            f"<code>{var} = \"{e(word)}\"</code> satırıyla başlayan ve bu metindeki <strong>sesli harflerin</strong> "
+            f"(a, e, ı, i, o, ö, u, ü) sayısını bulup yazdıran kodu yazınız (çıktı: <code>{count}</code>). Sonucu "
+            "elle yazmayın; kod her küçük harfli metin için çalışmalı."
+        ),
+        "code": None,
+        "check": {"kind": "count_vowels", "var": var, "word": word},
+        "answer": (f'{var} = "{word}"\nsayac = 0\nfor harf in {var}:\n    if harf in "{VOWELS}":\n'
+                   "        sayac += 1\nprint(sayac)"),
+        "hint": "Her harf için 'sesli mi?' diye sor; evetse sayacı artır. Sayacı ne zaman yazdırmalısın?",
+        "solution": "Sayaç 0 ile başlatılır; döngüde her harf için <code>in</code> ile sesli harf metninde olup "
+                    "olmadığına bakılır ve sesliyse sayaç 1 artırılır. Sonuç döngü bittikten sonra yazdırılır.",
+    }
+
+
+# ================================================================= denetleyiciler
+def _first_value(tree, name):
+    """Adın üst düzeydeki ilk atamasının sabit değeri (yoksa UNSET)."""
+    for stmt in tree.body:
+        for target, value in assignments(stmt):
+            if target == name:
+                return const_value(value, None, UNSET)
+    return UNSET
+
+
+def _is_name(node, name):
+    return isinstance(node, ast.Name) and node.id == name
+
+
+def _is_rev_slice(node, var):
+    return (isinstance(node, ast.Subscript) and _is_name(node.value, var) and isinstance(node.slice, ast.Slice)
+            and node.slice.lower is None and node.slice.upper is None and node.slice.step is not None
+            and const_value(node.slice.step) == -1)
+
+
+def _is_join_reversed(node, var):
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "join"
+            and const_value(node.func.value) == "" and len(node.args) == 1 and isinstance(node.args[0], ast.Call)
+            and _is_name(node.args[0].func, "reversed") and len(node.args[0].args) == 1
+            and _is_name(node.args[0].args[0], var))
+
+
+def _loop_chars(loop, var, word):
+    """Döngünün her turda eklediği karakter ifadesi: (sıra, adı/indeksi) -> karakter listesi; çözülemezse None."""
+    if not isinstance(loop.target, ast.Name):
+        return None, None
+    if _is_name(loop.iter, var):
+        return list(word), ("item", loop.target.id)
+    seq = range_values(loop.iter, {var: word})
+    if seq is None or any(not -len(word) <= i < len(word) for i in seq):
+        return None, None
+    return [word[i] for i in seq], ("index", loop.target.id)
+
+
+def _is_char(node, kind, var):
+    """Döngüde eklenen ifade karakter mi: for h in var -> h; for i in range -> var[i]."""
+    mode, name = kind
+    if mode == "item":
+        return _is_name(node, name)
+    return isinstance(node, ast.Subscript) and _is_name(node.value, var) and _is_name(node.slice, name)
+
+
+def _build_order(stmt, acc, kind, var):
+    """acc = ch + acc -> "prepend"; acc = acc + ch ya da acc += ch -> "append"; değilse None."""
+    if isinstance(stmt, ast.AugAssign) and _is_name(stmt.target, acc) and isinstance(stmt.op, ast.Add):
+        return "append" if _is_char(stmt.value, kind, var) else None
+    pairs = list(assignments(stmt))
+    if len(pairs) == 1 and pairs[0][0] == acc and isinstance(pairs[0][1], ast.BinOp) \
+            and isinstance(pairs[0][1].op, ast.Add):
+        left, right = pairs[0][1].left, pairs[0][1].right
+        if _is_char(left, kind, var) and _is_name(right, acc):
+            return "prepend"
+        if _is_name(left, acc) and _is_char(right, kind, var):
+            return "append"
+    return None
+
+
+@checker("reverse_text")
+def check_reverse_text(tree, p):
+    """var = word; kelimenin tersi [::-1], "".join(reversed(...)) ya da döngüyle (boş metne başa ekleyerek)
+    oluşturulup yazdırılır."""
+    var, word = p["var"], p["word"]
+    target = word[::-1]
+    if _first_value(tree, var) != word:
+        return False, f"<code>{var}</code> değişkenine <code>\"{e(word)}\"</code> atanmamış."
+    tr = Tracker(keep={var})
+    built, notes = {}, []
+    for stmt in tr.run(tree.body):
+        if isinstance(stmt, (ast.For, ast.While)):
+            if find_prints(stmt):
+                return False, "Ters metni döngü bittikten sonra bir kez yazdır; döngünün içinde yazdırma."
+            problem = loop_problems(stmt) if isinstance(stmt, ast.For) else None
+            if problem:
+                return False, problem
+            chars, kind = _loop_chars(stmt, var, word) if isinstance(stmt, ast.For) else (None, None)
+            body = [s for s in stmt.body if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+            if chars is None or len(body) != 1:
+                notes.append("unknown")
+                continue
+            acc = next(iter(assigned_names(body[0])), None)
+            order = _build_order(body[0], acc, kind, var) if acc else None
+            if order is None or tr.values.get(acc) != "":
+                notes.append("unknown")
+                continue
+            built[acc] = "".join(reversed(chars)) if order == "prepend" else "".join(chars)
+            continue
+        for name in assigned_names(stmt):
+            built.pop(name, None)
+        for call in find_prints(stmt):
+            if not print_values(call) and target in print_texts(call):
+                notes.append("const")  # print("melak"): metin sabiti etiket sayılır
+            for node in print_values(call):
+                if isinstance(node, ast.FormattedValue):
+                    node = node.value
+                if isinstance(node, ast.Name) and node.id in built:
+                    if built[node.id] == target:
+                        return True, OK
+                    notes.append("forward")
+                    continue
+                expr = tr.inline(node)
+                if _is_rev_slice(expr, var) or _is_join_reversed(expr, var):
+                    return True, OK
+                if isinstance(expr, ast.Call) and _is_name(expr.func, "reversed"):
+                    notes.append("reversed")
+                elif _is_name(expr, var):
+                    notes.append("same")
+                elif not uses_name(expr, var):
+                    notes.append("const" if tr.try_value(expr) == target else "other")
+                else:
+                    notes.append("other")
+    if "forward" in notes:
+        return False, "Döngü harfleri aynı sırayla ekliyor; ters çevirmek için her harfi yeni metnin başına ekle."
+    if "const" in notes:
+        return False, "Ters metni elle yazma; kod her kelime için çalışmalı. Değişkeni kullan."
+    if "reversed" in notes:
+        return False, ("<code>reversed()</code> metin değil, bir sıralayıcı döndürür; harfleri <code>\"\".join(...)"
+                       "</code> ile birleştir ya da dilimleme kullan.")
+    if "same" in notes:
+        return False, "Kelime ters çevrilmeden yazdırılıyor."
+    if "other" in notes:
+        return False, "Yazdırılan değer kelimenin tersi değil; dilimlemede adımı kontrol et."
+    if not find_prints(tree):
+        return False, "Ters metni <code>print()</code> ile yazdır."
+    return False, UNREADABLE
+
+
+def _letters(node, defs):
+    """Sesli harf kümesi olarak kullanılan sabit: metin, liste, demet ya da küme -> harfler; değilse None."""
+    if isinstance(node, ast.Name) and node.id in defs:
+        node = defs[node.id]
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return set(node.value)
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        out = set()
+        for elt in node.elts:
+            if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
+                return None
+            out |= set(elt.value)
+        return out
+    return None
+
+
+def _test_letters(test, item, defs):
+    """if koşulunun kabul ettiği harfler: h in "aeı..." ya da h == "a" or h == "e" ...; çözülemezse None."""
+    if (isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.ops[0], ast.In)
+            and _is_name(test.left, item)):
+        return _letters(test.comparators[0], defs)
+    if isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.ops[0], ast.Eq):
+        sides = [test.left, test.comparators[0]]
+        if _is_name(sides[1], item):
+            sides.reverse()
+        if _is_name(sides[0], item) and isinstance(sides[1], ast.Constant) and isinstance(sides[1].value, str):
+            return {sides[1].value}
+        return None
+    if isinstance(test, ast.BoolOp) and isinstance(test.op, ast.Or):
+        out = set()
+        for value in test.values:
+            part = _test_letters(value, item, defs)
+            if part is None:
+                return None
+            out |= part
+        return out
+    return None
+
+
+def _is_increment(stmt, counter):
+    if isinstance(stmt, ast.AugAssign) and _is_name(stmt.target, counter) and isinstance(stmt.op, ast.Add):
+        return const_value(stmt.value) == 1
+    pairs = list(assignments(stmt))
+    return (len(pairs) == 1 and pairs[0][0] == counter and isinstance(pairs[0][1], ast.BinOp)
+            and isinstance(pairs[0][1].op, ast.Add) and _is_name(pairs[0][1].left, counter)
+            and const_value(pairs[0][1].right) == 1)
+
+
+def _count_calls(node, var):
+    """metin.count("a") + metin.count("e") + ... -> harf listesi; değilse None."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _count_calls(node.left, var), _count_calls(node.right, var)
+        return None if left is None or right is None else left + right
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "count"
+            and _is_name(node.func.value, var) and len(node.args) == 1 and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)):
+        return [node.args[0].value]
+    return None
+
+
+def _sum_generator(node, var, defs):
+    """sum(1 for h in metin if h in "...") -> harfler; değilse None."""
+    if not (isinstance(node, ast.Call) and _is_name(node.func, "sum") and len(node.args) == 1
+            and isinstance(node.args[0], ast.GeneratorExp)):
+        return None
+    gen = node.args[0]
+    if const_value(gen.elt) != 1 or len(gen.generators) != 1:
+        return None
+    comp = gen.generators[0]
+    if not (isinstance(comp.target, ast.Name) and _is_name(comp.iter, var) and len(comp.ifs) == 1):
+        return None
+    return _test_letters(comp.ifs[0], comp.target.id, defs)
+
+
+def _vowel_set_problem(letters):
+    """Harf kümesi Türkçe sesli harfleri tam olarak içeriyor mu? Sorun varsa öğrenciye not."""
+    missing = [v for v in VOWELS if v not in letters]
+    if missing:
+        listed = ", ".join(f"<code>{m}</code>" for m in missing)
+        return f"Sesli harf listende eksik harfler var: {listed}. Türkçede 8 sesli harf vardır."
+    extra = sorted(ch for ch in letters if ch not in VOWELS + "AEIİOÖUÜ")
+    if extra:
+        listed = ", ".join(f"<code>{e(x)}</code>" for x in extra)
+        return f"Sesli harf listende sesli olmayan karakterler var: {listed}."
+    return None
+
+
+@checker("count_vowels")
+def check_count_vowels(tree, p):
+    """var = word; sesli harfler (a, e, ı, i, o, ö, u, ü) döngü + in + sayaçla (ya da count/sum ile) sayılıp
+    döngüden sonra yazdırılır."""
+    var, word = p["var"], p["word"]
+    want = sum(ch in VOWELS for ch in word)
+    if _first_value(tree, var) != word:
+        return False, f"<code>{var}</code> değişkenine <code>\"{e(word)}\"</code> atanmamış."
+    tr = Tracker(keep={var})
+    counted, notes = {}, []
+    for stmt in tr.run(tree.body):
+        if isinstance(stmt, ast.For):
+            problem = loop_problems(stmt)
+            if problem:
+                return False, problem
+            if find_prints(stmt):
+                return False, "Sayacı döngü bittikten sonra bir kez yazdır; döngünün içinde yazdırma."
+            if not (isinstance(stmt.target, ast.Name) and _is_name(stmt.iter, var)):
+                notes.append("unknown")
+                continue
+            item = stmt.target.id
+            body = [s for s in stmt.body if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+            if len(body) == 1 and isinstance(body[0], ast.If) and not body[0].orelse and len(body[0].body) == 1:
+                counter = next(iter(assigned_names(body[0].body[0])), None)
+                letters = _test_letters(body[0].test, item, tr.defs)
+                if counter and _is_increment(body[0].body[0], counter) and letters is not None:
+                    if tr.values.get(counter) != 0:
+                        return False, "Sayacı döngüden önce 0 ile başlat."
+                    problem = _vowel_set_problem(letters)
+                    if problem:
+                        return False, problem
+                    counted[counter] = sum(ch in letters for ch in word)
+                    continue
+            if len(body) == 1 and any(_is_increment(body[0], n) for n in assigned_names(body[0])):
+                return False, ("Döngü her harfte sayacı artırıyor; yalnızca sesli harflerde artırmak için "
+                               "<code>if</code> ile kontrol et.")
+            notes.append("unknown")
+            continue
+        for name in assigned_names(stmt):
+            counted.pop(name, None)
+        for call in find_prints(stmt):
+            for node in print_values(call):
+                if isinstance(node, ast.FormattedValue):
+                    node = node.value
+                if isinstance(node, ast.Name) and node.id in counted:
+                    return (True, OK) if counted[node.id] == want else (False, "Sayılan değer doğru değil.")
+                expr = tr.inline(node)
+                letters = _count_calls(expr, var)
+                letters = set(letters) if letters is not None else _sum_generator(expr, var, tr.defs)
+                if letters is not None:
+                    problem = _vowel_set_problem(letters)
+                    return (False, problem) if problem else (True, OK)
+                if not uses_name(expr, var) and same_value(tr.try_value(expr), want):
+                    notes.append("const")
+                else:
+                    notes.append("other")
+    if "const" in notes:
+        return False, "Sonucu elle yazma; kod her metin için çalışmalı. Harfleri döngüyle say."
+    if "other" in notes:
+        return False, ("Yazdırılan değer sesli harf sayısı değil. Her harf için sesli olup olmadığına bakıp bir "
+                       "sayaç artır.")
+    if not find_prints(tree):
+        return False, "Sonucu <code>print()</code> ile yazdır."
+    return False, UNREADABLE
