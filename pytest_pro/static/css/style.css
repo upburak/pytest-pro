@@ -410,6 +410,19 @@ button.student:hover { background: rgba(255, 255, 255, .6); }
 .student-meter > span { display: block; height: 100%; background: var(--tk-fn); }
 .group-label { padding: var(--s3) var(--s4) var(--s1); font: 700 var(--fs-xs)/1.4 var(--font-ui); color: var(--mute); }
 .files-empty { padding: var(--s2) var(--s4); font-size: var(--fs-sm); color: var(--mute); }
+.files-foot { display: grid; gap: var(--s2); padding: var(--s4) var(--s3) var(--s2); margin-top: var(--s3); border-top: 1px solid var(--line); }
+.files-title { padding: var(--s1) var(--s4) var(--s3); font: 700 var(--fs-lg)/1.25 var(--font-head); }
+.back-link { display: block; padding: var(--s1) var(--s4) var(--s2); font: 700 var(--fs-sm)/1.4 var(--font-ui); color: var(--green-dark); background: none; border: 0; cursor: pointer; }
+.back-link:hover { text-decoration: underline; }
+.session-row { display: flex; align-items: stretch; }
+.session-row .student { flex: 1; min-width: 0; }
+.row-del {
+  flex: none; width: 36px; display: grid; place-items: center; cursor: pointer;
+  color: var(--mute); background: none; border: 0; font-size: var(--fs-sm);
+}
+.row-del:hover { color: var(--bad); background: var(--bad-wash); }
+.welcome-doc p { max-width: 64ch; }
+.welcome-doc h2 { margin-bottom: var(--s2); }
 
 .doc { padding: var(--s6) var(--s7); }
 .doc-inner { max-width: 900px; }
@@ -487,7 +500,10 @@ td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); }
   .opts.cols-2 { grid-template-columns: 1fr; }
   .files { display: flex; overflow-x: auto; padding: 0; border-right: 0; border-bottom: 1px solid var(--line); }
   .files > div { display: flex; }
-  .files-head, .files-tools, .group-label, .files-empty { display: none; }
+  #session-list, #tiles { display: flex; }
+  .files-head, .files-tools, .group-label, .files-empty, .files-title { display: none; }
+  .files-foot { display: none; }
+  .back-link { flex: none; padding: 9px var(--s4); }
   .file, .unit-item, .student { width: auto; flex: none; border-left: 0; border-bottom: 3px solid transparent; }
   .file.current, .unit-item.current, .student.current { border-bottom-color: var(--green); }
   .pane { border-left: 0; border-top: 1px solid var(--sage-line); padding: var(--s5) var(--s4); }

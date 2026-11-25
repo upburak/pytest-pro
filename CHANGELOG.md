@@ -1,5 +1,15 @@
 # Sürüm Notları
 
+## Yayımlanmamış
+
+### Öğretmen paneli: sınavlar listesi
+- "Sınavı aç"a her basış ayrı bir sınavdır. Solda sınavlar listelenir (en yenisi üstte, başlık, tarih-saat,
+  öğrenci sayısı, ortalama); bir sınava tıklayınca öğrencileri, istatistikleri ve konu analizi açılır.
+- Sınav silme: listedeki ✕ ya da sınavın içindeki "Bu sınavı sil"; süren öğrenci varken silinemez.
+  "Tüm kayıtları sil" iki onay ister. Excel çıktısı seçili sınav ya da tümü için.
+- Tekrar giriş kuralı ve deneme numarası sınav başınadır. Açık bırakılan sınava ertesi gün girilirse yeni sınav başlar.
+- Eski kayıtlar başlık ve güne göre sınavlara dönüştürülür (veritabanı otomatik güncellenir).
+
 ## 3.2.0
 
 ### Editör tasarımı

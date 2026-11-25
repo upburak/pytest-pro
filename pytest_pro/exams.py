@@ -101,28 +101,30 @@ def state(row, t):
     }
 
 
-def create(db, name, no, settings, t, exam_id):
+def create(db, name, no, settings, t, exam_id, session_id):
     questions = qs.generate_questions(settings["question_count"], settings["units"])
     db.execute(
-        "INSERT INTO exams (id, no, name, title, questions, answers, started_at, duration) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO exams (id, no, name, title, questions, answers, started_at, duration, session_id) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
         (exam_id, no, name, settings["title"], json.dumps(questions, ensure_ascii=False), "{}", t,
-         settings["duration_min"] * 60),
+         settings["duration_min"] * 60, session_id),
     )
     db.commit()
     return get(db, exam_id)
 
 
-def rows_with_attempts(db, title=None):
-    """Tüm kayıtlar + her okul numarasının kaçıncı denemesi olduğu (başlangıç sırasına göre)."""
+def rows_with_attempts(db, session_id=None):
+    """Kayıtlar + her okul numarasının o sınavda kaçıncı denemesi olduğu (başlangıç sırasına göre).
+    session_id verilirse yalnızca o sınav oturumunun kayıtları."""
     rows = db.execute(
-        "SELECT id, no, name, title, started_at, duration, submitted_at, correct, wrong, score, auto_submitted, "
-        "answers, questions FROM exams ORDER BY started_at, rowid"
+        "SELECT id, no, name, title, session_id, started_at, duration, submitted_at, correct, wrong, score, "
+        "auto_submitted, answers, questions FROM exams ORDER BY started_at, rowid"
     ).fetchall()
     counts, out = {}, []
     for r in rows:
-        key = (r["title"], r["no"])
+        key = (r["session_id"], r["no"])
         counts[key] = counts.get(key, 0) + 1
-        if title is None or r["title"] == title:
+        if session_id is None or r["session_id"] == session_id:
             out.append((r, counts[key]))
     return out
 
@@ -143,13 +145,13 @@ def question_by_id(row, question_id):
     return next((q for q in json.loads(row["questions"]) if q["id"] == qid), None)
 
 
-def topic_stats(db, title=None):
+def topic_stats(db, session_id=None):
     """Tamamlanan sınavlarda ünite/konu bazında doğru oranı; en zayıf konu önce."""
     sql = "SELECT questions, answers, results FROM exams WHERE submitted_at IS NOT NULL"
     params = ()
-    if title is not None:
-        sql += " AND title = ?"
-        params = (title,)
+    if session_id is not None:
+        sql += " AND session_id = ?"
+        params = (session_id,)
     stats = {}
     wrongs = {}  # konu -> {normalleştirilmiş cevap: [adet, gösterilen cevap, açıklama]}
     for r in db.execute(sql, params):

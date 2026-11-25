@@ -5,22 +5,26 @@
   const { esc, fmtAnswer, levelBadge } = P;
   const $ = (id) => document.getElementById(id);
   const KEY = 'pytest_ogretmen_sifre';
+  const SESSION_KEY = 'pytest_ogretmen_sinav';
   const POLL_MS = 3000;
-  const ALL = '__tum__';
 
   let pw = '';
   let poll = null;
   let rows = [];
   let settings = null;
   let detailId = null;
+  let sessionList = [];   // /api/sessions
+  let current = null;     // seçili sınavın numarası; null = sınav listesi
 
   const mmss = (sec) => String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
-  const titleLabel = (t) => (t ? t : '(başlıksız)');
+  const titleLabel = (t) => (t ? t : 'Başlıksız sınav');
+  const sessionById = (id) => sessionList.find((s) => s.id === id);
 
-  function filterQuery() {
-    const sel = $('title-filter');
-    if (!sel.options.length || sel.value === ALL) return '';
-    return '?sinav=' + encodeURIComponent(sel.value); // '' = başlıksız sınavlar
+  function remember() {
+    try {
+      if (current === null) sessionStorage.removeItem(SESSION_KEY);
+      else sessionStorage.setItem(SESSION_KEY, String(current));
+    } catch (e) { /* yok say */ }
   }
 
   async function api(path, opts = {}) {
@@ -54,6 +58,8 @@
       $('qr').src = '/api/qr.svg';
       buildSettingsForm(info);
       applySettings(info.settings);
+      try { const saved = sessionStorage.getItem(SESSION_KEY); current = saved ? Number(saved) : null; } catch (e) { current = null; }
+      showLevel();
       startPolling();
     } catch (e) {
       if (e.message !== 'Şifre hatalı') $('login-err').textContent = 'Giriş başarısız: ' + e.message;
@@ -132,38 +138,94 @@
     try { await putSettings({ exam_open: !settings.exam_open }); } catch (e) { alert(e.message); }
   }
 
-  // ---------- sonuçlar ----------
-  function updateTitleFilter(titles) {
-    const sel = $('title-filter');
-    const current = sel.value || ALL;
-    const options = [`<option value="${ALL}">Tüm sınavlar</option>`]
-      .concat(titles.map((t) => `<option value="${esc(t)}">${esc(titleLabel(t))}</option>`));
-    const html = options.join('');
-    if (sel.dataset.html !== html) {
-      sel.innerHTML = html;
-      sel.dataset.html = html;
-      sel.value = titles.includes(current) ? current : ALL;
-    }
-    $('btn-clear').textContent = sel.value === ALL ? 'Tümünü sil' : 'Bu sınavı sil';
-  }
-
+  // ---------- sınavlar ve sonuçlar ----------
   async function refresh() {
     try {
-      const data = await (await api('/api/results' + filterQuery())).json();
+      sessionList = (await (await api('/api/sessions')).json()).sessions;
+      if (current !== null && !sessionById(current)) { current = null; remember(); showLevel(); }
+      renderSessions();
+      const live = sessionList.reduce((n, x) => n + x.live, 0);
+      $('live-note').textContent = `${sessionList.length} sınav · ${live} öğrenci şu an sınavda · 3 saniyede bir yenilenir`;
+      if (current !== null) {
+        const data = await (await api('/api/results?oturum=' + current)).json();
+        rows = data.rows;
+        const sess = sessionById(current);
+        $('session-name').textContent = titleLabel(sess.title);
+        $('ov-title').textContent = titleLabel(sess.title);
+        $('ov-meta').textContent = `${sess.opened}${sess.open ? ' · şu an açık' : ''} · ${sess.students} öğrenci`;
+        const s = data.summary;
+        $('s-done').textContent = s.done;
+        $('s-live').textContent = s.live;
+        $('s-avg').textContent = s.average === null ? '—' : s.average.toFixed(1);
+        $('s-pass').textContent = s.pass_rate === null ? '—' : '%' + s.pass_rate;
+        renderTable();
+        renderTopics(data.topics);
+      }
       $('net-err').textContent = '';
-      rows = data.rows;
-      updateTitleFilter(data.titles);
-      const s = data.summary;
-      $('s-done').textContent = s.done;
-      $('s-live').textContent = s.live;
-      $('s-avg').textContent = s.average === null ? '—' : s.average.toFixed(1);
-      $('s-pass').textContent = s.pass_rate === null ? '—' : '%' + s.pass_rate;
-      $('live-note').textContent = `${s.live} öğrenci sınavda, ${s.done} bitirdi · 3 saniyede bir yenilenir`;
-      renderTable();
-      renderTopics(data.topics);
     } catch (e) {
       if (pw) $('net-err').textContent = 'Bağlantı sorunu: ' + e.message;
     }
+  }
+
+  /** Sol liste ve orta alan: sınav seçili değilse sınav listesi, seçiliyse öğrenciler. */
+  function showLevel() {
+    const inSession = current !== null;
+    $('sessions-view').classList.toggle('hidden', inSession);
+    $('students-view').classList.toggle('hidden', !inSession);
+    $('pick').classList.toggle('hidden', inSession || detailId !== null);
+    $('overview').classList.toggle('hidden', !inSession || detailId !== null);
+  }
+
+  function renderSessions() {
+    const box = $('session-list');
+    if (!sessionList.length) {
+      box.innerHTML = '<p class="files-empty">Henüz sınav yok. İlk öğrenci girdiğinde sınav burada görünür.</p>';
+      return;
+    }
+    box.innerHTML = sessionList.map((x) => {
+      const parts = [x.opened, `${x.students} öğrenci`];
+      if (x.average !== null) parts.push(`ort. ${x.average.toFixed(1)}`);
+      if (x.live) parts.push(`${x.live} sınavda`);
+      return `<div class="session-row">
+        <button type="button" class="student" data-id="${x.id}">
+          <span class="student-name">${esc(titleLabel(x.title))}</span>
+          ${x.open ? '<span class="badge b-ok">Açık</span>' : '<span></span>'}
+          <span class="student-sub">${esc(parts.join(' · '))}</span>
+        </button>
+        <button type="button" class="row-del" data-del="${x.id}" aria-label="${esc(titleLabel(x.title))} (${esc(x.opened)}) sınavını sil" title="Bu sınavı sil">✕</button>
+      </div>`;
+    }).join('');
+    box.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => openSession(Number(b.dataset.id))));
+    box.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => deleteSession(Number(b.dataset.del))));
+  }
+
+  function openSession(id) {
+    current = id;
+    remember();
+    rows = [];
+    $('tiles').innerHTML = '';
+    $('search').value = '';
+    closeDetail();
+    refresh();
+  }
+
+  function backToSessions() {
+    current = null;
+    remember();
+    closeDetail();
+    refresh();
+    const first = $('session-list').querySelector('button');
+    if (first) first.focus();
+  }
+
+  async function deleteSession(id) {
+    const x = sessionById(id);
+    if (!x) return;
+    if (!confirm(`"${titleLabel(x.title)}" (${x.opened}) ve ${x.students} öğrencinin sonuçları kalıcı olarak silinecek. Emin misin?`)) return;
+    try {
+      await api('/api/sessions/' + id, { method: 'DELETE' });
+      if (current === id) backToSessions(); else refresh();
+    } catch (e) { alert('Silinemedi: ' + e.message); }
   }
 
   function renderTable() {
@@ -171,13 +233,12 @@
     const q = $('search').value.trim().toLocaleLowerCase('tr');
     const list = q ? rows.filter((r) => (r.name + ' ' + r.no).toLocaleLowerCase('tr').includes(q)) : rows;
     if (!list.length) {
-      box.innerHTML = `<p class="files-empty">${rows.length ? 'Aramaya uyan öğrenci yok.' : 'Henüz sınava giren öğrenci yok. Adresi ya da QR kodu öğrencilerle paylaş.'}</p>`;
+      box.innerHTML = `<p class="files-empty">${rows.length ? 'Aramaya uyan öğrenci yok.' : 'Bu sınavda öğrenci kaydı kalmadı.'}</p>`;
       return;
     }
-    const showTitle = $('title-filter').value === ALL;
     const live = list.filter((r) => r.status === 'sinavda');
     const done = list.filter((r) => r.status !== 'sinavda');
-    const sub = (r) => [`No ${esc(r.no)}`, r.attempt > 1 ? `Deneme #${r.attempt}` : '', showTitle && r.title ? esc(r.title) : '']
+    const sub = (r) => [`No ${esc(r.no)}`, r.attempt > 1 ? `Deneme #${r.attempt}` : '']
       .filter(Boolean).join(' · ');
     let html = '';
     if (live.length) {
@@ -268,6 +329,7 @@
         });
       });
       $('overview').classList.add('hidden');
+      $('pick').classList.add('hidden');
       $('detail').classList.remove('hidden');
       $('detail').scrollTop = 0;
       $('tab-detail').classList.remove('hidden');
@@ -282,11 +344,11 @@
   function closeDetail() {
     detailId = null;
     $('detail').classList.add('hidden');
-    $('overview').classList.remove('hidden');
     $('tab-detail').classList.add('hidden');
     $('tab-detail').classList.remove('active');
     $('tab-overview').classList.add('active');
-    renderTable();
+    showLevel();
+    if (current !== null) renderTable();
   }
 
   async function deleteOne() {
@@ -298,9 +360,9 @@
     } catch (e) { alert('Silinemedi: ' + e.message); }
   }
 
-  async function downloadCSV() {
+  async function downloadCSV(all) {
     try {
-      const r = await api('/api/results.csv' + filterQuery());
+      const r = await api('/api/results.csv' + (all || current === null ? '' : '?oturum=' + current));
       const blob = await r.blob();
       const name = (r.headers.get('Content-Disposition') || '').split('filename=')[1] || 'sonuclar.csv';
       const a = document.createElement('a');
@@ -314,11 +376,10 @@
   }
 
   async function clearAll() {
-    const filtered = $('title-filter').value !== ALL;
-    const what = filtered ? `"${titleLabel($('title-filter').value)}" sınavının TÜM kayıtları` : 'TÜM sınav kayıtları';
-    if (!confirm(`${what} kalıcı olarak silinecek. Emin misin?`)) return;
-    if (!confirm('Bu işlem geri alınamaz. Önce CSV indirdin mi? Silmeye devam?')) return;
-    try { await api('/api/results' + filterQuery(), { method: 'DELETE' }); refresh(); }
+    const students = sessionList.reduce((n, x) => n + x.students, 0);
+    if (!confirm(`${sessionList.length} sınav ve ${students} öğrencinin TÜM kayıtları kalıcı olarak silinecek. Emin misin?`)) return;
+    if (!confirm("Bu işlem geri alınamaz. Önce \"Tümünü Excel'e al\" ile yedek aldın mı? Silmeye devam?")) return;
+    try { await api('/api/results', { method: 'DELETE' }); backToSessions(); }
     catch (e) { alert('Silinemedi: ' + e.message); }
   }
 
@@ -328,13 +389,18 @@
   $('settings-form').addEventListener('submit', saveSettings);
   $('btn-toggle-open').addEventListener('click', toggleOpen);
   $('search').addEventListener('input', renderTable);
-  $('title-filter').addEventListener('change', refresh);
-  $('btn-csv').addEventListener('click', downloadCSV);
+  $('btn-csv').addEventListener('click', () => downloadCSV(false));
+  $('btn-csv-all').addEventListener('click', () => downloadCSV(true));
   $('btn-clear').addEventListener('click', clearAll);
+  $('btn-back').addEventListener('click', backToSessions);
+  $('btn-delete-session').addEventListener('click', () => { if (current !== null) deleteSession(current); });
   $('m-close').addEventListener('click', closeDetail);
   $('tab-overview').addEventListener('click', closeDetail);
   $('m-delete').addEventListener('click', deleteOne);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && detailId) closeDetail(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || e.target.tagName === 'INPUT') return;
+    if (detailId) closeDetail(); else if (current !== null) backToSessions();
+  });
   document.addEventListener('visibilitychange', () => {
     if (!pw || $('panel').classList.contains('hidden')) return;
     if (document.hidden) stopPolling(); else startPolling();

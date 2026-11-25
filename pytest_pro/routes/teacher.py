@@ -7,7 +7,7 @@ from datetime import datetime
 
 from flask import Blueprint, Response, jsonify, request
 
-from .. import clock, exams, settings
+from .. import clock, exams, sessions, settings
 from .. import questions as qs
 from ..auth import teacher_required
 from ..db import get_db
@@ -17,9 +17,24 @@ from .common import error, student_url
 bp = Blueprint("teacher", __name__, url_prefix="/api")
 
 
-def _title_filter():
-    """?sinav=<başlık> verilmişse o sınavın kayıtları, verilmemişse tümü."""
-    return request.args.get("sinav") if "sinav" in request.args else None
+class BadFilter(ValueError):
+    pass
+
+
+def _session_filter():
+    """?oturum=<numara> verilmişse o sınavın kayıtları, verilmemişse tümü."""
+    raw = request.args.get("oturum")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        raise BadFilter("Geçersiz sınav numarası.") from None
+
+
+@bp.errorhandler(BadFilter)
+def _bad_filter(exc):
+    return error(str(exc), 400)
 
 
 @bp.get("/info")
@@ -37,8 +52,34 @@ def update_settings():
     except ValueError as exc:
         return error(str(exc), 400)
     db = get_db()
+    before = settings.get_settings(db)
     settings.save(db, updates)
-    return jsonify(settings.get_settings(db))
+    after = settings.get_settings(db)
+    sessions.apply_settings_change(db, before, after, clock.now())
+    db.commit()
+    return jsonify(after)
+
+
+@bp.get("/sessions")
+@teacher_required
+def session_list():
+    db = get_db()
+    exams.finalize_expired(db)
+    return jsonify({"sessions": sessions.listing(db)})
+
+
+@bp.delete("/sessions/<int:session_id>")
+@teacher_required
+def session_delete(session_id):
+    db = get_db()
+    exams.finalize_expired(db)
+    try:
+        deleted = sessions.delete(db, session_id)
+    except sessions.StillRunning:
+        return error("Bu sınavda süren öğrenciler var. Önce sınavı kapatın ve öğrencilerin bitirmesini bekleyin.", 409)
+    if deleted is None:
+        return error("Sınav bulunamadı.", 404)
+    return jsonify({"status": "ok", "deleted": deleted})
 
 
 @bp.get("/qr.svg")
@@ -56,13 +97,14 @@ def qr():
 def results():
     db = get_db()
     exams.finalize_expired(db)
-    title = _title_filter()
+    session_id = _session_filter()
     t = clock.now()
     rows = []
-    for r, attempt in exams.rows_with_attempts(db, title):
+    for r, attempt in exams.rows_with_attempts(db, session_id):
         done = r["submitted_at"] is not None
         rows.append({
-            "id": r["id"], "no": r["no"], "name": r["name"], "title": r["title"], "attempt": attempt,
+            "id": r["id"], "no": r["no"], "name": r["name"], "title": r["title"], "session": r["session_id"],
+            "attempt": attempt,
             "started": exams.fmt(r["started_at"], "%d.%m %H:%M:%S"),
             "submitted": exams.fmt(r["submitted_at"], "%H:%M:%S"),
             "correct": r["correct"], "wrong": r["wrong"], "score": r["score"],
@@ -81,8 +123,7 @@ def results():
         "average": round(sum(r["score"] for r in done) / len(done), 1) if done else None,
         "pass_rate": round(sum(r["score"] >= 50 for r in done) * 100 / len(done)) if done else None,
     }
-    titles = [r["title"] for r in db.execute("SELECT DISTINCT title FROM exams ORDER BY title")]
-    return jsonify({"rows": rows, "summary": summary, "topics": exams.topic_stats(db, title), "titles": titles})
+    return jsonify({"rows": rows, "summary": summary, "topics": exams.topic_stats(db, session_id)})
 
 
 @bp.get("/results/<exam_id>")
@@ -140,14 +181,14 @@ def delete_one(exam_id):
 @bp.delete("/results")
 @teacher_required
 def delete_many():
+    """Tüm kayıtları ve sınavları siler (bir sınavı silmek için /api/sessions/<numara>)."""
     db = get_db()
-    title = _title_filter()
-    if title is None:
-        cur = db.execute("DELETE FROM exams")
-    else:
-        cur = db.execute("DELETE FROM exams WHERE title = ?", (title,))
-    db.commit()
-    return jsonify({"status": "ok", "deleted": cur.rowcount})
+    exams.finalize_expired(db)
+    try:
+        deleted = sessions.delete_all(db)
+    except sessions.StillRunning:
+        return error("Sınavı süren öğrenciler var. Önce sınavı kapatın ve öğrencilerin bitirmesini bekleyin.", 409)
+    return jsonify({"status": "ok", "deleted": deleted})
 
 
 def csv_safe(value):
@@ -162,7 +203,7 @@ def csv_safe(value):
 def export_csv():
     db = get_db()
     exams.finalize_expired(db)
-    rows = [(r, a) for r, a in exams.rows_with_attempts(db, _title_filter()) if r["submitted_at"] is not None]
+    rows = [(r, a) for r, a in exams.rows_with_attempts(db, _session_filter()) if r["submitted_at"] is not None]
     rows.sort(key=lambda ra: (ra[0]["title"], int(ra[0]["no"]) if ra[0]["no"].isdigit() else math.inf,
                               ra[0]["no"], ra[1]))
 

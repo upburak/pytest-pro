@@ -7,6 +7,7 @@ listesinin SONUNA yeni bir fonksiyon ekleyin; var olanları asla değiştirmeyin
 import json
 import sqlite3
 from contextlib import closing
+from datetime import datetime
 
 from flask import current_app, g
 
@@ -70,7 +71,32 @@ def _m3_exam_title(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_exams_title ON exams(title)")
 
 
-MIGRATIONS = [_m1_initial, _m2_autosave_and_settings, _m3_exam_title]
+def _m4_exam_sessions(db):
+    """Sınav oturumları: öğretmenin "Sınavı aç"a her basışı ayrı bir sınavdır.
+    Eski kayıtlar başlık ve güne göre oturumlara toplanır."""
+    db.execute(
+        """CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL DEFAULT '',
+            opened_at REAL NOT NULL,
+            closed_at REAL
+        )"""
+    )
+    _add_column(db, "exams", "session_id", "INTEGER")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_exams_session ON exams(session_id)")
+    groups = {}
+    for r in db.execute("SELECT id, title, started_at, submitted_at FROM exams WHERE session_id IS NULL "
+                        "ORDER BY started_at, rowid"):
+        key = (r["title"], datetime.fromtimestamp(r["started_at"]).date())
+        groups.setdefault(key, []).append(r)
+    for (title, _day), rows in groups.items():
+        closed = max(r["submitted_at"] or r["started_at"] for r in rows)
+        cur = db.execute("INSERT INTO sessions (title, opened_at, closed_at) VALUES (?, ?, ?)",
+                         (title, rows[0]["started_at"], closed))
+        db.executemany("UPDATE exams SET session_id = ? WHERE id = ?", [(cur.lastrowid, r["id"]) for r in rows])
+
+
+MIGRATIONS = [_m1_initial, _m2_autosave_and_settings, _m3_exam_title, _m4_exam_sessions]
 
 
 def schema_version(db):

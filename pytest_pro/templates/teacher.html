@@ -28,21 +28,49 @@
 
   <!-- PANEL: öğrenciler | sınıf özeti ya da öğrenci ayrıntısı | adres ve ayarlar -->
   <div id="panel" class="ide hidden">
-    <nav class="files" aria-label="Öğrenciler">
-      <div class="files-tools">
-        <select id="title-filter" aria-label="Sınava göre filtrele"></select>
-        <input type="search" id="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
+    <nav class="files" aria-label="Sınavlar ve öğrenciler">
+      <div id="sessions-view">
+        <p class="files-head">Sınavlar</p>
+        <div id="session-list"></div>
+        <div class="files-foot">
+          <button id="btn-csv-all" type="button" class="btn sm">Tümünü Excel'e al</button>
+          <button id="btn-clear" type="button" class="btn sm danger">Tüm kayıtları sil</button>
+        </div>
       </div>
-      <div id="tiles" aria-live="off"></div>
+      <div id="students-view" class="hidden">
+        <button id="btn-back" type="button" class="back-link">← Tüm sınavlar</button>
+        <p id="session-name" class="files-title"></p>
+        <div class="files-tools">
+          <input type="search" id="search" placeholder="Ad veya no ara" aria-label="Öğrenci ara">
+        </div>
+        <div id="tiles" aria-live="off"></div>
+      </div>
     </nav>
 
     <section class="editor">
       <div class="tabs">
-        <button id="tab-overview" type="button" class="tab active">sinif_ozeti.txt</button>
+        <button id="tab-overview" type="button" class="tab active">sinav_ozeti.txt</button>
         <span id="tab-detail" class="tab hidden"><span id="tab-detail-name"></span>
           <button id="m-close" type="button" class="btn sm subtle" aria-label="Öğrenci ayrıntısını kapat">✕</button></span>
       </div>
-      <div id="overview" class="doc"><div class="doc-inner">
+      <div id="pick" class="doc"><div class="doc-inner welcome-doc">
+        <h2>Soldan bir sınav seç</h2>
+        <p>Sınavı her açışınız ayrı bir sınav olarak listelenir; en yenisi en üstte. Bir sınava tıklayınca öğrencileri,
+          istatistikleri ve konu analizi açılır.</p>
+        <p class="muted">Henüz sınav yoksa: sağdaki ayarlardan başlığı yazıp <b>Sınavı aç</b>'a basın ve adresi ya da
+          QR kodu öğrencilerle paylaşın. İlk öğrenci girdiğinde sınav listede görünür.</p>
+      </div></div>
+      <div id="overview" class="doc hidden"><div class="doc-inner">
+        <div class="row between">
+          <div>
+            <h2 id="ov-title"></h2>
+            <p id="ov-meta" class="muted"></p>
+          </div>
+          <div class="row">
+            <button id="btn-csv" type="button" class="btn sm">Excel için indir</button>
+            <button id="btn-delete-session" type="button" class="btn sm danger">Bu sınavı sil</button>
+          </div>
+        </div>
         <div class="stats">
           <div class="stat"><p>Sınavı bitiren</p><b id="s-done">0</b></div>
           <div class="stat"><p>Şu an sınavda</p><b id="s-live">0</b></div>
@@ -50,18 +78,12 @@
           <div class="stat"><p>50 ve üstü alan</p><b id="s-pass">—</b></div>
         </div>
         <div>
-          <div class="row between">
-            <h3>Konu analizi</h3>
-            <div class="row">
-              <button id="btn-csv" type="button" class="btn sm">Excel için indir</button>
-              <button id="btn-clear" type="button" class="btn sm danger">Tümünü sil</button>
-            </div>
-          </div>
+          <h3>Konu analizi</h3>
           <p class="muted">Tamamlanan sınavlarda konulara göre doğru oranı; en zayıf konu en üstte.</p>
           <div id="topics" class="topics"></div>
         </div>
         <p class="muted small">Soldaki listede sınavdaki öğrencilerin kaç soru cevapladığı canlı görünür; ayrıntı için sınavı biten bir öğrenciye tıkla.
-          Aynı numarayla birden fazla girilirse "Deneme #" olarak işaretlenir. Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
+          Aynı sınava aynı numarayla birden fazla girilirse "Deneme #" olarak işaretlenir. Süresi dolup göndermeyen öğrencilerin son kaydedilen cevapları otomatik değerlendirilir.</p>
       </div></div>
       <div id="detail" class="doc hidden"><div class="doc-inner">
         <div class="row between">

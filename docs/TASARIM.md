@@ -67,8 +67,10 @@ gövde yazısıyla gösterilir.
   varsayılan olarak yalnız yanlışlar gösterilir.
 - **Pratik:** solda üniteler ve tamamlanan konu sayısı; üstte soru ve kod izi, altta cevap ve geri bildirim.
   Kontrolden sonra doğru şık yeşil, seçilen yanlış şık kırmızı olur.
-- **Öğretmen:** solda öğrenciler (sınavdakiler ilerleme çubuğuyla, bitirenler puanla), ortada sınıf özeti
-  ya da seçilen öğrencinin ayrıntısı (sekme olarak açılır, Esc ile kapanır), sağda adres, QR ve ayarlar.
+- **Öğretmen:** solda sınavlar (en yenisi üstte; açık olan "Açık" etiketli, her satırda sil düğmesi). Bir sınava
+  tıklayınca liste o sınavın öğrencilerine döner (sınavdakiler ilerleme çubuğuyla, bitirenler puanla); ortada sınav
+  özeti ya da seçilen öğrencinin ayrıntısı (sekme olarak açılır). Esc önce ayrıntıyı, sonra sınavı kapatır.
+  Sağda adres, QR ve ayarlar; 1280 pikselden dar ekranda ayarlar ortadaki içeriğin altına iner.
 
 ## Dar ekran
 

@@ -4,7 +4,7 @@ import uuid
 
 from flask import Blueprint, jsonify
 
-from .. import clock, exams
+from .. import clock, exams, sessions
 from .. import questions as qs
 from ..questions.tracer import trace
 from ..db import get_db
@@ -44,11 +44,13 @@ def start():
 
     if not settings["exam_open"]:
         return error("Sınav şu an kapalı. Öğretmenin sınavı açınca tekrar dene.", 403)
+    session_id = sessions.ensure_open(db, settings["title"], t)
     if not settings["allow_retake"] and db.execute(
-            "SELECT 1 FROM exams WHERE no = ? AND title = ?", (no, settings["title"])).fetchone():
+            "SELECT 1 FROM exams WHERE no = ? AND session_id = ?", (no, session_id)).fetchone():
+        db.commit()
         return error("Bu okul numarasıyla sınav zaten tamamlandı. Tekrar giriş kapalı.", 409)
 
-    row = exams.create(db, name, no, settings, t, uuid.uuid4().hex)
+    row = exams.create(db, name, no, settings, t, uuid.uuid4().hex, session_id)
     return jsonify(exams.state(row, t))
 
 

@@ -20,6 +20,18 @@ def submit(client, exam_id, answers=None):
     return client.post("/api/submit", json={"exam_id": exam_id, "answers": answers or {}})
 
 
+def reopen(client, **kw):
+    """Sınavı kapatıp yeniden açar: yeni bir sınav oturumu başlar."""
+    set_settings(client, exam_open=False)
+    return set_settings(client, exam_open=True, **kw)
+
+
+def sessions(client):
+    r = client.get("/api/sessions", headers=TEACHER)
+    assert r.status_code == 200
+    return r.get_json()["sessions"]
+
+
 def set_settings(client, **kw):
     r = client.put("/api/settings", json=kw, headers=TEACHER)
     assert r.status_code == 200, r.get_json()
@@ -140,13 +152,15 @@ def test_question_count_duration_and_units(client):
     assert {q["topic"] for q in d["questions"]} <= allowed
 
 
-def test_retake_is_per_exam_title(client):
+def test_retake_is_per_exam_session(client):
     set_settings(client, title="Sınav 1", allow_retake=False)
     _, d = start(client)
     submit(client, d["exam_id"])
     r, _ = start(client)
     assert r.status_code == 409
-    set_settings(client, title="Sınav 2")  # yeni sınav: aynı numara tekrar girebilir
+    set_settings(client, title="Sınav 1 (düzeltildi)")  # açıkken başlık değişmesi aynı sınavdır
+    assert start(client)[0].status_code == 409
+    reopen(client)  # yeniden açmak yeni sınav demektir: aynı numara tekrar girebilir
     r, _ = start(client)
     assert r.status_code == 200
 
@@ -183,22 +197,108 @@ def test_settings_validation(client, body):
     assert client.put("/api/settings", json=body, headers=TEACHER).status_code == 400
 
 
-# ---------------------------------------------------------------- sınav başlığına göre sonuçlar
-def test_results_filtered_by_title(client):
+# ---------------------------------------------------------------- sınav oturumları
+def test_each_opening_is_a_separate_exam(client, clock_at):
     set_settings(client, title="9-A")
     _, d = start(client, no="1")
     submit(client, d["exam_id"])
-    set_settings(client, title="9-B")
+    clock_at.t += 3600
+    reopen(client)  # aynı başlıkla ikinci açılış
     start(client, no="2")
 
-    all_rows = client.get("/api/results", headers=TEACHER).get_json()
-    assert all_rows["titles"] == ["9-A", "9-B"] and len(all_rows["rows"]) == 2
-    only_a = client.get("/api/results?sinav=9-A", headers=TEACHER).get_json()
-    assert [r["no"] for r in only_a["rows"]] == ["1"] and only_a["summary"]["done"] == 1
+    newest, oldest = sessions(client)
+    assert (newest["title"], oldest["title"]) == ("9-A", "9-A")
+    assert newest["open"] is True and oldest["open"] is False
+    assert (newest["students"], newest["live"], newest["done"]) == (1, 1, 0)
+    assert (oldest["students"], oldest["done"], oldest["average"]) == (1, 1, 0.0)
+    assert newest["opened"] and newest["opened_ts"] > oldest["opened_ts"]
 
-    r = client.delete("/api/results?sinav=9-A", headers=TEACHER)
-    assert r.get_json()["deleted"] == 1
-    assert [r["title"] for r in client.get("/api/results", headers=TEACHER).get_json()["rows"]] == ["9-B"]
+    only_old = client.get(f"/api/results?oturum={oldest['id']}", headers=TEACHER).get_json()
+    assert [r["no"] for r in only_old["rows"]] == ["1"] and only_old["summary"]["done"] == 1
+    everything = client.get("/api/results", headers=TEACHER).get_json()
+    assert len(everything["rows"]) == 2
+
+
+def test_session_opens_lazily_and_closes(client):
+    assert sessions(client) == []  # öğrenci girmeden boş sınav görünmez
+    set_settings(client, title="Deneme")
+    start(client)
+    [s] = sessions(client)
+    assert s["open"] is True and s["title"] == "Deneme"
+    set_settings(client, title="Deneme 2")  # açıkken başlığı değiştirmek açık sınavın adını değiştirir
+    assert sessions(client)[0]["title"] == "Deneme 2"
+    set_settings(client, exam_open=False)
+    assert sessions(client)[0]["open"] is False
+    assert start(client, no="99")[0].status_code == 403
+
+
+def test_attempts_are_counted_per_session(client):
+    for _ in range(2):
+        _, d = start(client)
+        submit(client, d["exam_id"])
+    reopen(client)
+    _, d = start(client)
+    submit(client, d["exam_id"])
+    newest = sessions(client)[0]["id"]
+    rows = client.get(f"/api/results?oturum={newest}", headers=TEACHER).get_json()["rows"]
+    assert [r["attempt"] for r in rows] == [1]
+
+
+def test_delete_session(client):
+    _, d = start(client, no="1")
+    submit(client, d["exam_id"])
+    reopen(client)
+    start(client, no="2")  # açık sınavda süren bir öğrenci
+    newest, oldest = sessions(client)
+
+    r = client.delete(f"/api/sessions/{newest['id']}", headers=TEACHER)
+    assert r.status_code == 409 and "kapat" in r.get_json()["error"]
+    set_settings(client, exam_open=False)  # kapatmak yalnızca yeni girişi durdurur; süren öğrenci hâlâ korunur
+    assert client.delete(f"/api/sessions/{newest['id']}", headers=TEACHER).status_code == 409
+    r = client.delete(f"/api/sessions/{oldest['id']}", headers=TEACHER)
+    assert r.status_code == 200 and r.get_json()["deleted"] == 1
+    assert [s["id"] for s in sessions(client)] == [newest["id"]]
+    assert client.delete(f"/api/sessions/{oldest['id']}", headers=TEACHER).status_code == 404
+    assert client.delete("/api/sessions/abc", headers=TEACHER).status_code == 404
+
+
+def test_delete_closed_session_with_finished_students(client):
+    _, d = start(client)
+    submit(client, d["exam_id"])
+    [s] = sessions(client)
+    assert client.delete(f"/api/sessions/{s['id']}", headers=TEACHER).status_code == 200  # açık ama süren yok
+    assert sessions(client) == []
+    _, d = start(client)  # sınav hâlâ açık: yeni öğrenci yeni bir oturuma girer
+    assert sessions(client)[0]["students"] == 1
+
+
+def test_delete_everything(client):
+    _, d = start(client, no="1")
+    submit(client, d["exam_id"])
+    reopen(client)
+    start(client, no="2")
+    r = client.delete("/api/results", headers=TEACHER)
+    assert r.status_code == 409  # sınavı süren öğrenci varken hepsi silinemez
+    set_settings(client, exam_open=False)
+    live = client.get("/api/results", headers=TEACHER).get_json()["rows"][0]
+    submit(client, live["id"])
+    assert client.delete("/api/results", headers=TEACHER).get_json()["deleted"] == 2
+    assert sessions(client) == [] and client.get("/api/results", headers=TEACHER).get_json()["rows"] == []
+
+
+def test_exam_left_open_overnight_starts_a_new_session(client, clock_at):
+    _, d = start(client, no="1")
+    submit(client, d["exam_id"])
+    clock_at.t += 86400  # öğretmen sınavı kapatmayı unuttu; ertesi gün başka bir sınıf giriyor
+    start(client, no="2")
+    newest, oldest = sessions(client)
+    assert (newest["students"], oldest["students"]) == (1, 1) and oldest["open"] is False
+
+
+def test_session_filter_validation(client):
+    assert client.get("/api/results?oturum=abc", headers=TEACHER).status_code == 400
+    assert client.get("/api/results?oturum=999", headers=TEACHER).get_json()["rows"] == []
+    assert client.get("/api/sessions").status_code == 401
 
 
 # ---------------------------------------------------------------- öğretmen
@@ -247,10 +347,11 @@ def test_attempt_numbering(client):
 
 def test_delete_one_and_clear(client):
     _, d1 = start(client, no="1")
-    start(client, no="2")
+    _, d2 = start(client, no="2")
     assert client.delete(f"/api/results/{d1['exam_id']}", headers=TEACHER).status_code == 200
     assert client.delete(f"/api/results/{d1['exam_id']}", headers=TEACHER).status_code == 404
     assert len(client.get("/api/results", headers=TEACHER).get_json()["rows"]) == 1
+    submit(client, d2["exam_id"])
     client.delete("/api/results", headers=TEACHER)
     assert client.get("/api/results", headers=TEACHER).get_json()["rows"] == []
 
@@ -269,7 +370,10 @@ def test_csv_export(client):
     assert len(lines) == 3
     assert lines[1][:4] == ["9-A", "2", "Çağrı Öz", "1"]          # sayısal sıralama: 2 < 10
     assert lines[2][1:3] == ["10", "'=HYPERLINK(\"x\")"]           # formül etkisizleştirildi
-    other = client.get("/api/results.csv?sinav=9-B", headers=TEACHER).data.decode("utf-8")
+    sid = sessions(client)[0]["id"]
+    same = client.get(f"/api/results.csv?oturum={sid}", headers=TEACHER).data.decode("utf-8")
+    assert len(same.strip().splitlines()) == 3
+    other = client.get(f"/api/results.csv?oturum={sid + 1}", headers=TEACHER).data.decode("utf-8")
     assert len(other.strip().splitlines()) == 1  # yalnızca başlık satırı
 
 
@@ -345,6 +449,25 @@ def test_migrates_v2_database(tmp_path):
     assert c.get("/api/results/old", headers=TEACHER).get_json()["details"][0]["correct"] is True
     with sqlite3.connect(path) as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == len(MIGRATIONS)
+
+
+def test_old_records_are_grouped_into_sessions(tmp_path):
+    """v3.2 veritabanındaki kayıtlar başlık ve güne göre sınav oturumlarına dönüşür."""
+    path = tmp_path / "v32.db"
+    create_app(db_path=str(path), teacher_key=KEY)
+    with sqlite3.connect(path) as db:
+        db.execute("PRAGMA user_version = 3")
+        db.execute("DROP TABLE IF EXISTS sessions")
+        db.execute("DROP INDEX IF EXISTS idx_exams_session")
+        db.execute("ALTER TABLE exams DROP COLUMN session_id")
+        q = json.dumps([{"id": 1, "type": "short", "topic": "T", "text": "?", "code": None, "answer": "5", "solution": ""}])
+        day = 1_800_000_000
+        for i, (title, t) in enumerate([("9-A", day), ("9-A", day + 600), ("9-B", day + 60), ("9-A", day + 86400 * 3)]):
+            db.execute("INSERT INTO exams (id, no, name, title, questions, answers, started_at, submitted_at, correct,"
+                       " wrong, score) VALUES (?, ?, 'X', ?, ?, '{}', ?, ?, 0, 1, 0)", (f"e{i}", str(i), title, q, t, t + 60))
+    c = create_app(db_path=str(path), teacher_key=KEY).test_client()
+    got = sorted((s["title"], s["students"], s["open"]) for s in sessions(c))
+    assert got == [("9-A", 1, False), ("9-A", 2, False), ("9-B", 1, False)]
 
 
 def test_migration_is_idempotent(tmp_path):

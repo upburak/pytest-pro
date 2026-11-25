@@ -56,16 +56,18 @@ Pratik modu     : http://192.168.1.25:5000/pratik
 
 | Bölüm | Ne işe yarar |
 |---|---|
-| **Sınav başlığı** | Örn. "9-A Python 1. Sınav". Sonuçlar başlığa göre filtrelenir ve ayrı dışa aktarılır. |
+| **Sınavlar listesi** | **Sınavı aç**'a her basış ayrı bir sınavdır (başlık aynı olsa bile). Solda en yenisi üstte listelenir: başlık, tarih-saat, öğrenci sayısı, ortalama. Bir sınava tıklayınca öğrencileri, istatistikleri ve konu analizi açılır; Esc ya da "← Tüm sınavlar" ile listeye dönülür. Açık bırakılan bir sınava ertesi gün girilirse yeni sınav başlar. |
+| **Sınav başlığı** | Örn. "9-A Python 1. Sınav". Sınav açıkken başlığı değiştirmek açık sınavın adını değiştirir. |
 | **Üniteler** | Sınava girecek üniteler; sorular seçilen ünitelere eşit dağıtılır ve kolaydan zora sıralanır. |
 | **Soru sayısı / Süre** | 5–30 soru, 1–180 dakika. Yeni başlayan sınavlara uygulanır. |
 | **Sınavı Aç / Yeni Girişleri Kapat** | Kapalıyken yeni öğrenci başlayamaz; sınavdaki öğrenciler devam eder. |
 | **Çözümleri göster** | Kapatılırsa öğrenci yalnızca puanını ve hangi soruların doğru olduğunu görür. |
-| **Tekrar girişe izin ver** | Kapatılırsa aynı sınavı bitiren numara yeniden giremez. |
+| **Tekrar girişe izin ver** | Kapatılırsa aynı sınavı bitiren numara o sınava yeniden giremez (sınav yeniden açılınca girebilir). |
 | **Pratik modu** | Öğrencilerin `/pratik` adresinden ünite seçip anında geri bildirimle çalışmasını sağlar. Sınav sırasında kapalı tutun. |
-| **Sonuç tablosu** | Canlı (3 sn), arama, kalan süre, deneme no, otomatik gönderim; satıra tıklayınca soru soru ayrıntı. |
+| **Öğrenciler** | Canlı (3 sn), arama, cevaplanan soru sayısı, kalan süre, deneme no, otomatik gönderim; öğrenciye tıklayınca soru soru ayrıntı. |
+| **Silme** | Tek öğrenci (ayrıntıda "Kaydı sil"), bir sınav (listede ✕ ya da sınavın içinde "Bu sınavı sil"), her şey ("Tüm kayıtları sil", iki onaylı). Sınavı süren öğrenci varken o sınav silinemez. |
 | **Konu analizi** | Sınıfın ünite/konu bazında doğru oranı; en zayıf konu en üstte. Her konuda en sık verilen yanlış cevap ve bu yanılgının açıklaması. |
-| **Excel / CSV** | `;` ayırıcılı, UTF-8 BOM'lu; Türkçe Excel'de doğrudan açılır. |
+| **Excel / CSV** | Seçili sınav ya da tümü; `;` ayırıcılı, UTF-8 BOM'lu; Türkçe Excel'de doğrudan açılır. |
 
 ## Öğrenci tarafı
 
