@@ -239,11 +239,11 @@ def fill_range_loop():
 NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
 
 
-def _numbers(line):
+def numbers_in(line):
     return [float(x) if "." in x else int(x) for x in NUM_RE.findall(line)]
 
 
-def _loop_checks(tree):
+def loop_note(tree):
     """Döngü yok ya da for döngüsünde break/continue/döngü değişkenine atama varsa öğrenciye not; yoksa None."""
     if not (has_node(tree, ast.For) or has_node(tree, ast.While)):
         return "Soru döngü kullanmanı istiyor; işlemi bir <code>for</code> ya da <code>while</code> döngüsüyle tekrarla."
@@ -267,7 +267,7 @@ def check_sum_loop(tree, p):
         return False, f"Kod <code>{var} = {n}</code> satırıyla başlamalı."
     if calls_name(tree, "sum"):
         return False, "Soru döngü kullanmanı istiyor; <code>sum()</code> yerine toplamı döngüde adım adım biriktir."
-    problem = _loop_checks(tree)
+    problem = loop_note(tree)
     if problem:
         return False, problem
     if kind == "for" and not has_node(tree, ast.For):
@@ -284,7 +284,7 @@ def check_sum_loop(tree, p):
         want = value * (value + 1) // 2
         if not lines:
             return False, "Ekrana hiçbir şey yazılmıyor; döngüden sonra toplamı <code>print</code> ile yazdır."
-        got = _numbers(lines[-1])[-1:] or [None]
+        got = numbers_in(lines[-1])[-1:] or [None]
         if len(lines) > 1:
             if same_value(got[0], want):
                 return False, ("Ara toplamlar da yazdırılıyor; yalnızca sonucu yazdır (print'i döngünün içine değil, "
@@ -310,7 +310,7 @@ def check_times_table(tree, p):
     var, n, stop = p["var"], p["n"], p["stop"]
     if not top_assigns(tree, var):
         return False, f"Kod <code>{var} = {n}</code> satırıyla başlamalı."
-    problem = _loop_checks(tree)
+    problem = loop_note(tree)
     if problem:
         return False, problem
     for call in find_prints(tree):
@@ -327,7 +327,7 @@ def check_times_table(tree, p):
             return False, (f"Çarpan 1 ile {stop} arasındaki her sayı için bir satır, toplam {stop} satır yazılmalı; kod "
                            f"{len(lines)} satır yazıyor. <code>range()</code> sınırlarını kontrol et.")
         for i, line in enumerate(lines, start=1):
-            nums = _numbers(line)
+            nums = numbers_in(line)
             want = [value, i, value * i]
             if len(nums) != 3:
                 return False, (f"Her satırda üç sayı olmalı: {var}, çarpan ve sonuç (ör. <code>{n} x 2 = {n * 2}</code>). "

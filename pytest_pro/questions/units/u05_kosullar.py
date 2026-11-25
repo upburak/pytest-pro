@@ -542,7 +542,26 @@ class Sim:
             raise Unknown("desteklenmeyen nitelik")
         if isinstance(node, ast.Call):
             return self.call(node)
+        if isinstance(node, ast.ListComp):
+            out = []
+            self._comp(node.generators, 0, node.elt, out)
+            return _sized(out)
         raise Unknown(f"{type(node).__name__} izlenemiyor")
+
+    def _comp(self, gens, k, elt, out):
+        """Liste üreteci: [elt for ... in ... if ...] (iç içe for'lar dahil)."""
+        if k == len(gens):
+            out.append(self.ev(elt))
+            _sized(out)
+            return
+        gen = gens[k]
+        if gen.is_async:
+            raise Unknown("async")
+        for item in self.iterate(self.ev(gen.iter)):
+            self.tick()
+            self.assign(gen.target, item)
+            if all(self.ev(cond) for cond in gen.ifs):
+                self._comp(gens, k + 1, elt, out)
 
     # ------------------------------------------------------------ çağrılar
     def call(self, node):
