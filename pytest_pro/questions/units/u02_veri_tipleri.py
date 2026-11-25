@@ -1,8 +1,10 @@
 """Ünite 2 - Veri Tipleri ve Tip Dönüşümleri."""
 import random
 
-from ..helpers import Wrong, e, err, output_question, unique_options, whys_for_options
+from ..codecheck import OK, checker, print_values, same_value
+from ..helpers import Wrong, e, err, fill_question, output_question, tf_claim, unique_options, whys_for_options
 from ..registry import register_unit
+from .u01_temel import UNSET, print_numbers, straight_run
 
 UNIT = register_unit(
     "veri_tipleri", "Veri Tipleri ve Dönüşümler", "Başlangıç",
@@ -307,3 +309,298 @@ def conversion_error():
         "solution": f"<code>{e(bad)}</code> ValueError verir: int() yalnızca tam sayı biçimindeki metni, float() "
                     "ise noktalı ondalık biçimini çevirebilir. Ondalık ayırıcı virgül değil noktadır.",
     }
+
+
+# ================================================================= yeni şablonlar (ölçme raporu Ö2.1-Ö2.7)
+TYPE_LITERALS = [
+    ("3.14", "float"), ("0.0", "float"), ("-2.5", "float"), ("7.0", "float"),
+    ("42", "int"), ("-7", "int"), ("0", "int"), ("100", "int"),
+    ('"100"', "str"), ('"3.14"', "str"), ('"True"', "str"), ('"-4"', "str"), ('""', "str"),
+    ("True", "bool"), ("False", "bool"),
+]
+
+
+@q("Tip İddiası (Doğru/Yanlış)", verify="tf_output")
+def type_claim():
+    """Kazanım: değerin tipini belirler · Bloom: H/A"""
+    literal, typ = random.choice(TYPE_LITERALS)
+    var = random.choice(["x", "veri", "deger"])
+    reasons = _type_whys(literal, typ)
+    return tf_claim(
+        f"{var} = {literal}\nprint(type({var}))", f"<class '{typ}'>",
+        [Wrong(f"<class '{t}'>", why) for t, why in reasons.items()],
+        f"<code>type()</code> değerin tipini verir; <code>{e(literal)}</code> değeri {typ} tipindedir. Tırnak içindeki "
+        "her değer metindir; ondalık noktası olan sayılar float, olmayanlar int'tir.",
+        hint="Önce tırnağa, sonra ondalık noktaya bak.",
+    )
+
+
+INPUT_VARS = {False: ["yas", "sayi", "puan", "adet"], True: ["fiyat", "kilo", "sayi", "mesafe"]}
+
+
+@q("int(input()) Boşluğu", verify="fill")
+def input_int_blank():
+    """Kazanım: girdiyi işlemden önce sayıya çevirmesi gerektiğini bilir · Bloom: U"""
+    decimal = random.random() < 0.45
+    var = random.choice(INPUT_VARS[decimal])
+    k = random.randint(1, 9)
+    if decimal:
+        n = random.randint(10, 99) + random.choice([0.5, 0.25, 0.75])
+        conv, expect = "float", str(n + k)
+        conv_wrongs = [Wrong("int", f'<code>int()</code> "{n}" gibi ondalıklı bir metni çeviremez; ValueError oluşur.'),
+                       Wrong("str", "Metin ile sayı + ile toplanamaz; TypeError oluşur.")]
+    else:
+        n = random.randint(10, 99)
+        conv, expect = "int", str(n + k)
+        conv_wrongs = [Wrong("float", f"<code>float()</code> ile toplam {n + k}.0 yazılır; çıktı tam sayı istiyor."),
+                       Wrong("str", "Metin ile sayı + ile toplanamaz; TypeError oluşur.")]
+    two = random.random() < 0.45
+    text = (f"Kod çalıştırıldığında kullanıcı klavyeden <strong>{n}</strong> yazıp Enter'a basıyor. Kod ekrana "
+            f"<code>{expect}</code> yazmalı. " + ("Boşlukları doldurun." if two else "Boşluğu doldurun."))
+    solution = (f"<code>input()</code> her zaman metin döndürür; toplama yapmadan önce <code>{conv}()</code> ile "
+                f"sayıya çevrilir: {n} + {k} = {expect}.")
+    hint = "Klavyeden okunan değer hangi tipte gelir? Toplama yapmadan önce neye çevirmen gerekir?"
+    if two:
+        return fill_question(
+            f"{var} = ____(____())\nprint({var} + {k})", [[conv], ["input"]], expect, text, solution, hint=hint,
+            wrongs=[conv_wrongs, [Wrong("print", "Klavyeden değer alan fonksiyon print değil; print ekrana yazar.")]],
+            stdin=str(n),
+        )
+    return fill_question(
+        f"{var} = ____(input())\nprint({var} + {k})", [[conv]], expect, text, solution, hint=hint,
+        wrongs=[conv_wrongs], stdin=str(n),
+    )
+
+
+CONV_NAMES = [("a", "b"), ("metin", "sayi"), ("x", "y")]
+
+
+@q("Dönüşüm Yönü (Boşluk Doldurma)", verify="fill")
+def conv_direction_blank():
+    """Kazanım: toplama ile birleştirme arasında tip dönüşümüyle seçim yapar · Bloom: An"""
+    m, s = random.choice(CONV_NAMES)
+    a, b = random.randint(10, 99), random.randint(2, 9)
+    form = random.choices(["add", "mul", "concat", "float"], weights=[20, 15, 35, 30])[0]
+    head = f'{m} = "{a}"\n{s} = {b}\n'
+    text_err = "Metin ile sayı birlikte kullanılamaz; TypeError oluşur."
+    if form == "add":
+        code, conv, expect = f"print(____({m}) + {s})", "int", str(a + b)
+        wrongs = [Wrong("str", text_err), Wrong("float", f"<code>float()</code> ile sonuç {a + b}.0 olur; çıktı tam "
+                                                         "sayı istiyor.")]
+    elif form == "mul":
+        code, conv, expect = f"print(____({m}) * {s})", "int", str(a * b)
+        wrongs = [Wrong("str", f'Metin * sayı metni tekrarlar: "{a}" {b} kez yan yana yazılır.'),
+                  Wrong("float", f"<code>float()</code> ile sonuç {a * b}.0 olur; çıktı tam sayı istiyor.")]
+    elif form == "float":
+        code, conv, expect = f"print(____({m}) + {s})", "float", f"{a + b}.0"
+        wrongs = [Wrong("int", f"<code>int()</code> ile sonuç {a + b} olur; çıktıda .0 olması için ondalıklı sayıya "
+                               "çevrilmeli."),
+                  Wrong("str", text_err)]
+    else:
+        code, conv, expect = f"print({m} + ____({s}))", "str", f"{a}{b}"
+        wrongs = [Wrong("int", f"<code>{s}</code> zaten sayı; <code>int()</code> onu değiştirmez ve metin + sayı yine "
+                               "TypeError verir."),
+                  Wrong("float", "Metin ile ondalıklı sayı da + ile birleştirilemez; TypeError oluşur.")]
+    return fill_question(
+        head + code, [[conv]], expect,
+        f"Aşağıdaki kod ekrana <code>{e(expect)}</code> yazmalı. Boşluğa gereken dönüşüm fonksiyonunu yazın.",
+        "İki sayı + ile toplanır, iki metin + ile yan yana eklenir. Çıktı bir toplam ise metin sayıya "
+        "(<code>int</code>/<code>float</code>), yan yana yazılmış bir metin ise sayı metne (<code>str</code>) "
+        "çevrilir.",
+        hint="Çıktı bir toplam mı, çarpım mı, yoksa yan yana yazılmış metin mi? .0 var mı?",
+        wrongs=[wrongs],
+    )
+
+
+@q("Karışık Dönüşüm Çıktısı", verify="output")
+def mixed_conv():
+    """Kazanım: int, float ve str dönüşümlerinin sonucunu hesaplar · Bloom: U"""
+    form = random.choice(["int_float", "str_cat", "int_cut", "float_int"])
+    hint = "Her dönüşümün sonucunun tipini ayrı ayrı yaz."
+    if form == "int_float":
+        n = random.randint(2, 9)
+        m = random.randint(1, 9) + random.choice([0.5, 0.25, 0.75])
+        code, answer = f'print(int("{n}") + float("{m}"))', str(n + m)
+        why = f"<code>int(\"{n}\")</code> {n}, <code>float(\"{m}\")</code> {m} olur; toplam float'tır: {n + m}."
+        common = [Wrong(str(int(n + m)), "float ile toplanan int'in sonucu float olur; kesir kısmı kaybolmaz."),
+                  Wrong(f"{n}{m}", "int() ve float() metinleri sayıya çevirir; + burada birleştirme değil toplama "
+                                   "yapar.")]
+    elif form == "str_cat":
+        n, k = random.randint(2, 9), random.randint(10, 99)
+        code, answer = f'print(str({n}) + "{k}")', f"{n}{k}"
+        why = f"<code>str({n})</code> metindir; iki metin + ile yan yana eklenir: \"{n}{k}\"."
+        common = [Wrong(str(n + k), f"<code>str({n})</code> metin olduğu için + toplama değil birleştirme yapar."),
+                  Wrong(err("TypeError"), "str() sayıyı metne çevirdiği için iki taraf da metindir; hata oluşmaz.")]
+    elif form == "int_cut":
+        x, d, k = random.randint(2, 20), random.randint(5, 9), random.randint(1, 9)
+        code, answer = f'print(int({x}.{d}) + int("{k}"))', str(x + k)
+        why = f"<code>int({x}.{d})</code> kesir kısmını atar ({x}); <code>int(\"{k}\")</code> {k} olur: {x + k}."
+        common = [Wrong(str(x + 1 + k), "int() yuvarlamaz; kesir kısmını doğrudan atar."),
+                  Wrong(f"{x + k}.{d}", "int() sonucu tam sayıdır; kesir kısmı silinir.")]
+    else:
+        n, x, d = random.randint(2, 9), random.randint(2, 9), random.randint(5, 9)
+        code, answer = f'print(float("{n}") + int({x}.{d}))', f"{n + x}.0"
+        why = f"<code>float(\"{n}\")</code> {n}.0 olur; float ile int toplanınca sonuç float'tır: {n + x}.0."
+        common = [Wrong(str(n + x), "float ile toplanan int'in sonucu float olur; ekrana .0 ile yazılır."),
+                  Wrong(f"{n + x + 1}.0", "int() yuvarlamaz; kesir kısmını doğrudan atar.")]
+    return output_question(
+        code, answer, why,
+        common_wrongs=common, norm="sayi", hint=hint,
+    )
+
+
+@q("bool Aritmetiği", verify="output")
+def bool_arith():
+    """Kazanım: True ve False değerlerinin sayısal karşılığını bilir · Bloom: H/U"""
+    n = random.randint(2, 20)
+    form = random.choice(["true_add", "false_mul", "two_true", "mixed", "sum"])
+    hint = "True ve False hesaplarda hangi sayılar gibi davranır?"
+    type_err = Wrong(err("TypeError"), "bool, int'in özel bir türüdür; hesaplarda hata vermez.")
+    if form == "true_add":
+        code, answer = f"print(True + {n})", str(n + 1)
+        common = [Wrong(f"True{n}", "bool metin değildir; birleştirme yapılmaz, toplama yapılır."), type_err,
+                  Wrong(str(n), "True hesaplarda 1 değerindedir.")]
+    elif form == "false_mul":
+        code, answer = f"print(False * {n})", "0"
+        common = [Wrong(str(n), "False hesaplarda 0 değerindedir; 0 ile çarpım 0 olur."), type_err,
+                  Wrong("False", "Sonuç bir sayıdır; bool ile sayının çarpımı int verir.")]
+    elif form == "two_true":
+        code, answer = f"print(True + True + {n})", str(n + 2)
+        common = [Wrong(str(n + 1), "İki tane True var; her biri 1 değerindedir."), type_err,
+                  Wrong(f"TrueTrue{n}", "bool metin değildir; birleştirme yapılmaz, toplama yapılır.")]
+    elif form == "mixed":
+        code, answer = f"print({n} * True - False)", str(n)
+        common = [Wrong(str(n - 1), "False hesaplarda 0 değerindedir; çıkarınca sayı değişmez."), type_err,
+                  Wrong("0", f"True 1 değerindedir; {n} * True = {n}.")]
+    else:
+        values = [random.choice([True, False]) for _ in range(random.randint(3, 6))]
+        values[random.randrange(len(values))] = True
+        code, answer = f"print(sum({values}))", str(sum(values))
+        common = [Wrong(str(len(values)), "sum() elemanların değerlerini toplar; False 0 sayılır."),
+                  Wrong("True", "sum() bir sayı döndürür; True değerleri 1 olarak toplanır."), type_err]
+    return output_question(
+        code, answer,
+        "<code>bool</code>, <code>int</code>'in özel bir türüdür: hesaplarda True 1, False 0 gibi davranır. "
+        f"Sonuç: {answer}.",
+        common_wrongs=common, norm="sayi", hint=hint,
+    )
+
+
+TSUM_NAMES = [("a", "b"), ("sayi1", "sayi2"), ("x", "y")]
+
+
+@q("Metinleri Sayıya Çevirip Toplama (Kod Yazma)")
+def write_text_sum():
+    """Kazanım: metin olarak verilen sayıları int() ile çevirip toplar · Bloom: O"""
+    v1, v2 = random.choice(TSUM_NAMES)
+    s1, s2 = str(random.randint(10, 99)), str(random.randint(1, 99))
+    return {
+        "type": "code",
+        "text": (
+            f"Klavyeden okunan değerler gibi, iki sayı <strong>metin</strong> olarak verilmiş: <code>{v1} = "
+            f"\"{s1}\"</code> ve <code>{v2} = \"{s2}\"</code>. Kodunuz bu iki satırla başlasın. Ardından bu iki "
+            f"değeri <strong>tam sayıya</strong> çevirip toplamlarını yazdırın (çıktı: <code>{int(s1) + int(s2)}"
+            "</code>). Sonucu elle yazmayın; değişkenleri kullanın."
+        ),
+        "code": None,
+        "check": {"kind": "text_sum", "v1": v1, "v2": v2, "s1": s1, "s2": s2},
+        "answer": f'{v1} = "{s1}"\n{v2} = "{s2}"\nprint(int({v1}) + int({v2}))',
+        "hint": "Metinler + ile toplanmaz, yan yana eklenir. Toplamadan önce ne yapmalısın?",
+        "solution": "<code>int()</code> metni tam sayıya çevirir; iki sayı + ile toplanır. Çevirmeden yazılan "
+                    "<code>a + b</code> metinleri yan yana ekler.",
+    }
+
+
+CELSIUS_VALUES = [-10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 37, 40, 45, 50, 100]
+
+
+@q("Sıcaklık Dönüşümü (Kod Yazma)")
+def write_celsius():
+    """Kazanım: formülü Python ifadesine çevirir · Bloom: O"""
+    var = random.choice(["c", "celsius", "derece"])
+    c = random.choice(CELSIUS_VALUES)
+    f = c * 9 / 5 + 32
+    shown_f = int(f) if f == int(f) else f
+    return {
+        "type": "code",
+        "text": (
+            f"<code>{var}</code> değişkenine <strong>{c}</strong> atayın ve bu Celsius sıcaklığının Fahrenheit "
+            f"karşılığını <strong>F = C × 9 / 5 + 32</strong> formülüyle hesaplayıp yazdırın (sonuç: {shown_f}). "
+            "Sonucu elle hesaplamayın; değişkeni kullanın."
+        ),
+        "code": None,
+        "check": {"kind": "celsius", "var": var, "c": c},
+        "answer": f"{var} = {c}\nprint({var} * 9 / 5 + 32)",
+        "hint": "Formülü olduğu gibi yaz; Python çarpma ve bölmeyi toplamadan önce yapar.",
+        "solution": "Formül Python'a <code>c * 9 / 5 + 32</code> (ya da <code>1.8 * c + 32</code>) olarak yazılır. "
+                    "<code>/</code> sonucu float olduğu için ekrana ondalıklı yazılabilir; değer aynıdır.",
+    }
+
+
+# ================================================================= denetleyiciler
+def _printed_values(prints):
+    """Her print satırının yazdırdığı değerler (etiketler hariç, metinler sayıya çevrilmez)."""
+    return [[tr.try_value(n, UNSET) for n in print_values(call)] for call, tr in prints]
+
+
+def _flat(lines):
+    return [v for vals in lines for v in vals]
+
+
+@checker("text_sum")
+def check_text_sum(tree, p):
+    """v1 = "s1", v2 = "s2" (metin); int ile çevrilip toplamı yazdırılır."""
+    v1, v2, s1, s2 = p["v1"], p["v2"], p["s1"], p["s2"]
+    names = f"<code>{v1}</code> ve <code>{v2}</code>"
+    prints, firsts = straight_run(tree)
+    if firsts.get(v1) != s1 or firsts.get(v2) != s2:
+        return False, (f"{names} değişkenlerine sayılar <strong>metin</strong> olarak (tırnak içinde) atanmalı: "
+                       f"<code>{v1} = \"{s1}\"</code>.")
+    values = _flat(_printed_values(prints))
+    if not values:
+        return False, "Toplamı <code>print()</code> ile yazdır."
+    if len(values) > 1:
+        return False, "Yalnızca toplamı yazdır (yanına açıklama metni ekleyebilirsin)."
+    value, want = values[0], int(s1) + int(s2)
+    if value == s1 + s2:
+        return False, (f"Metinler + ile toplanmaz, yan yana eklenir: {s1 + s2}. Önce <code>int()</code> ile sayıya "
+                       "çevir.")
+    if isinstance(value, float) and same_value(value, want):
+        return False, f"Tam sayı istendi; <code>float()</code> kullanınca {want}.0 yazılır. <code>int()</code> kullan."
+    if value == int(s1 + s2):
+        return False, "Metinleri önce birleştirip sonra çevirdin; her birini ayrı ayrı <code>int()</code> ile çevir."
+    if not (isinstance(value, int) and value == want):
+        return False, "Yazdırılan değer iki sayının toplamı değil; işlemi kontrol et."
+    alt_prints, _ = straight_run(tree, {v1: "23", v2: "9"})
+    alt = _flat(_printed_values(alt_prints))
+    if alt != [32]:
+        return False, f"Sonucu elle yazma; {names} değişkenlerini kullan. Değerler değişince sonuç da değişmeli."
+    return True, OK
+
+
+@checker("celsius")
+def check_celsius(tree, p):
+    """var = c; c * 9 / 5 + 32 değeri yazdırılır (eşdeğer yazımlar serbest, değer üzerinden)."""
+    var, c = p["var"], p["c"]
+    prints, firsts = straight_run(tree)
+    if not same_value(firsts.get(var), c):
+        return False, f"<code>{var}</code> değişkenine {c} atanmamış."
+    values = _flat(print_numbers(call, tr) for call, tr in prints)
+    if not values:
+        return False, "Sonucu <code>print()</code> ile yazdır."
+    if len(values) > 1:
+        return False, "Yalnızca Fahrenheit değerini yazdır (yanına açıklama metni ekleyebilirsin)."
+    value = values[0]
+    if not same_value(value, c * 9 / 5 + 32):
+        if same_value(value, c * 9 / 5):
+            return False, "32'yi eklemeyi unutma."
+        if same_value(value, c * 5 / 9 + 32):
+            return False, "Formülde 9 / 5 olmalı; kesri ters yazdın."
+        return False, "Sonuç formülün değerini vermiyor; işlem önceliğini ve parantezleri kontrol et."
+    alt = c + 10
+    alt_prints, _ = straight_run(tree, {var: alt})
+    alt_values = _flat(print_numbers(call, tr) for call, tr in alt_prints)
+    if len(alt_values) != 1 or not same_value(alt_values[0], alt * 9 / 5 + 32):
+        return False, (f"Sonucu elle yazma; <code>{var}</code> değişkeniyle hesapla. Değer değişince sonuç da "
+                       "değişmeli.")
+    return True, OK
