@@ -9,16 +9,21 @@ verify değerleri (testlerin cevap anahtarını nasıl doğrulayacağı):
     "error"      kod çalıştırılır; hata vermeli ve hatanın adı cevapta geçmeli
     "raises_one" seçenekler birer ifadedir; yalnızca doğru seçenek hata vermeli
     "identifier" seçenekler değişken adıdır; yalnızca doğru seçenek geçerli ad olmalı
-    "fill"       boşluk doldurma: her kabul edilen cevap koda yerleştirilip çalıştırılır;
-                 çıktı sorunun "expect" alanıyla birebir aynı olmalı
-    None         otomatik doğrulama yok (doğru/yanlış soruları, kod yazma vb.)
+    "outcome"    kod çalıştırılır; hata vermezse çıktı, verirse "Hata verir (TürAdı)" cevapla aynı olmalı
+                 (aynı şablon hatalı ve hatasız değişkeler üretebilir)
+    "tf_output"  hesaplanan doğru/yanlış (helpers.tf_claim): kod çalıştırılır; sonuç sorunun "output"
+                 alanına eşit olmalı ve cevap ancak iddia ("claim") gerçek sonuca eşitse "True" olmalı
+    "fill"       boşluk doldurma: her kabul edilen cevap (ya da answer_sets takımı) koda yerleştirilip
+                 çalıştırılır; çıktı "expect" ile birebir aynı olmalı. blank_whys'teki yanlışlar farklı
+                 sonuç vermeli
+    None         otomatik doğrulama yok (sabit havuzlu doğru/yanlış, kod yazma vb.)
 """
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 from .fill import fill_in
 
-VERIFY_KINDS = ("output", "error", "raises_one", "identifier", "fill", None)
+VERIFY_KINDS = ("output", "error", "outcome", "tf_output", "raises_one", "identifier", "fill", None)
 LEVELS = ("Başlangıç", "Orta", "İleri")
 
 
@@ -48,7 +53,7 @@ class Generator:
             return {"code": q["answer"], "stdin": ""}
         if q["type"] == "fill":
             return {"code": fill_in(q["code"], [alts[0] for alts in q["answer"]]), "stdin": q.get("stdin", "")}
-        if self.verify in ("output", "error") and q.get("code"):
+        if self.verify in ("output", "error", "outcome", "tf_output") and q.get("code"):
             return {"code": q["code"], "stdin": q.get("stdin", "")}
         return None
 

@@ -1,7 +1,10 @@
 """
 Müfredat haritasını Markdown olarak üretir.
 
-Kullanım: python -m pytest_pro.questions.catalog > docs/MUFREDAT.md
+Kullanım: python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md
+
+(Modülün adı "catalog" değildir: öyle olsaydı içe aktarılınca paketteki `catalog()` fonksiyonunun
+üstüne yazılırdı.)
 """
 import random
 
@@ -12,6 +15,8 @@ TYPE_NAMES = {"mc": "Çoktan seçmeli", "tf": "Doğru / Yanlış", "short": "Kı
 VERIFY_NAMES = {
     "output": "Kod çalıştırılıp çıktı karşılaştırılır",
     "error": "Kod çalıştırılıp hata türü karşılaştırılır",
+    "outcome": "Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır",
+    "tf_output": "Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır",
     "raises_one": "Her seçenek çalıştırılır",
     "identifier": "Python ad kurallarıyla denetlenir",
     "fill": "Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır",
@@ -27,7 +32,7 @@ def render():
         "# Müfredat Haritası",
         "",
         "Bu dosya koddan otomatik üretilir; elle düzenlemeyin:",
-        "`python -m pytest_pro.questions.catalog > docs/MUFREDAT.md`",
+        "`python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md`",
         "",
         f"Toplam **{len(unit_list)} ünite**, **{total} soru şablonu**. Her şablon her çağrıldığında farklı "
         "değerlerle yeni bir soru üretir.",

@@ -3,9 +3,10 @@ import html
 import random
 from typing import NamedTuple
 
-from .fill import blank_count
+from .fill import blank_count, same_blank
+from .short import short_key
 
-STR_VALUES = ["Python", "Kodlama", "Gelisim", "Yazilim", "Bilgisayar", "Algoritma"]
+STR_VALUES = ["Python", "Kodlama", "Gelişim", "Yazılım", "Bilgisayar", "Algoritma"]
 PEOPLE = ["Ali", "Ayşe", "Can", "Deniz", "Ece", "Elif", "Mert", "Zeynep"]
 FRUITS = ["elma", "armut", "kiraz", "muz", "nar", "erik", "incir"]
 
@@ -91,9 +92,12 @@ def whys_for_options(correct, wrongs, options):
     return out
 
 
-def output_question(code, answer, solution, wrongs=None, text=None, stdin=None, hint=None, common_wrongs=None):
+def output_question(code, answer, solution, wrongs=None, text=None, stdin=None, hint=None, common_wrongs=None,
+                    accept=None, norm=None):
     """Kod çıktısı sorusu. wrongs verilirse çoktan seçmeli, verilmezse kısa cevap olur.
-    wrongs ve common_wrongs elemanları Wrong(değer, açıklama) ya da düz metin olabilir."""
+    wrongs ve common_wrongs elemanları Wrong(değer, açıklama) ya da düz metin olabilir.
+    Kısa cevapta accept (kabul edilen eşdeğer cevaplar) ve norm (karşılaştırma biçimi, short.NORMS)
+    verilebilir; verilmezse eski davranış geçerlidir."""
     q = {
         "type": "mc" if wrongs is not None else "short",
         "text": text or ("Aşağıdaki kodun ekran çıktısı ne olur?" if wrongs is not None
@@ -103,10 +107,20 @@ def output_question(code, answer, solution, wrongs=None, text=None, stdin=None, 
         "solution": solution,
     }
     if wrongs is not None:
+        if accept or norm:
+            raise ValueError("accept ve norm yalnızca kısa cevap sorularında kullanılır")
         q["options"] = unique_options(answer, wrongs)
         q["whys"] = whys_for_options(answer, wrongs, q["options"])
     else:
-        q["whys"] = {w.value: w.why for w in (common_wrongs or []) if isinstance(w, Wrong)}
+        if norm is not None:
+            q["norm"] = norm
+            short_key(q, answer)  # bilinmeyen biçimde ValueError
+        if accept:
+            q["accept"] = list(accept)
+        right = {short_key(q, a) for a in [answer, *q.get("accept", [])]}
+        # doğru sayılan bir cevaba "yanlış" açıklaması verilmez (rastgele değerlerde çakışabilir)
+        q["whys"] = {w.value: w.why for w in (common_wrongs or [])
+                     if isinstance(w, Wrong) and short_key(q, w.value) not in right}
     if hint is not None:
         q["hint"] = hint
     if stdin is not None:
@@ -135,13 +149,95 @@ def tf_question(statements_true, statements_false, solution, code=None, hint=Non
     return q
 
 
-def fill_question(code, answer, expect, text, solution, hint=None):
+def fill_question(code, answer, expect, text, solution, hint=None, wrongs=None, answer_sets=None, stdin=None):
     """Boşluk doldurma sorusu. code içindeki her ____ bir boşluktur; answer her boşluk için kabul edilen
     cevapların listesidir ([["range"], ["1"], ["6"]]); expect doldurulmuş kodun ekran çıktısıdır
-    (verify="fill" ile testlerde kod çalıştırılarak doğrulanır, öğrenciye gönderilmez)."""
-    if blank_count(code) != len(answer):
-        raise ValueError(f"Boşluk sayısı ({blank_count(code)}) cevap sayısıyla ({len(answer)}) uyuşmuyor")
+    (verify="fill" ile testlerde kod çalıştırılarak doğrulanır, öğrenciye gönderilmez).
+
+    wrongs:      her boşluk için yaygın yanlışlar: [[Wrong("str", "neden")], []]. Öğrenci bu cevabı yazarsa
+                 açıklama gösterilir; testler bu yanlışların gerçekten farklı sonuç verdiğini doğrular.
+    answer_sets: birbirine bağlı boşluklar için tam takımlar ([[">=", "18"], [">", "17"]]); verilirse
+                 answer=None yazılır ve her takım ayrı ayrı doğrulanır.
+    stdin:       kod input() kullanıyorsa klavye girdisi."""
+    n = blank_count(code)
+    if answer_sets is not None:
+        if not answer_sets or any(len(combo) != n for combo in answer_sets):
+            raise ValueError(f"Her cevap takımı {n} boşluk içermeli")
+        answer = [list(dict.fromkeys(combo[i] for combo in answer_sets)) for i in range(n)]
+    if n != len(answer):
+        raise ValueError(f"Boşluk sayısı ({n}) cevap sayısıyla ({len(answer)}) uyuşmuyor")
     q = {"type": "fill", "text": text, "code": code, "answer": answer, "expect": expect, "solution": solution}
+    if answer_sets is not None:
+        q["answer_sets"] = [list(combo) for combo in answer_sets]
+    if wrongs is not None:
+        if len(wrongs) != n:
+            raise ValueError("wrongs her boşluk için bir liste içermeli")
+        blank_whys = []
+        for alts, ws in zip(answer, wrongs):
+            whys = {}
+            for w in ws:
+                # kabul edilen bir cevaba "yanlış" açıklaması verilmez (rastgele değerlerde çakışabilir)
+                if not any(same_blank(w.value, a) for a in alts):
+                    whys[w.value] = w.why
+            blank_whys.append(whys)
+        q["blank_whys"] = blank_whys
     if hint is not None:
         q["hint"] = hint
+    if stdin is not None:
+        q["stdin"] = stdin
+    return q
+
+
+# ---------------------------------------------------------------- hesaplanan doğru/yanlış
+ERROR_PREFIX = "Hata verir ("
+
+
+def claim_html(claim):
+    """İddia edilen sonucu soru metnine uygun HTML'e çevirir (tek satır, çok satır ya da hata)."""
+    if claim.startswith(ERROR_PREFIX) and claim.endswith(")"):
+        return f"<code>{e(claim[len(ERROR_PREFIX):-1])}</code> hatası oluşur"
+    lines = claim.split("\n")
+    if len(lines) == 1:
+        return f"ekrana <code>{e(claim)}</code> yazılır"
+    return "ekrana alt alta " + ", ".join(f"<code>{e(line)}</code>" for line in lines) + " yazılır"
+
+
+def tf_claim(code, output, wrong_claims, solution, hint=None, stdin=None, text=None, true_why=None):
+    """Hesaplanan doğru/yanlış sorusu (verify="tf_output").
+
+    output: kodun gerçek sonucu (çıktı ya da err("TypeError")); testlerde kod çalıştırılarak doğrulanır.
+    wrong_claims: Wrong(değer, neden) listesi; öğrenci yanlış iddiaya "Doğru" derse neden gösterilir.
+    Yarı olasılıkla gerçek sonuç, yarı olasılıkla yanlışlardan biri iddia edilir. Kök varsayılan olarak
+    "Bu kod çalıştırıldığında ekrana <code>X</code> yazılır." biçimindedir; text="... {claim} ..." ile
+    değiştirilebilir ({claim} yerine <code>X</code> konur). true_why: iddia doğruyken "Yanlış" diyen
+    öğrenciye gösterilecek açıklama."""
+    wrongs = [w for w in wrong_claims if isinstance(w, Wrong) and w.value != output]
+    if not wrongs:
+        raise ValueError("Gerçek sonuçtan farklı en az bir yanlış iddia gerekli")
+    is_true = random.random() < 0.5
+    chosen = None if is_true else random.choice(wrongs)
+    claim = output if is_true else chosen.value
+    if text is None:
+        statement = f"Bu kod çalıştırıldığında {claim_html(claim)}."
+    else:
+        statement = text.format(claim=f"<code>{e(claim)}</code>")
+    if is_true:
+        why = true_why or f"İddia doğru: kod gerçekten {claim_html(output)}."
+        whys = {"False": why}
+    else:
+        whys = {"True": chosen.why}
+    q = {
+        "type": "tf",
+        "text": statement,
+        "code": code,
+        "answer": "True" if is_true else "False",
+        "claim": claim,
+        "output": output,
+        "solution": f"{solution} Kod çalıştırıldığında {claim_html(output)}.",
+        "whys": whys,
+    }
+    if hint is not None:
+        q["hint"] = hint
+    if stdin is not None:
+        q["stdin"] = stdin
     return q

@@ -41,21 +41,40 @@ def list_index():
     )
 
 
-@q("Liste Sınırları", verify="error")
+@q("Liste Sınırları", verify="outcome")
 def list_index_error():
+    """Liste dışına taşan ve sınırdaki geçerli indeksler karışık sorulur (K5)."""
     k = random.randint(3, 5)
     items = random.sample(FRUITS, k)
-    return output_question(
-        f"meyveler = {items}\nprint(meyveler[{k}])", err("IndexError"),
-        f"{k} elemanlı listenin geçerli indeksleri 0'dan {k - 1}'e kadardır (veya -1'den -{k}'ya kadar). "
-        f"<code>[{k}]</code> liste dışına çıktığı için IndexError oluşur.",
-        wrongs=[
-            Wrong(items[-1], f"[{k}] son eleman değil; {k} elemanlı listenin son indeksi {k - 1}'dir."),
-            Wrong(items[0], "İndeks başa dönmez; liste dışına çıkılınca hata oluşur."),
+    var = random.choice(["meyveler", "liste", "sepet"])
+    i = random.choices([k, k + 1, -(k + 1), k - 1, -k, -1, 1], weights=[2, 1, 0.5, 2.5, 2, 1, 1])[0]
+    valid = -k <= i < k
+    hint = f"{k} elemanlı bir listede geçerli indeksler hangi aralıktadır? Negatif indeks sondan sayar."
+    if valid:
+        answer = items[i]
+        expl = (f"{k} elemanlı listenin geçerli indeksleri 0 ile {k - 1} ya da -{k} ile -1 arasındadır. "
+                f"<code>[{i}]</code> bu aralıkta; sonuç \"{answer}\".")
+        neighbours = [items[j] for j in (i - 1, i + 1) if -k <= j < k and items[j] != answer]
+        wrongs = [Wrong(err("IndexError"), f"[{i}] listenin içinde: {k} elemanlı listede indeksler 0 ile {k - 1} ya da "
+                                           f"-{k} ile -1 arasındadır.")]
+        if i >= 0:
+            wrongs.append(Wrong(items[i - 1], f"İndeksler 0'dan başlar; [{i}] {i + 1}. elemandır."))
+        else:
+            wrongs.append(Wrong(items[i + 1] if i + 1 < 0 else items[0],
+                                "Negatif indeksler sondan sayar: [-1] son eleman, [-2] sondan ikinci elemandır."))
+        wrongs += [Wrong(x, f'"{x}" listenin başka bir konumunda; soru [{i}] konumunu soruyor.') for x in neighbours]
+        wrongs.append(Wrong("None", "Geçerli bir indeks elemanın kendisini verir; None değil."))
+    else:
+        answer = err("IndexError")
+        expl = (f"{k} elemanlı listenin geçerli indeksleri 0 ile {k - 1} ya da -{k} ile -1 arasındadır. "
+                f"<code>[{i}]</code> liste dışına çıktığı için IndexError oluşur.")
+        wrongs = [
+            Wrong(items[-1] if i > 0 else items[0], f"[{i}] listenin içinde değil: {k} elemanlı listede indeksler 0 ile "
+                                                    f"{k - 1} ya da -{k} ile -1 arasındadır."),
+            Wrong(items[0] if i > 0 else items[-1], "İndeks başa ya da sona dönmez; liste dışına çıkılınca hata oluşur."),
             Wrong("None", "Python liste dışındaki bir indeks için None vermez, IndexError verir."),
-        ],
-        hint=f"{k} elemanlı bir listede en büyük geçerli indeks kaçtır?",
-    )
+        ]
+    return output_question(f"{var} = {items}\nprint({var}[{i}])", answer, expl, wrongs=wrongs, hint=hint)
 
 
 @q("Liste Metotları", verify="output")
@@ -117,29 +136,47 @@ def aggregates():
 
 @q("sort() ve sorted()", verify="output")
 def sorting():
-    nums = _nums(4)
-    if random.random() < 0.5:
-        return output_question(
-            f"a = {nums}\nb = sorted(a)\nprint(a)", str(nums),
-            "<code>sorted()</code> sıralanmış <strong>yeni</strong> bir liste döndürür; orijinal liste değişmez.",
-            wrongs=[
-                Wrong(str(sorted(nums)), "sorted() yeni bir liste döndürür ve b'ye atanır; a değişmez."),
-                Wrong(str(sorted(nums, reverse=True)), "sorted() a'yı değiştirmez, üstelik varsayılan sıralama küçükten büyüğedir."),
-                Wrong("None", "print(a) a listesini yazar; a hâlâ ilk tanımlandığı gibidir."),
-            ],
-            hint="sorted() hangi listeyi değiştirir? print hangi listeyi yazdırıyor?",
-        )
-    return output_question(
-        f"a = {nums}\nsonuc = a.sort()\nprint(sonuc)", "None",
-        "<code>sort()</code> listeyi yerinde sıralar ve <strong>None</strong> döndürür; sıralanmış liste "
-        "a'nın kendisidir.",
-        wrongs=[
-            Wrong(str(sorted(nums)), "sort() listeyi yerinde sıralar ama None döndürür; sonuc None olur."),
-            Wrong(str(nums), "sonuc a değil, sort() metodunun dönüş değeridir."),
-            Wrong(err("TypeError"), "sort() hata vermez; listeyi sıralar ve None döndürür."),
-        ],
-        hint="sort() bir değer döndürür mü, yoksa listeyi yerinde mi değiştirir?",
-    )
+    """Dört değişke (sorted/sort, hangi değişkenin yazdırıldığı); şıklar her zaman aynı dört anlamlı sonuçtur:
+    ilk liste, sıralı liste, ters sıralı liste ve None (Y1, O8)."""
+    while True:
+        nums = random.sample(range(1, 30), random.randint(4, 5))
+        if nums not in (sorted(nums), sorted(nums, reverse=True)):
+            break
+    asc, desc = sorted(nums), sorted(nums, reverse=True)
+    variant = random.choice(["sorted_a", "sorted_b", "sort_a", "sort_result"])
+    if variant == "sorted_a":
+        code, res = f"a = {nums}\nb = sorted(a)\nprint(a)", nums
+        expl = "<code>sorted()</code> sıralanmış <strong>yeni</strong> bir liste döndürür; orijinal liste (a) değişmez."
+        whys = {"asc": "sorted() yeni bir liste döndürür ve b'ye atanır; a değişmez.",
+                "desc": "sorted() a'yı değiştirmez; üstelik varsayılan sıralama küçükten büyüğedir.",
+                "none": "print(a) a listesini yazar; a hâlâ ilk tanımlandığı gibidir."}
+        hint = "sorted() hangi listeyi değiştirir? print hangi listeyi yazdırıyor?"
+    elif variant == "sorted_b":
+        code, res = f"a = {nums}\nb = sorted(a)\nprint(b)", asc
+        expl = "<code>sorted()</code> sıralanmış yeni bir liste döndürür; b bu yeni listedir. Sıralama küçükten büyüğedir."
+        whys = {"orig": "sorted() sıralanmış yeni bir liste döndürür; b o listedir.",
+                "desc": "Varsayılan sıralama küçükten büyüğedir; büyükten küçüğe için reverse=True gerekir.",
+                "none": "None döndüren sort() metodudur; sorted() yeni bir liste döndürür."}
+        hint = "sorted() ne döndürür? b'ye ne atanıyor?"
+    elif variant == "sort_a":
+        code, res = f"a = {nums}\na.sort()\nprint(a)", asc
+        expl = "<code>sort()</code> listeyi <strong>yerinde</strong> sıralar; a artık sıralıdır."
+        whys = {"orig": "sort() listeyi yerinde değiştirir; print a'nın sıralanmış hâlini yazar.",
+                "desc": "Varsayılan sıralama küçükten büyüğedir; büyükten küçüğe için reverse=True gerekir.",
+                "none": "print(a) listeyi yazar; None, sort() metodunun dönüş değeridir ve burada kullanılmıyor."}
+        hint = "sort() listeyi değiştirir mi, yoksa yeni bir liste mi döndürür?"
+    else:
+        code, res = f"a = {nums}\nsonuc = a.sort()\nprint(sonuc)", None
+        expl = ("<code>sort()</code> listeyi yerinde sıralar ve <strong>None</strong> döndürür; sıralanmış liste "
+                "a'nın kendisidir.")
+        whys = {"asc": "sort() listeyi yerinde sıralar ama None döndürür; sonuc None olur.",
+                "orig": "sonuc a değil, sort() metodunun dönüş değeridir.",
+                "desc": "sort() hiçbir liste döndürmez; dönüş değeri None'dır."}
+        hint = "sort() bir değer döndürür mü, yoksa listeyi yerinde mi değiştirir?"
+    values = {"orig": str(nums), "asc": str(asc), "desc": str(desc), "none": "None"}
+    answer = str(res)
+    wrongs = [Wrong(values[key], why) for key, why in whys.items()]
+    return output_question(code, answer, expl, wrongs=wrongs, hint=hint)
 
 
 @q("Listeler Değiştirilebilir", verify="output")
@@ -160,25 +197,47 @@ def aliasing():
     )
 
 
+COMPREHENSIONS = [
+    # (ifade, koşul, açıklama, koşulun tersi)
+    ("x * x", "", "her sayının karesini alır", None),
+    ("x * 2", "", "her sayıyı 2 ile çarpar", None),
+    ("x + 3", "", "her sayıya 3 ekler", None),
+    ("x", " if x % 2 == 0", "yalnızca çift sayıları alır", " if x % 2 == 1"),
+    ("x", " if x % 3 == 0", "yalnızca 3'e tam bölünenleri alır", " if x % 3 != 0"),
+    ("x + 1", " if x > 2", "2'den büyük sayıların bir fazlasını alır", " if x <= 2"),
+    ("x * 10", " if x < 3", "3'ten küçük sayıların 10 katını alır", " if x >= 3"),
+]
+
+
+def _comp(expr, cond, rng):
+    return str(eval(f"[{expr} for x in {rng}{cond}]"))  # noqa: S307 - yalnızca bizim ürettiğimiz sabit ifade
+
+
 @q("Liste Üreteçleri", verify="output")
 def comprehension():
-    n = random.randint(4, 7)
-    expr, cond, why = random.choice([
-        ("x * x", "", "her sayının karesini alır"),
-        ("x * 2", "", "her sayıyı 2 ile çarpar"),
-        ("x", " if x % 2 == 0", "yalnızca çift sayıları alır"),
-        ("x + 1", " if x > 2", "2'den büyük sayıların bir fazlasını alır"),
-    ])
-    res = str(eval(f"[{expr} for x in range({n}){cond}]"))  # noqa: S307
+    """Hesaplanan yanlışlar çakışırsa sıradaki anlamlı yanlışa geçilir; dolgu şık gerekmez (Y1)."""
+    n = random.randint(4, 8)
+    expr, cond, why, opposite = random.choice(COMPREHENSIONS)
+    var = random.choice(["sonuc", "liste", "yeni"])
+    res = _comp(expr, cond, f"range({n})")
+    wrongs = [
+        Wrong(_comp(expr, cond, f"range(1, {n + 1})"), f"range({n}) 0'dan başlar, 1'den değil."),
+        Wrong(_comp(expr, cond, f"range({n + 1})"), f"range({n}) bitiş değerini ({n}) üretmez."),
+        Wrong(_comp(expr, cond, f"range({n - 1})"), f"range({n}) 0'dan başlayıp {n} değer üretir; son değer {n - 1}."),
+    ]
+    if cond:
+        if expr != "x":
+            wrongs.insert(1, Wrong(_comp("x", cond, f"range({n})"), "Koşulu sağlayan sayılara baştaki ifade "
+                                                                    f"(<code>{expr}</code>) de uygulanır."))
+        wrongs.insert(1, Wrong(_comp(expr, opposite, f"range({n})"), "Koşul, alınacak sayıları seçer; koşulu "
+                                                                     "sağlamayanlar listeye girmez."))
+        wrongs.append(Wrong(_comp(expr, "", f"range({n})"), "Koşul (if) yalnızca onu sağlayan sayıları listeye alır."))
+    else:
+        wrongs.insert(1, Wrong(str(list(range(n))), "Liste üreteci her elemana baştaki ifadeyi uygular; x'ler olduğu "
+                                                    "gibi kalmaz."))
     return output_question(
-        f"print([{expr} for x in range({n}){cond}])", res,
+        f"{var} = [{expr} for x in range({n}){cond}]\nprint({var})", res,
         f"Liste üreteci range({n}) içindeki her x için {why}. Bu, for döngüsüyle liste doldurmanın kısa yazımıdır.",
-        wrongs=[
-            Wrong(str(list(range(n))), "Liste üreteci her elemana baştaki ifadeyi uygular; x'ler olduğu gibi kalmaz."),
-            Wrong(str(eval(f"[{expr} for x in range(1, {n + 1}){cond}]")),  # noqa: S307
-                  f"range({n}) 0'dan başlar, 1'den değil."),
-            Wrong(str(eval(f"[{expr} for x in range({n - 1}){cond}]")),  # noqa: S307
-                  f"range({n}) 0'dan {n - 1}'e kadar {n} değer üretir."),
-        ],
+        wrongs=wrongs,
         hint="Önce range'in ürettiği x değerlerini yaz, sonra her birine koşulu ve ifadeyi uygula.",
     )

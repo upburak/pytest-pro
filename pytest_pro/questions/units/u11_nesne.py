@@ -27,6 +27,7 @@ def class_basics():
         wrongs=[
             Wrong(f"{name} {age}", "buyu() metodu self.yas'ı kalıcı olarak artırır; değişiklik nesnede kalır."),
             Wrong(f"ad {age + k}", "o.ad özelliğin değerini yazar, özelliğin adını değil."),
+            Wrong(f"{name} {k}", "<code>self.yas += yil</code> yaşı yil kadar artırır; yaşın yerine yil'i koymaz."),
             Wrong(err("TypeError"), "Metot doğru sayıda argümanla çağrılıyor; self kendiliğinden verilir."),
         ],
         hint="Nesne hangi değerlerle oluşturuldu? buyu() çağrısı hangi özelliği nasıl değiştiriyor?",
@@ -55,14 +56,23 @@ def class_counter():
     )
 
 
-ANIMALS = [("Kedi", "Miyav"), ("Kopek", "Hav"), ("Inek", "Mo"), ("Kus", "Cik"), ("Koyun", "Mee"),
-           ("Ordek", "Vak"), ("At", "Ihaa"), ("Horoz", "Kukuriku")]
+# Sınıf adları Python tanımlayıcısı olduğu için ASCII; ekrana yazılan sesler doğru Türkçe yazımla.
+ANIMALS = [("Kedi", "Miyav"), ("Kopek", "Hav"), ("Inek", "Möö"), ("Kus", "Cik cik"), ("Koyun", "Mee"),
+           ("Ordek", "Vak vak"), ("At", "İhaa"), ("Horoz", "Kukuriku")]
 
 
 @q("Kalıtım ve Metot Ezme", verify="output")
 def inheritance():
     animal, sound = random.choice(ANIMALS)
-    intro = random.choice(["Ben bir hayvanim: ", "Sesim: "])
+    intro = random.choice(["Ben bir hayvanım: ", "Sesim: ", "Benim sesim: "])
+    wrongs = [
+        Wrong(f"{intro}...", f"{animal}, ses() metodunu ezer; self.ses() nesnenin kendi sınıfındaki metodu çağırır."),
+        Wrong(sound, "tanit() sesi bir giriş metniyle birleştirerek döndürür."),
+        Wrong("...", f"tanit() giriş metnini de ekler; ses() ezildiği için \"...\" yerine {animal}'in sesi gelir."),
+    ]
+    if random.random() < 0.5:  # hata şıkkı her soruda görünmesin (O8)
+        wrongs.append(Wrong(err("AttributeError"), f"tanit() üst sınıftan miras alınır; {animal} nesnesinde de bulunur."))
+    random.shuffle(wrongs)
     return output_question(
         "class Hayvan:\n    def ses(self):\n        return \"...\"\n\n    def tanit(self):\n"
         f"        return \"{intro}\" + self.ses()\n\n"
@@ -70,18 +80,16 @@ def inheritance():
         f"{intro}{sound}",
         f"{animal} sınıfı Hayvan'dan <strong>kalıtım</strong> alır; tanit() metodunu miras alır ama ses() metodunu "
         f"<strong>ezer</strong> (override). tanit() içindeki self.ses() çağrısı {animal}'in metodunu çalıştırır.",
-        wrongs=[
-            Wrong(f"{intro}...", f"{animal}, ses() metodunu ezer; self.ses() nesnenin kendi sınıfındaki metodu çağırır."),
-            Wrong(sound, "tanit() sesi bir giriş metniyle birleştirerek döndürür."),
-            Wrong(err("AttributeError"), f"tanit() üst sınıftan miras alınır; {animal} nesnesinde de bulunur."),
-        ],
+        wrongs=wrongs,
         hint=f"{animal} nesnesinde tanit() nereden geliyor? İçindeki self.ses() hangi sınıfın metodunu çağırır?",
     )
 
 
 @q("__str__ Metodu", verify="output")
 def str_method():
-    w, h = random.randint(2, 9), random.randint(2, 9)
+    w, h = 2, 2
+    while (w, h) == (2, 2):  # 2 + 2 = 2 * 2: "toplam" şıkkı doğru cevaba eşit olurdu
+        w, h = random.randint(2, 9), random.randint(2, 9)
     return output_question(
         "class Dikdortgen:\n    def __init__(self, en, boy):\n        self.en = en\n        self.boy = boy\n\n"
         "    def __str__(self):\n        return f\"{self.en}x{self.boy} alan={self.en * self.boy}\"\n\n"

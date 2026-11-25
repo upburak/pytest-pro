@@ -75,20 +75,25 @@ def test_tracer_does_not_touch_real_stdout(capsys):
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.parametrize("gen", [g for g in all_generators() if g.verify in ("output", "error", "fill")],
-                         ids=lambda g: g.name)
+TRACED = ("output", "error", "outcome", "tf_output", "fill")
+
+
+@pytest.mark.parametrize("gen", [g for g in all_generators() if g.verify in TRACED], ids=lambda g: g.name)
 def test_trace_agrees_with_answer_key(gen):
     for seed in range(30):
         random.seed(seed)
         q = gen()
         t = trace(q["trace"]["code"], q["trace"]["stdin"])
-        if gen.verify == "output":
-            echo = "".join(line + "\n" for line in q["trace"]["stdin"].splitlines())  # input() girdisi ekranda görünür
-            assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == echo + q["answer"]
-        elif gen.verify == "fill":  # cevap anahtarı yerleştirilmiş kod izlenir
-            assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == q["expect"]
+        echo = "".join(line + "\n" for line in q["trace"]["stdin"].splitlines())  # input() girdisi ekranda görünür
+        if gen.verify == "fill":  # cevap anahtarı yerleştirilmiş kod izlenir
+            assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == echo + q["expect"]
+            continue
+        expected = {"output": q["answer"], "error": q["answer"], "outcome": q["answer"],
+                    "tf_output": q.get("output")}[gen.verify]
+        if gen.verify == "error" or expected.startswith("Hata verir ("):
+            assert t["error"] is not None and t["error"]["type"] in expected
         else:
-            assert t["error"]["type"] in q["answer"]
+            assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == echo + expected
 
 
 def test_output_cap_holds_for_single_print():

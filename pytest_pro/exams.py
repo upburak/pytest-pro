@@ -165,7 +165,7 @@ def topic_stats(db, session_id=None):
             answer = answers.get(str(q["id"]), "")
             if res["correct"] or q["type"] not in ("mc", "short") or not str(answer).strip():
                 continue
-            norm = qs._norm_short(answer) if q["type"] == "short" else answer
+            norm = qs.short_key(q, answer) if q["type"] == "short" else answer
             w = wrongs.setdefault(key, {}).setdefault(norm, [0, answer, qs.why_for(q, answer)])
             w[0] += 1
 

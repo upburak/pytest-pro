@@ -1,7 +1,7 @@
 # Müfredat Haritası
 
 Bu dosya koddan otomatik üretilir; elle düzenlemeyin:
-`python -m pytest_pro.questions.catalog > docs/MUFREDAT.md`
+`python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md`
 
 Toplam **11 ünite**, **78 soru şablonu**. Her şablon her çağrıldığında farklı değerlerle yeni bir soru üretir.
 
@@ -49,9 +49,9 @@ int, float, str, bool; type(), int()/float()/str()/bool() dönüşümleri, input
 | Tip Dönüşümleri (int/str) | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
 | Tip Dönüşümleri (float/int) | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
 | bool() Dönüşümü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| input() ve Tip Dönüşümü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp hata türü karşılaştırılır |
+| input() ve Tip Dönüşümü | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Dönüşüm Hataları | Çoktan seçmeli | Her seçenek çalıştırılır |
 
 ## 3. Operatörler
@@ -77,7 +77,7 @@ Aritmetik (+ - * / // % **), işlem önceliği, karşılaştırma, mantıksal (a
 
 | Konu | Soru tipi | Cevap anahtarı doğrulaması |
 |---|---|---|
-| Metin Tekrarı | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| Metin Tekrarı | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | İndeksleme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Dilimleme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | len() Fonksiyonu | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
@@ -126,7 +126,7 @@ Liste oluşturma, indeksleme, dilimleme, append/insert/remove/pop, len/sum/max/m
 | Konu | Soru tipi | Cevap anahtarı doğrulaması |
 |---|---|---|
 | Liste İndeksleme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| Liste Sınırları | Çoktan seçmeli | Kod çalıştırılıp hata türü karşılaştırılır |
+| Liste Sınırları | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Liste Metotları | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Liste Dilimleme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Hazır Fonksiyonlar | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
@@ -143,10 +143,10 @@ dict (anahtar-değer, get, keys/values/items, güncelleme), tuple (değiştirile
 | Konu | Soru tipi | Cevap anahtarı doğrulaması |
 |---|---|---|
 | Sözlükten Değer Okuma | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| Olmayan Anahtar | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| Olmayan Anahtar | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Sözlük Güncelleme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Sözlük Üzerinde Döngü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
-| Demetler Değiştirilemez | Çoktan seçmeli | Kod çalıştırılıp hata türü karşılaştırılır |
+| Demetler Değiştirilemez | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Demet Açma | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Kümeler | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 

@@ -95,103 +95,190 @@ def float_int():
     )
 
 
+BOOL_VALUES = [
+    # (değer, sonuç, doğru açıklama, ters sonucu seçene açıklama)
+    ("0", False, "Sıfır sayısı False kabul edilir.",
+     "Sıfır False sayılır; yalnızca sıfırdan farklı sayılar True'dur."),
+    ('""', False, "Boş metin False kabul edilir.",
+     "Boş metin False sayılır; içinde en az bir karakter olan metin True'dur."),
+    ("0.0", False, "0.0 sıfıra eşit olduğu için False kabul edilir.",
+     "0.0 da sıfırdır; sıfır olan her sayı False sayılır."),
+    ("[]", False, "Boş liste False kabul edilir.",
+     "Boş liste False sayılır; en az bir elemanı olan liste True'dur."),
+    ("None", False, "None 'hiçbir şey' anlamına gelir ve False kabul edilir.",
+     "None değer yokluğunu gösterir ve False sayılır."),
+    ("7", True, "Sıfırdan farklı her sayı True kabul edilir.",
+     "Yalnızca sıfır False sayılır; sıfırdan farklı her sayı True'dur."),
+    ('"0"', True, 'İçinde karakter olan her metin True\'dur; "0" da boş değildir.',
+     '"0" bir sayı değil, içinde bir karakter olan metindir; boş olmadığı için True\'dur.'),
+    ('" "', True, "Bir boşluk karakteri içeren metin boş değildir, True'dur.",
+     "Boşluk da bir karakterdir; metin boş olmadığı için True'dur."),
+    ("-3", True, "Negatif sayılar da sıfırdan farklıdır, True kabul edilir.",
+     "Yalnızca sıfır False sayılır; negatif sayılar da True'dur."),
+    ('"False"', True, '"False" yazısı bir metindir; boş olmadığı için True\'dur.',
+     'Tırnak içindeki "False" mantıksal değer değil, içi dolu bir metindir; bu yüzden True\'dur.'),
+    ("0.5", True, "0.5 sıfırdan farklıdır, True kabul edilir.",
+     "Sıfırdan farklı her sayı, kesirli olsa bile True'dur."),
+    ("[0]", True, "İçinde bir eleman olan liste boş değildir, True'dur.",
+     "Liste boş değil; içindeki elemanın 0 olması önemli değil, liste True'dur."),
+]
+
+
 @q("bool() Dönüşümü", verify="output")
 def bool_conversion():
-    value, result, why, opposite_why = random.choice([
-        ("0", "False", "Sıfır sayısı False kabul edilir.",
-         "Sıfır False sayılır; yalnızca sıfırdan farklı sayılar True'dur."),
-        ("7", "True", "Sıfırdan farklı her sayı True kabul edilir.",
-         "Yalnızca sıfır False sayılır; sıfırdan farklı her sayı True'dur."),
-        ('""', "False", "Boş metin False kabul edilir.",
-         "Boş metin False sayılır; içinde en az bir karakter olan metin True'dur."),
-        ('"0"', "True", 'İçinde karakter olan her metin True\'dur; "0" da boş değildir.',
-         '"0" bir sayı değil, içinde bir karakter olan metindir; boş olmadığı için True\'dur.'),
-        ('" "', "True", "Bir boşluk karakteri içeren metin boş değildir, True'dur.",
-         "Boşluk da bir karakterdir; metin boş olmadığı için True'dur."),
-        ("0.0", "False", "0.0 sıfıra eşit olduğu için False kabul edilir.",
-         "0.0 da sıfırdır; sıfır olan her sayı False sayılır."),
-        ("[]", "False", "Boş liste False kabul edilir.",
-         "Boş liste False sayılır; en az bir elemanı olan liste True'dur."),
-        ("-3", "True", "Negatif sayılar da sıfırdan farklıdır, True kabul edilir.",
-         "Yalnızca sıfır False sayılır; negatif sayılar da True'dur."),
-        ('"False"', "True", '"False" yazısı bir metindir; boş olmadığı için True\'dur.',
-         'Tırnak içindeki "False" mantıksal değer değil, içi dolu bir metindir; bu yüzden True\'dur.'),
-        ("0.5", "True", "0.5 sıfırdan farklıdır, True kabul edilir.",
-         "Sıfırdan farklı her sayı, kesirli olsa bile True'dur."),
-        ("[0]", "True", "İçinde bir eleman olan liste boş değildir, True'dur.",
-         "Liste boş değil; içindeki elemanın 0 olması önemli değil, liste True'dur."),
-        ("None", "False", "None 'hiçbir şey' anlamına gelir ve False kabul edilir.",
-         "None değer yokluğunu gösterir ve False sayılır."),
-    ])
+    """İki değerin doğruluk karşılığı birlikte sorulur; dört birleşimin hepsi anlamlı bir şıktır (K4)."""
+    picks = []
+    for _ in range(2):  # her değer için önce sonuç (True/False) eşit olasılıkla seçilir
+        want = random.random() < 0.5
+        picks.append(random.choice([v for v in BOOL_VALUES if v[1] == want and v not in picks]))
+    (v1, r1, why1, opp1), (v2, r2, why2, opp2) = picks
+    answer = f"{r1} {r2}"
+    wrongs = []
+    for a in (True, False):
+        for b in (True, False):
+            if (a, b) == (r1, r2):
+                continue
+            if a != r1 and b != r2:
+                why = f"İki değeri de ters çevirdin. {opp1} {opp2}"
+            elif a != r1:
+                why = f"İlk değer yanlış: {opp1}"
+            else:
+                why = f"İkinci değer yanlış: {opp2}"
+            wrongs.append(Wrong(f"{a} {b}", why))
     return output_question(
-        f"print(bool({value}))", result, f"<code>bool()</code> değerin doğruluk karşılığını verir. {e(why)}",
-        wrongs=[
-            Wrong("True" if result == "False" else "False", opposite_why),
-            Wrong(err("ValueError"), "<code>bool()</code> her değeri True ya da False'a çevirebilir; hata vermez."),
-            Wrong("None", "<code>bool()</code> her zaman True ya da False döndürür, None döndürmez."),
-        ],
-        hint="Python'da hangi değerler 'boş' ya da 'sıfır' sayılır? Bu değer o gruptan mı?",
+        f"print(bool({v1}), bool({v2}))", answer,
+        f"<code>bool()</code> değerin doğruluk karşılığını verir. <code>bool({e(v1)})</code>: {e(why1)} "
+        f"<code>bool({e(v2)})</code>: {e(why2)}",
+        wrongs=wrongs,
+        hint="Python'da hangi değerler 'boş' ya da 'sıfır' sayılır? Her değeri ayrı ayrı düşün.",
     )
 
 
-@q("input() ve Tip Dönüşümü", verify="output")
+@q("input() ve Tip Dönüşümü", verify="outcome")
 def input_concat():
-    n = random.randint(2, 9)
+    n = random.randint(4, 9)  # k ile çakışmasın ("22" hem 2*"2" hem 2 ile 2 yan yana)
     k = random.choice([2, 3])
-    correct = str(n) * k
-    return output_question(
-        f"sayi = input()\nprint(sayi * {k})", correct,
-        f'<code>input()</code> metin döndürür: sayi = "{n}". Metin * {k} işlemi metni {k} kez tekrarlar, bu '
-        f"yüzden sonuç {correct} olur. Sayı olarak çarpmak için <code>int(input())</code> gerekir.",
-        wrongs=[
+    var = random.choice(["sayi", "girdi", "deger"])
+    variant = random.choice(["repeat", "repeat", "add", "convert"])
+    text = (f"Kod çalıştırıldığında kullanıcı klavyeden <strong>{n}</strong> yazıp Enter'a basıyor. "
+            "Ekrana ne yazdırılır?")
+    hint = "input() hangi tipte değer döndürür? O tipteki bir değerle bu işlem yapılınca ne olur?"
+    if variant == "repeat":
+        correct = str(n) * k
+        code = f"{var} = input()\nprint({var} * {k})"
+        expl = (f'<code>input()</code> metin döndürür: {var} = "{n}". Metin * {k} işlemi metni {k} kez tekrarlar, bu '
+                f"yüzden sonuç {correct} olur. Sayı olarak çarpmak için <code>int(input())</code> gerekir.")
+        wrongs = [
             Wrong(str(n * k), "Sayı gibi çarptın; ama <code>input()</code> metin döndürür ve metin * sayı, metni "
                               "tekrarlar."),
-            Wrong(err("TypeError"), "Metin * tam sayı geçerli bir işlemdir; metni tekrarlar, hata vermez."),
             Wrong(" ".join([str(n)] * k), "Tekrarlanan metinlerin arasına boşluk konmaz."),
-        ],
-        text=f"Kod çalıştırıldığında kullanıcı klavyeden <strong>{n}</strong> yazıp Enter'a basıyor. "
-             "Ekrana ne yazdırılır?",
-        stdin=str(n),
-        hint="input() hangi tipte değer döndürür? O tipteki bir değer bir sayıyla çarpılınca ne olur?",
-    )
+            Wrong(err("TypeError"), "Metin * tam sayı geçerli bir işlemdir; metni tekrarlar, hata vermez."),
+            Wrong(f"{n}{k}", f"* sayıyı metnin sonuna eklemez; metni {k} kez yan yana yazar."),
+        ]
+        random.shuffle(wrongs)
+    elif variant == "add":
+        correct = err("TypeError")
+        code = f"{var} = input()\nprint({var} + {k})"
+        expl = (f'<code>input()</code> metin döndürür: {var} = "{n}". Metin ile sayı <code>+</code> ile toplanamaz ya da '
+                "birleştirilemez; TypeError oluşur. Toplamak için <code>int(input())</code> gerekir.")
+        wrongs = [
+            Wrong(str(n + k), "Sayı gibi topladın; ama <code>input()</code> metin döndürür ve metin + sayı hata verir."),
+            Wrong(f"{n}{k}", "Metin + sayı birleştirme yapmaz; + iki tarafın da metin olmasını ister, yoksa hata verir."),
+            Wrong(str(n) * k, "Bu, metni tekrarlayan * işleminin sonucu olurdu; burada + kullanılıyor."),
+        ]
+    else:
+        correct = str(n * k)
+        code = f"{var} = int(input())\nprint({var} * {k})"
+        expl = f"<code>int(input())</code> girilen metni sayıya çevirir: {var} = {n}. Sayı * {k} = {n * k}."
+        wrongs = [
+            Wrong(str(n) * k, "<code>int()</code> metni sayıya çevirdi; artık * metni tekrarlamaz, sayıyı çarpar."),
+            Wrong(err("ValueError"), f'"{n}" tam sayı biçiminde bir metin; int() onu sorunsuz çevirir.'),
+            Wrong(str(n + k), "İşlem toplama değil çarpma (*)."),
+        ]
+    return output_question(code, correct, expl, wrongs=wrongs, text=text, stdin=str(n), hint=hint)
 
 
-@q("Metin ve Sayı Birleştirme", verify="output")
+@q("Metin ve Sayı Birleştirme", verify="outcome")
 def str_concat():
     n1, n2 = random.randint(1, 9), random.randint(1, 9)
-    correct = f"{n1}{n2}"
-    return output_question(
-        f'a = "{n1}"\nb = "{n2}"\nprint(a + b)', correct,
-        "İki değişken de tırnak içinde olduğu için str tipindedir. Metinlerde <code>+</code> toplama değil "
-        f'birleştirme yapar: "{n1}" + "{n2}" = "{correct}".',
-        wrongs=[
+    variant = random.choice(["text", "text", "mixed", "numbers"])
+    hint = "a ile b'nin tipine bak: ikisi de metin mi, ikisi de sayı mı, yoksa biri metin biri sayı mı?"
+    if variant == "text":
+        correct = f"{n1}{n2}"
+        code = f'a = "{n1}"\nb = "{n2}"\nprint(a + b)'
+        expl = ("İki değişken de tırnak içinde olduğu için str tipindedir. Metinlerde <code>+</code> toplama değil "
+                f'birleştirme yapar: "{n1}" + "{n2}" = "{correct}".')
+        wrongs = [
             Wrong(str(n1 + n2), "Sayı gibi topladın; ama ikisi de tırnak içinde, yani metin. Metinlerde + "
                                 "birleştirme yapar."),
             Wrong(f"{n1} {n2}", "+ araya boşluk koymaz; boşluk, print'e virgülle birden fazla değer verilince gelir."),
             Wrong(err("TypeError"), "İki metni + ile birleştirmek hata vermez; hata, metinle sayıyı + ile "
                                     "birleştirmeye çalışınca olur."),
-        ],
-        hint="a ile b tırnak içinde mi? Öyleyse + ne yapar?",
-    )
+        ]
+    elif variant == "mixed":
+        correct = err("TypeError")
+        code = f'a = "{n1}"\nb = {n2}\nprint(a + b)'
+        expl = (f'a metin ("{n1}"), b ise sayıdır ({n2}). Metin ile sayı <code>+</code> ile birleştirilemez ya da '
+                f"toplanamaz; TypeError oluşur. Çözüm: <code>a + str(b)</code> ya da <code>int(a) + b</code>.")
+        wrongs = [
+            Wrong(f"{n1}{n2}", "Python sayıyı metne kendiliğinden çevirmez; + iki tarafın da aynı türde olmasını ister."),
+            Wrong(str(n1 + n2), "a tırnak içinde, yani metin; Python metni kendiliğinden sayıya çevirmez."),
+            Wrong(f"{n1} {n2}", "+ araya boşluk koymaz; üstelik metin ile sayı + ile birleştirilemez."),
+        ]
+    else:
+        correct = str(n1 + n2)
+        code = f'a = "{n1}"\nb = "{n2}"\nprint(int(a) + int(b))'
+        expl = f'<code>int()</code> iki metni de sayıya çevirir; sayılarda + toplama yapar: {n1} + {n2} = {n1 + n2}.'
+        wrongs = [
+            Wrong(f"{n1}{n2}", "int() metinleri sayıya çevirdiği için + burada birleştirme değil toplama yapar."),
+            Wrong(err("ValueError"), "Metinler tam sayı biçiminde; int() onları sorunsuz çevirir."),
+            Wrong(f"{n1} {n2}", "+ iki sayıyı toplar; ekrana tek bir sayı yazılır."),
+        ]
+    return output_question(code, correct, expl, wrongs=wrongs, hint=hint)
 
 
-@q("Metin ve Sayı Birleştirme", verify="error")
+STR_INT_LABELS = [("yas", "Yaşım"), ("puan", "Puanım"), ("sinif", "Sınıfım"), ("adet", "Adet:"), ("no", "Numaram"),
+                  ("skor", "Skor:")]
+
+
+@q("Metin ve Sayı Birleştirme", verify="outcome")
 def str_plus_int():
-    var, label = random.choice([("yas", "Yaşım"), ("puan", "Puanım"), ("sinif", "Sınıfım"), ("adet", "Adet:"),
-                                ("no", "Numaram"), ("skor", "Skor:")])
+    """Hatalı (metin + sayı) ve hatasız (str() ile, virgülle) yazımlar karışık sorulur (K5)."""
+    var, label = random.choice(STR_INT_LABELS)
     value = random.randint(9, 99)
-    return output_question(
-        f'{var} = {value}\nprint("{label} " + {var})', err("TypeError"),
-        f"str ile int <code>+</code> ile birleştirilemez. Çözüm: <code>\"{label} \" + str({var})</code>, "
-        f"<code>print(\"{label}\", {var})</code> veya <code>f\"{label} {{{var}}}\"</code>.",
-        wrongs=[
+    variant = random.choices(["plus", "str", "comma"], weights=[4, 3, 3])[0]
+    hint = "Değerler + ile mi, virgülle mi veriliyor? + kullanılıyorsa iki yanı da metin mi?"
+    if variant == "plus":
+        code, correct = f'{var} = {value}\nprint("{label} " + {var})', err("TypeError")
+        expl = (f"str ile int <code>+</code> ile birleştirilemez. Çözüm: <code>\"{label} \" + str({var})</code>, "
+                f"<code>print(\"{label}\", {var})</code> veya <code>f\"{label} {{{var}}}\"</code>.")
+        wrongs = [
             Wrong(f"{label} {value}", f"Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını "
                                       f"ister. Önce str({var}) ile çevirmek gerekir."),
             Wrong(f"{label}{value}", "Python sayıyı metne kendiliğinden eklemez; + iki tarafın da metin olmasını ister."),
             Wrong(f"{label} + {value}", "+ ekrana yazılmaz; iki değeri birleştirmeye çalışan bir işlemdir."),
-        ],
-        hint="+ işaretinin iki yanındaki değerlerin tipine bak: ikisi de metin mi?",
-    )
+        ]
+    elif variant == "str":
+        code, correct = f'{var} = {value}\nprint("{label} " + str({var}))', f"{label} {value}"
+        expl = (f"<code>str({var})</code> sayıyı metne çevirir; iki metin <code>+</code> ile birleşir. Etiketin sonundaki "
+                "boşluk da yazılır.")
+        wrongs = [
+            Wrong(err("TypeError"), f"<code>str({var})</code> sayıyı metne çevirdiği için iki taraf da metindir; hata "
+                                    "oluşmaz."),
+            Wrong(f"{label}{value}", f'Etiket metninin sonunda bir boşluk var ("{label} "); o boşluk da yazılır.'),
+            Wrong(f"{label} str({value})", "str() bir fonksiyondur; ekrana çağrının sonucu (metne çevrilmiş sayı) yazılır."),
+        ]
+    else:
+        code, correct = f'{var} = {value}\nprint("{label}", {var})', f"{label} {value}"
+        expl = ("print'e virgülle verilen değerler birleştirilmez, ayrı ayrı yazılır; aralarına bir boşluk konur. "
+                "Bu yüzden tiplerinin farklı olması sorun değildir.")
+        wrongs = [
+            Wrong(err("TypeError"), "Virgülle ayrılan değerler birleştirilmez, ayrı ayrı yazılır; tiplerin aynı olması "
+                                    "gerekmez."),
+            Wrong(f"{label}{value}", "print, virgülle verilen değerlerin arasına bir boşluk koyar."),
+            Wrong(f"{label}, {value}", "Virgül ekrana yazılmaz; yalnızca değerleri ayırır."),
+        ]
+    return output_question(code, correct, expl, wrongs=wrongs, hint=hint)
 
 
 SAFE_CONVERSIONS = {

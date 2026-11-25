@@ -55,67 +55,100 @@ def grade_ladder():
 
 @q("Ayrı if Blokları", verify="output")
 def separate_ifs():
-    x = random.randint(6, 30)
-    limits = ((5, "Kucuk"), (10, "Orta"), (20, "Buyuk"))
+    """Üç sonuç (1, 2 ya da 3 satır) eşit olasılıkla; yanlışlar elif yanılgısından ve sınır değerlerinden (Y1)."""
+    limits = ((5, "Küçük"), (10, "Orta"), (20, "Büyük"))
+    words = [w for _, w in limits]
+    band = random.choice([(6, 10), (11, 20), (21, 30)])
+    x = random.choice([band[0], band[1], random.randint(*band)])  # sınır değerleri sık gelir
     code = f"x = {x}\n" + "\n".join(f"if x > {lim}:\n    print(\"{word}\")" for lim, word in limits)
     out = [word for lim, word in limits if x > lim]
 
     def why_for(candidate):
         extra = [lim for lim, word in limits if word in candidate and word not in out]
         if extra:
-            return f"x = {x}, x > {extra[0]} koşulunu sağlamıyor; o blok çalışmaz."
+            return f"x = {x}, x &gt; {extra[0]} koşulunu sağlamıyor; o blok çalışmaz."
         return ("Bunlar elif değil, birbirinden bağımsız if bloklarıdır; koşulu sağlanan her blok çalışır "
                 "ve biri diğerini durdurmaz.")
 
-    candidates = [[out[-1]], [out[0]], ["Kucuk", "Orta", "Buyuk"], ["Kucuk", "Orta"]]
+    candidates = [[out[-1]], [out[0]], out + words[len(out):len(out) + 1], out[:-1], words, words[:2], [words[1]]]
+    wrongs = []
+    for c in candidates:
+        value = "\n".join(c)
+        if c and value != "\n".join(out) and value not in [w.value for w in wrongs]:
+            wrongs.append(Wrong(value, why_for(c)))
     return output_question(
         code, "\n".join(out),
         "Bunlar <code>elif</code> değil, birbirinden bağımsız <code>if</code> bloklarıdır; koşulu sağlanan "
         f"<strong>her</strong> blok çalışır. x = {x} için {len(out)} koşul sağlanır.",
-        wrongs=[Wrong("\n".join(c), why_for(c)) for c in candidates],
+        wrongs=wrongs,
         hint="Bunlar elif mi, ayrı if'ler mi? Her koşulu x'in değeriyle tek tek kontrol et.",
     )
 
 
+TICKETS = ("Öğrenci bileti", "İndirimli bilet", "Tam bilet")
+
+
 @q("Koşullarda Mantıksal Operatörler", verify="output")
 def compound_condition():
-    yas = random.randint(10, 25)
-    izin = random.choice([True, False])
-    op = random.choice(["or", "and"])
-    ok = (yas >= 18 or izin) if op == "or" else (yas >= 18 and izin)
-    code = (f"yas = {yas}\nizin = {izin}\n"
-            f"if yas >= 18 {op} izin:\n    print(\"Girebilir\")\nelse:\n    print(\"Giremez\")")
-    res = "Girebilir" if ok else "Giremez"
-    rule = "en az biri True ise" if op == "or" else "ikisi de True ise"
+    """and ile or aynı değişkenlerle üç dallı bir zincirde: üç sonuç eşit olasılıklı (K4)."""
+    limit = random.choice([12, 15, 18])
+    var = random.choice(["ogrenci", "kartli", "uye"])
+    case = random.choice(["both", "one", "none"])
+    if case == "both":
+        yas, flag = random.randint(7, limit - 1), True
+    elif case == "one":
+        yas, flag = random.choice([(random.randint(7, limit - 1), False), (random.randint(limit, 30), True)])
+    else:
+        yas, flag = random.randint(limit, 30), False
+    young = yas < limit
+    res = TICKETS[0] if young and flag else TICKETS[1] if young or flag else TICKETS[2]
+    code = (f"yas = {yas}\n{var} = {flag}\n"
+            f"if yas < {limit} and {var}:\n    print(\"{TICKETS[0]}\")\n"
+            f"elif yas < {limit} or {var}:\n    print(\"{TICKETS[1]}\")\n"
+            f"else:\n    print(\"{TICKETS[2]}\")")
+    facts = f"yas &lt; {limit} → {young}, {var} → {flag}"
+    whys = {
+        TICKETS[0]: f"<code>and</code> için iki koşulun da True olması gerekir; burada {facts}.",
+        TICKETS[1]: (f"<code>or</code> için en az bir koşulun True olması yeter; burada {facts}." if not (young or flag)
+                     else f"İlk koşul (and) zaten True; Python ilk doğru koşulda durur, elif'e bakmaz. {facts}."),
+        TICKETS[2]: f"else yalnızca yukarıdaki iki koşul da False olunca çalışır; burada {facts}.",
+    }
+    wrongs = [Wrong(t, whys[t]) for t in TICKETS if t != res]
+    wrongs.append(Wrong(f"{TICKETS[0]}\n{TICKETS[1]}" if res != TICKETS[2] else f"{TICKETS[1]}\n{TICKETS[2]}",
+                        "if / elif / else zincirinde yalnızca bir blok çalışır."))
     return output_question(
         code, res,
-        f"<code>{op}</code> ile bağlanan koşul, {rule} True olur. yas >= 18 → {yas >= 18}, izin → {izin}; "
-        f"sonuç {ok}.",
-        wrongs=[
-            Wrong("Giremez" if ok else "Girebilir",
-                  f"yas >= 18 → {yas >= 18} ve izin → {izin}. <code>{op}</code> {rule} True verir; "
-                  f"burada sonuç {ok}."),
-            Wrong("Girebilir\nGiremez", "if / else yapısında yalnızca bir blok çalışır."),
-            Wrong("True", "print koşulun değerini değil, çalışan bloktaki metni yazar."),
-        ],
-        hint=f"Önce iki parçayı ayrı ayrı değerlendir, sonra {op} kuralını uygula.",
+        "<code>and</code> ile bağlanan koşul iki taraf da True ise, <code>or</code> ile bağlanan koşul en az biri "
+        f"True ise True olur. {facts}; bu yüzden \"{res}\" yazılır.",
+        wrongs=wrongs,
+        hint="Önce yas koşulunu ve diğer değişkeni ayrı ayrı değerlendir, sonra and ile or kurallarını uygula.",
     )
 
 
 @q("Tek / Çift Kontrolü", verify="output")
 def even_odd():
-    n = random.randint(10, 99)
-    code = f"sayi = {n}\nif sayi % 2 == 0:\n    print(\"Cift\")\nelse:\n    print(\"Tek\")"
-    res = "Cift" if n % 2 == 0 else "Tek"
+    """Sayıya göre iki farklı hesap yapılır; cevap sayıdır ve sayıyla birlikte değişir (K4)."""
+    n = random.randint(11, 99)
+    var = random.choice(["sayi", "n", "x"])
+    code = f"{var} = {n}\nif {var} % 2 == 0:\n    print({var} // 2)\nelse:\n    print({var} * 3 + 1)"
+    even = n % 2 == 0
+    res = str(n // 2 if even else n * 3 + 1)
+    other = str(n * 3 + 1 if even else n // 2)
+    wrongs = [
+        Wrong(other, f"{n} % 2 = {n % 2}; kalan {'0 olduğu için koşul doğru, if' if even else '1 olduğu için koşul yanlış, else'} "
+                     "bloğu çalışır."),
+        Wrong(f"{res}\n{other}" if even else f"{other}\n{res}", "if / else yapısında yalnızca bir blok çalışır."),
+    ]
+    if even:
+        wrongs.append(Wrong(str(n / 2), "<code>//</code> tam bölmedir; sonuç ondalıklı değil, tam sayıdır."))
+    else:
+        wrongs.append(Wrong(str(n * 4), "Çarpma toplamadan önce yapılır: önce sayı 3 ile çarpılır, sonra 1 eklenir."))
     return output_question(
         code, res,
-        f"<code>sayi % 2</code> sayının 2'ye bölümünden kalandır; kalan 0 ise sayı çifttir. {n} % 2 = {n % 2}.",
-        wrongs=[
-            Wrong("Tek" if res == "Cift" else "Cift", f"{n} % 2 = {n % 2}. Kalan 0 ise koşul doğrudur ve Cift yazılır."),
-            Wrong(str(n % 2), "print, çalışan bloktaki metni yazar; kalanın kendisini değil."),
-            Wrong("Cift\nTek", "if / else yapısında yalnızca bir blok çalışır."),
-        ],
-        hint=f"{n} sayısını 2'ye böldüğünde kalan kaç olur?",
+        f"<code>{var} % 2</code> sayının 2'ye bölümünden kalandır; kalan 0 ise sayı çifttir. {n} % 2 = {n % 2}, "
+        f"bu yüzden {'if' if even else 'else'} bloğu çalışır ve {res} yazılır.",
+        wrongs=wrongs,
+        hint=f"{n} sayısını 2'ye böldüğünde kalan kaç olur? Hangi blok çalışır?",
     )
 
 

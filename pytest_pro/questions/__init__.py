@@ -8,8 +8,9 @@ import random
 
 from .units import MODULES as UNIT_MODULES  # ünite dosyalarını yükler (kayıt yan etkisi)
 from .codecheck import MAX_CODE_LEN, check_code
-from .fill import fill_in, grade_fill, marks as _fill_marks
+from .fill import blank_why, fill_in, grade_fill, marks as _fill_marks
 from .registry import UNITS, all_generators, ordered_units
+from .short import legacy_norm, short_correct, short_key
 
 PUBLIC_KEYS = ("id", "type", "topic", "text", "code", "options")
 DEFAULT_UNITS = ["temel", "veri_tipleri"]
@@ -79,8 +80,8 @@ def unit_title(unit_id):
 
 
 def _norm_short(s):
-    # "3,5" ve "3.5" aynı kabul edilir; boşluklar önemsenmez
-    return "".join(str(s).split()).replace(",", ".")
+    """Eski kısa cevap biçimi ("3,5" = "3.5", boşluklar önemsenmez). Yeni kod short_key kullanır."""
+    return legacy_norm(s)
 
 
 def why_for(question, answer):
@@ -90,12 +91,14 @@ def why_for(question, answer):
     if qtype in ("mc", "tf"):
         return whys.get(answer)
     if qtype == "short":
-        target = _norm_short(answer or "")
-        if not target:
+        if not str(answer or "").strip():
             return None
+        target = short_key(question, answer)
         for value, why in whys.items():
-            if _norm_short(value) == target:
+            if short_key(question, value) == target:
                 return why
+    if qtype == "fill":
+        return blank_why(question, "" if answer is None else str(answer))
     return None
 
 
@@ -130,9 +133,10 @@ def grade(question, user_ans):
     if qtype == "fill":
         return grade_fill(question, raw)
     if qtype == "short":
-        return _norm_short(raw) == _norm_short(question["answer"]), None
+        return short_correct(question, raw), None
     return raw == question["answer"], None
 
 
-__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "CONTENT_UNITS", "fill_marks", "why_for", "trace_source", "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog",
-           "generate_one", "generate_questions", "grade", "public_question", "unit_title", "valid_unit_ids"]
+__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "CONTENT_UNITS", "fill_marks", "why_for", "trace_source",
+           "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog", "generate_one", "generate_questions", "grade",
+           "public_question", "short_key", "unit_title", "valid_unit_ids"]

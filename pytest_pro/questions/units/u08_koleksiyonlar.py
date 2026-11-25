@@ -13,9 +13,10 @@ UNIT = register_unit(
 q = UNIT.question
 
 
-def _grades():
-    names = random.sample(PEOPLE, 3)
-    return {n: random.randint(40, 100) for n in names}
+def _grades(k=3):
+    """k öğrencinin birbirinden farklı notları (aynı not iki şıkkı aynı yapardı)."""
+    names = random.sample(PEOPLE, k)
+    return dict(zip(names, random.sample(range(40, 101), k)))
 
 
 @q("Sözlükten Değer Okuma", verify="output")
@@ -32,41 +33,84 @@ def dict_access():
     )
 
 
-@q("Olmayan Anahtar", verify="output")
+@q("Olmayan Anahtar", verify="outcome")
 def dict_get():
+    """get() hem olmayan hem var olan anahtarla, köşeli parantezle erişim de olmayan anahtarla sorulur;
+    varsayılan değer de değişir (K4, O8)."""
     d = _grades()
+    default = random.choice(["0", "-1", '"Yok"', '"Girmedi"', "None"])
+    shown_default = default.strip('"')
     missing = random.choice([p for p in PEOPLE if p not in d])
-    default = random.choice([0, -1])
-    return output_question(
-        f"notlar = {d}\nprint(notlar.get(\"{missing}\", {default}))", str(default),
-        "<code>get(anahtar, varsayılan)</code> anahtar yoksa hata vermek yerine varsayılan değeri döndürür. "
-        f"<code>notlar[\"{missing}\"]</code> yazılsaydı KeyError oluşurdu.",
-        wrongs=[
+    variant = random.choices(["get_missing", "get_present", "bracket_missing"], weights=[45, 30, 25])[0]
+    if variant == "get_missing":
+        key, res = missing, shown_default
+        code = f"notlar = {d}\nprint(notlar.get(\"{key}\", {default}))"
+        expl = ("<code>get(anahtar, varsayılan)</code> anahtar yoksa hata vermek yerine varsayılan değeri döndürür. "
+                f"<code>notlar[\"{key}\"]</code> yazılsaydı KeyError oluşurdu.")
+        wrongs = [
             Wrong(err("KeyError"), "get() anahtar yoksa hata vermez; varsayılan değeri döndürür. KeyError köşeli "
                                    "parantezle erişimde olur."),
-            Wrong("None", "Varsayılan değer verildiği için None değil, o değer döner. Varsayılan verilmeseydi None "
-                          "dönerdi."),
-            Wrong(f"{missing} {default}", "get() yalnızca değeri döndürür; anahtarı yazmaz."),
-        ],
-        hint=f"\"{missing}\" sözlükte var mı? Yoksa get() ne döndürür?",
-    )
+            Wrong(f"{key} {shown_default}", "get() yalnızca değeri döndürür; anahtarı yazmaz."),
+            Wrong(str(max(d.values())), f"\"{key}\" sözlükte yok; get() başka bir öğrencinin notunu döndürmez."),
+        ]
+        if default != "None":
+            wrongs.insert(1, Wrong("None", "Varsayılan değer verildiği için None değil, o değer döner. Varsayılan "
+                                           "verilmeseydi None dönerdi."))
+        hint = f"\"{key}\" sözlükte var mı? Yoksa get() ne döndürür?"
+    elif variant == "get_present":
+        key = random.choice(list(d))
+        res = str(d[key])
+        code = f"notlar = {d}\nprint(notlar.get(\"{key}\", {default}))"
+        expl = (f"\"{key}\" sözlükte var; <code>get()</code> onun değerini döndürür. Varsayılan değer yalnızca anahtar "
+                "yoksa kullanılır.")
+        wrongs = [
+            Wrong(shown_default, "Varsayılan değer yalnızca anahtar sözlükte yoksa döner; bu anahtar sözlükte var."),
+            Wrong(f"{key} {res}", "get() yalnızca değeri döndürür; anahtarı yazmaz."),
+            Wrong(err("KeyError"), f"\"{key}\" sözlükte var; hata oluşmaz."),
+        ]
+        hint = f"\"{key}\" sözlükte var mı? Varsa get() ne döndürür?"
+    else:
+        key, res = missing, err("KeyError")
+        code = f"notlar = {d}\nprint(notlar[\"{key}\"])"
+        expl = (f"\"{key}\" sözlükte yok. Köşeli parantezle olmayan bir anahtara erişmek KeyError verir. Hata yerine "
+                f"varsayılan bir değer istenirse <code>notlar.get(\"{key}\", 0)</code> kullanılır.")
+        wrongs = [
+            Wrong("None", "Köşeli parantezle erişimde anahtar yoksa None dönmez, KeyError oluşur. None'ı get() döndürür."),
+            Wrong("0", "Python olmayan bir anahtar için kendiliğinden 0 vermez; KeyError oluşur."),
+            Wrong(str(max(d.values())), f"\"{key}\" sözlükte yok; başka bir öğrencinin notu dönmez, hata oluşur."),
+        ]
+        hint = f"\"{key}\" sözlükte var mı? Köşeli parantezle olmayan bir anahtara erişilirse ne olur?"
+    return output_question(code, res, expl, wrongs=wrongs, hint=hint)
 
 
 @q("Sözlük Güncelleme", verify="output")
 def dict_update():
-    d = _grades()
-    existing = random.choice(list(d))
-    new = random.choice([p for p in PEOPLE if p not in d])
+    """Başlangıç boyutu ile güncellenen ve eklenen anahtar sayısı rastgele; cevap 3-7 arasında değişir (K5)."""
+    size = random.randint(2, 5)
+    d = _grades(size)
+    updated = random.sample(list(d), random.randint(1, 2) if size > 2 else 1)
+    added = random.sample([p for p in PEOPLE if p not in d], random.randint(1, 2))
+    steps = [(name, random.randint(40, 100)) for name in updated + added]
+    random.shuffle(steps)
+    lines = "\n".join(f"notlar[\"{name}\"] = {value}" for name, value in steps)
+    res = size + len(added)
+    wrongs = [
+        Wrong(str(size + len(steps)), "Var olan bir anahtara atama yeni eleman eklemez, değeri günceller ("
+                                      + ", ".join(f'"{n}"' for n in updated) + " zaten sözlükte)."),
+        Wrong(str(size), "Sözlükte olmayan anahtara atama yeni eleman ekler ("
+                         + ", ".join(f'"{n}"' for n in added) + " yeni)."),
+        Wrong(str(len(steps)), "len() sözlükteki bütün elemanları sayar; yalnızca bu kodda atananları değil."),
+        Wrong(str(len(added)), "len() sözlükteki bütün elemanları sayar; yalnızca yeni eklenenleri değil."),
+    ]
+    if random.random() < 0.5:
+        wrongs.insert(random.randint(0, 2), Wrong(err("KeyError"), "Sözlüğe yeni anahtarla atama yapmak hata "
+                                                                   "vermez; eleman ekler."))
     return output_question(
-        f"notlar = {d}\nnotlar[\"{existing}\"] = 100\nnotlar[\"{new}\"] = 75\nprint(len(notlar))", "4",
+        f"notlar = {d}\n{lines}\nprint(len(notlar))", str(res),
         "Var olan anahtara atama değeri <strong>günceller</strong> (eleman sayısı değişmez); yeni anahtara atama "
-        "yeni eleman <strong>ekler</strong>. 3 + 1 = 4 eleman.",
-        wrongs=[
-            Wrong("5", f"\"{existing}\" zaten sözlükte; ona atama yeni eleman eklemez, değeri günceller."),
-            Wrong("3", f"\"{new}\" sözlükte yoktu; yeni anahtara atama yeni eleman ekler."),
-            Wrong(err("KeyError"), "Sözlüğe yeni anahtarla atama yapmak hata vermez; eleman ekler."),
-        ],
-        hint="Hangi atama var olan bir anahtara, hangisi yeni bir anahtara yapılıyor?",
+        f"yeni eleman <strong>ekler</strong>. {size} + {len(added)} = {res} eleman.",
+        wrongs=wrongs,
+        hint="Hangi atamalar var olan bir anahtara, hangileri yeni bir anahtara yapılıyor?",
     )
 
 
@@ -74,31 +118,52 @@ def dict_update():
 def dict_loop():
     d = _grades()
     total = sum(d.values())
+    last = list(d.values())[-1]
     return output_question(
         f"notlar = {d}\ntoplam = 0\nfor ad, puan in notlar.items():\n    toplam += puan\nprint(toplam)", str(total),
         "<code>items()</code> her adımda (anahtar, değer) çifti verir; burada yalnızca değerler toplanır.",
         wrongs=[
             Wrong(str(max(d.values())), "Kod en büyük değeri bulmuyor; tüm değerleri topluyor."),
             Wrong(str(len(d)), "toplam'a eleman sayısı değil, her elemanın puanı ekleniyor."),
-            Wrong(err("TypeError"), "items() (anahtar, değer) çiftleri verir; ad, puan olarak açılması hata vermez."),
+            Wrong(str(last), "<code>+=</code> her turda puanı toplama ekler; yalnızca son puan kalmaz."),
+            Wrong(str(min(d.values())), "Kod en küçük değeri bulmuyor; tüm değerleri topluyor."),
         ],
         hint="items() her adımda hangi iki değeri verir? toplam'a hangisi ekleniyor?",
     )
 
 
-@q("Demetler Değiştirilemez", verify="error")
+@q("Demetler Değiştirilemez", verify="outcome")
 def tuple_immutable():
+    """Demete atama (hata) ile listeye çevirip atama (hatasız) karışık sorulur (K5)."""
     t = tuple(random.sample(range(1, 20), 3))
+    i = random.randint(0, 2)
+    new = random.randint(90, 99)
+    changed = list(t)
+    changed[i] = new
+    hint = "Değiştirilen yapı bir demet mi, yoksa demetten oluşturulmuş bir liste mi?"
+    if random.random() < 0.35:
+        return output_question(
+            f"t = {t}\nt[{i}] = {new}\nprint(t)", err("TypeError"),
+            "Demet (tuple) oluşturulduktan sonra değiştirilemez; elemana atama TypeError verir. Değiştirilebilir "
+            "bir yapı gerekiyorsa liste kullanılır.",
+            wrongs=[
+                Wrong(str(tuple(changed)), "Demetler değiştirilemez; elemana atama hata verir."),
+                Wrong(str(t), "Atama satırı hata verdiği için print'e hiç ulaşılmaz."),
+                Wrong(str(changed), "Demet kendiliğinden listeye dönüşmez; atama hata verir."),
+            ],
+            hint=hint,
+        )
     return output_question(
-        f"t = {t}\nt[0] = 99\nprint(t)", err("TypeError"),
-        "Demet (tuple) oluşturulduktan sonra değiştirilemez; elemana atama TypeError verir. Değiştirilebilir "
-        "bir yapı gerekiyorsa liste kullanılır.",
+        f"t = {t}\nliste = list(t)\nliste[{i}] = {new}\nprint(liste)", str(changed),
+        "<code>list(t)</code> demetin elemanlarıyla yeni bir <strong>liste</strong> oluşturur. Listeler "
+        "değiştirilebilir; atama hata vermez.",
         wrongs=[
-            Wrong(str((99,) + t[1:]), "Demetler değiştirilemez; elemana atama hata verir."),
-            Wrong(str(t), "Atama satırı hata verdiği için print'e hiç ulaşılmaz."),
-            Wrong(str([99] + list(t[1:])), "Demet kendiliğinden listeye dönüşmez; atama hata verir."),
+            Wrong(err("TypeError"), "Atama demete değil, list(t) ile oluşturulan listeye yapılıyor; listeler "
+                                    "değiştirilebilir."),
+            Wrong(str(tuple(changed)), "list() demeti listeye çevirir; liste köşeli parantezle yazılır."),
+            Wrong(str(list(t)), f"liste[{i}] = {new} ataması listeyi değiştirir; print değişmiş listeyi yazar."),
         ],
-        hint="Normal parantezle oluşturulan bir demetin elemanı sonradan değiştirilebilir mi?",
+        hint=hint,
     )
 
 

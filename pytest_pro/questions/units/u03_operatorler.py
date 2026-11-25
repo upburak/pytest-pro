@@ -79,26 +79,47 @@ def precedence():
     )
 
 
+def _logic_exprs(a, b, c):
+    return [
+        f"{a} > {b} and {b} > {c}", f"{a} > {b} or {b} > {c}", f"not {a} > {b}",
+        f"{a} != {b} and {c} >= {a}", f"{a} < {c} or {b} == {c}", f"not ({a} < {b} or {c} < {a})",
+        f"{b} >= {a} and not {c} > {b}", f"{c} > {a} or {c} > {b}",
+    ]
+
+
 @q("Karşılaştırma ve Mantıksal Operatörler", verify="output")
 def logic():
+    """İki mantıksal ifade birlikte yazdırılır; dört birleşimin hepsi anlamlı bir şıktır (K4)."""
     a, b, c = random.sample(range(1, 15), 3)
-    expr = random.choice([
-        f"{a} > {b} and {b} > {c}", f"{a} > {b} or {b} > {c}", f"not {a} > {b}",
-        f"{a} != {b} and {c} >= {a}", f"{a} == {a} or {b} < {c}", f"not ({a} < {b} or {c} < {a})",
-    ])
-    res = str(eval(expr))  # noqa: S307
-    first = expr.split()[0]
+    exprs = _logic_exprs(a, b, c)
+    by_value = {True: [x for x in exprs if eval(x)], False: [x for x in exprs if not eval(x)]}  # noqa: S307
+    picks = []
+    for _ in range(2):  # her ifadenin sonucu (True/False) eşit olasılıkla seçilir
+        want = random.random() < 0.5
+        pool = [x for x in by_value[want] if x not in picks] or [x for x in exprs if x not in picks]
+        picks.append(random.choice(pool))
+    e1, e2 = picks
+    r1, r2 = eval(e1), eval(e2)  # noqa: S307 - yalnızca bizim ürettiğimiz sabit ifade
+    rule = ("Her karşılaştırmayı ayrı ayrı hesaplayıp sonra and (ikisi de doğru olmalı), or (biri doğru yeter) ve "
+            "not (tersine çevirir) kurallarını uygula.")
+    wrongs = []
+    for x in (True, False):
+        for y in (True, False):
+            if (x, y) == (r1, r2):
+                continue
+            if x != r1 and y != r2:
+                why = f"İki sonucu da ters buldun. {rule}"
+            elif x != r1:
+                why = f"İlk ifade <code>{e1}</code> aslında {r1}. {rule}"
+            else:
+                why = f"İkinci ifade <code>{e2}</code> aslında {r2}. {rule}"
+            wrongs.append(Wrong(f"{x} {y}", why))
     return output_question(
-        f"print({expr})", res,
+        f"print({e1}, {e2})", f"{r1} {r2}",
         "<code>and</code>: iki taraf da True ise True; <code>or</code>: en az biri True ise True; "
-        "<code>not</code>: değeri tersine çevirir. Karşılaştırmalar mantıksal operatörlerden önce hesaplanır.",
-        wrongs=[
-            Wrong("False" if res == "True" else "True",
-                  "Her karşılaştırmayı ayrı ayrı hesaplayıp sonra and (ikisi de doğru olmalı), or (biri doğru "
-                  "yeter) ve not (tersine çevirir) kurallarını uygula."),
-            Wrong("None", "Karşılaştırmalar ve mantıksal işlemler her zaman True ya da False verir."),
-            Wrong(first, "print ifadenin sonucunu yazar; ifadenin bir parçasını değil."),
-        ],
+        "<code>not</code>: değeri tersine çevirir. Karşılaştırmalar mantıksal operatörlerden önce hesaplanır. "
+        f"<code>{e1}</code> → {r1}, <code>{e2}</code> → {r2}.",
+        wrongs=wrongs,
         hint="Önce her karşılaştırmanın doğru mu yanlış mı olduğuna karar ver, sonra and, or ve not'u uygula.",
     )
 

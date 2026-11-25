@@ -16,7 +16,7 @@ q = UNIT.question
 
 @q("Fonksiyon ve return", verify="output")
 def call_return():
-    a, b = random.randint(2, 9), random.randint(2, 9)
+    a, b = random.sample(range(2, 10), 2)  # a ≠ b: aksi hâlde "argüman sırası" şıkkı doğru cevaba eşit olur (Y1)
     return output_question(
         f"def hesapla(x, y):\n    return x * 2 + y\n\nprint(hesapla({a}, {b}))", str(a * 2 + b),
         f"Çağrıda x = {a}, y = {b} olur; fonksiyon {a} * 2 + {b} = {a * 2 + b} değerini döndürür.",
@@ -31,19 +31,26 @@ def call_return():
 
 @q("Varsayılan Parametre", verify="output")
 def default_param():
-    base = random.randint(2, 5)
-    other = random.randint(3, 4)
+    """Taban 3, 5, 6 ya da 7: 2 * 2 = 2 ** 2 ve 4 ** 2 = 2 ** 4 çakışmaları olmaz (Y1)."""
+    base = random.choice([3, 5, 6, 7])
+    type_error = random.random() < 0.4  # hata şıkkı her soruda görünmesin (O8)
     if random.random() < 0.5:
         call, res = f"us({base})", base ** 2
         why = "Kuvvet verilmediği için varsayılan değer (2) kullanılır"
-        wrongs = [Wrong(str(base), "Kuvvet verilmeyince varsayılan değer 2 kullanılır; 1 ya da 0 değil."),
-                  Wrong(err("TypeError"), "Varsayılanı olan parametre çağrıda verilmeyebilir; hata oluşmaz.")]
+        wrongs = [Wrong(str(base * 2), "** üs almadır, 2 ile çarpma değil."),
+                  Wrong(str(base), "Kuvvet verilmeyince varsayılan değer 2 kullanılır; 1 ya da 0 değil."),
+                  Wrong(str(2 ** base), "İlk parametre taban, ikincisi kuvvettir: taban ** kuvvet.")]
+        if type_error:
+            wrongs.insert(1, Wrong(err("TypeError"), "Varsayılanı olan parametre çağrıda verilmeyebilir; hata oluşmaz."))
     else:
+        other = random.choice([k for k in (3, 4) if k != base])
         call, res = f"us({base}, {other})", base ** other
         why = f"Kuvvet açıkça {other} verildiği için varsayılan değer kullanılmaz"
         wrongs = [Wrong(str(base ** 2), "Açıkça verilen değer, varsayılanın yerine geçer."),
-                  Wrong(err("TypeError"), "Fonksiyon iki parametre alıyor; iki argüman vermek geçerlidir.")]
-    wrongs.insert(0, Wrong(str(base * 2), "** üs almadır, 2 ile çarpma değil."))
+                  Wrong(str(base * other), "** üs almadır, çarpma değil."),
+                  Wrong(str(other ** base), "İlk argüman tabana, ikincisi kuvvete gider: taban ** kuvvet.")]
+        if type_error:
+            wrongs.insert(1, Wrong(err("TypeError"), "Fonksiyon iki parametre alıyor; iki argüman vermek geçerlidir."))
     return output_question(
         f"def us(taban, kuvvet=2):\n    return taban ** kuvvet\n\nprint({call})", str(res),
         f"{why}: sonuç {res}.",
@@ -75,17 +82,45 @@ def return_none():
 
 @q("Yerel ve Global Değişkenler", verify="output")
 def scope():
+    """Yerel atama, global bildirimi ve dönüş değeriyle birlikte yazdırma değişkeleri (O8: NameError şıkkı
+    her soruda görünmez)."""
     x, y = random.sample(range(1, 20), 2)
+    func = random.choice(["degistir", "guncelle", "ayarla"])
+    variant = random.choice(["local", "local", "global", "both"])
+    name_error = Wrong(err("NameError"), "x dışarıda tanımlı; hata oluşmaz.")
+    if variant == "local":
+        code = f"x = {x}\n\ndef {func}():\n    x = {y}\n    return x\n\n{func}()\nprint(x)"
+        res = str(x)
+        expl = (f"Fonksiyon içindeki <code>x = {y}</code> yeni bir <strong>yerel</strong> değişken oluşturur; dışarıdaki "
+                f"(global) x değişmez ve {x} kalır.")
+        wrongs = [Wrong(str(y), "Fonksiyon içindeki x yerel bir değişkendir; dışarıdaki x'i değiştirmez."),
+                  Wrong("None", "print(x) dışarıdaki x'i yazar; fonksiyonun dönüş değerini değil."),
+                  Wrong(f"{x}\n{y}", "Fonksiyonun döndürdüğü değer bir yere yazdırılmıyor; yalnızca print(x) çalışır."),
+                  name_error]
+    elif variant == "global":
+        code = f"x = {x}\n\ndef {func}():\n    global x\n    x = {y}\n\n{func}()\nprint(x)"
+        res = str(y)
+        expl = (f"<code>global x</code> bildirimi, fonksiyondaki x'in dışarıdaki x olduğunu söyler; atama dışarıdaki x'i "
+                f"{y} yapar.")
+        wrongs = [Wrong(str(x), "global bildirimi sayesinde fonksiyon dışarıdaki x'i değiştirir."),
+                  Wrong("None", "print(x) x'in değerini yazar; fonksiyonun dönüş değerini değil."),
+                  Wrong(f"{x}\n{y}", "print yalnızca bir kez, fonksiyon çağrıldıktan sonra çalışır."),
+                  name_error]
+    else:
+        code = f"x = {x}\n\ndef {func}():\n    x = {y}\n    return x\n\nprint({func}(), x)"
+        res = f"{y} {x}"
+        expl = (f"Fonksiyon yerel x'i ({y}) döndürür; dışarıdaki x değişmez ({x}). print ikisini aralarında boşlukla "
+                "yazar.")
+        wrongs = [Wrong(f"{y} {y}", "Fonksiyon içindeki x yereldir; dışarıdaki x değişmez."),
+                  Wrong(f"{x} {x}", "Fonksiyon return ile kendi yerel x'ini döndürür."),
+                  Wrong(f"None {x}", "Fonksiyon return ile bir değer döndürüyor; None değil.")]
+    if variant != "both":
+        if random.random() < 0.5:
+            wrongs.remove(name_error)
+        random.shuffle(wrongs)
     return output_question(
-        f"x = {x}\n\ndef degistir():\n    x = {y}\n    return x\n\ndegistir()\nprint(x)", str(x),
-        f"Fonksiyon içindeki <code>x = {y}</code> yeni bir <strong>yerel</strong> değişken oluşturur; dışarıdaki "
-        f"(global) x değişmez ve {x} kalır.",
-        wrongs=[
-            Wrong(str(y), "Fonksiyon içindeki x yerel bir değişkendir; dışarıdaki x'i değiştirmez."),
-            Wrong("None", "print(x) dışarıdaki x'i yazar; fonksiyonun dönüş değerini değil."),
-            Wrong(err("NameError"), "x dışarıda tanımlı; hata oluşmaz."),
-        ],
-        hint="Fonksiyon içindeki x ile dışarıdaki x aynı değişken mi?",
+        code, res, expl, wrongs=wrongs,
+        hint="Fonksiyon içindeki x ile dışarıdaki x aynı değişken mi? global yazılmış mı?",
     )
 
 
@@ -94,46 +129,51 @@ def multi_return():
     a, b = random.sample(range(10, 40), 2)
     lo, hi = min(a, b), max(a, b)
     return output_question(
-        f"def kucuk_buyuk(a, b):\n    return min(a, b), max(a, b)\n\nk, b = kucuk_buyuk({a}, {b})\nprint(b - k)",
+        f"def kucuk_buyuk(a, b):\n    return min(a, b), max(a, b)\n\nkucuk, buyuk = kucuk_buyuk({a}, {b})\n"
+        "print(buyuk - kucuk)",
         str(hi - lo),
         "<code>return x, y</code> bir demet döndürür; demet açma ile iki değişkene atanır. "
-        f"k = {lo}, b = {hi}, fark {hi - lo}.",
+        f"kucuk = {lo}, buyuk = {hi}, fark {hi - lo}.",
         wrongs=[
-            Wrong(str(lo - hi), "k küçük, b büyük değeri alır; b - k pozitiftir."),
+            Wrong(str(lo - hi), "kucuk küçük, buyuk büyük değeri alır; buyuk - kucuk pozitiftir."),
             Wrong(str(hi + lo), "Kod iki değerin farkını yazdırıyor, toplamını değil."),
-            Wrong(err("TypeError"), "return a, b bir demet döndürür; iki değişkene açılabilir."),
+            Wrong(str(hi), "Fonksiyon iki değer döndürür ve ikisi de kullanılır; kod farklarını yazdırıyor."),
         ],
-        hint="Fonksiyon hangi iki değeri hangi sırayla döndürür? k ve b neye eşit olur?",
+        hint="Fonksiyon hangi iki değeri hangi sırayla döndürür? kucuk ve buyuk neye eşit olur?",
     )
 
 
 @q("Özyineleme", verify="output")
 def recursion():
-    n = random.randint(3, 8)
+    """n en az 4: 3! = 1 + 2 + 3 gibi çakışmalar olmaz (Y1)."""
+    n = random.randint(4, 8)
+    p = random.choice(["n", "sayi", "k"])
     if random.random() < 0.5:
+        func = random.choice(["faktoriyel", "carpim"])
         return output_question(
-            f"def faktoriyel(n):\n    if n <= 1:\n        return 1\n    return n * faktoriyel(n - 1)\n\n"
-            f"print(faktoriyel({n}))", str(math.factorial(n)),
-            f"Fonksiyon kendini n - 1 ile çağırır ve n <= 1 olunca durur: {n}! = "
+            f"def {func}({p}):\n    if {p} <= 1:\n        return 1\n    return {p} * {func}({p} - 1)\n\n"
+            f"print({func}({n}))", str(math.factorial(n)),
+            f"Fonksiyon kendini {p} - 1 ile çağırır ve {p} <= 1 olunca durur: {n}! = "
             + " × ".join(str(i) for i in range(n, 0, -1)) + f" = {math.factorial(n)}.",
             wrongs=[
-                Wrong(str(math.factorial(n - 1)), f"faktoriyel({n}) {n}'den 1'e kadar tüm sayıların çarpımıdır; {n} de "
+                Wrong(str(math.factorial(n - 1)), f"{func}({n}), {n}'den 1'e kadar tüm sayıların çarpımıdır; {n} de "
                                                   "dahil."),
                 Wrong(str(n * (n + 1) // 2), "Bu toplama; fonksiyon sayıları çarpıyor."),
                 Wrong(str(math.factorial(n + 1)), f"Çağrı {n} ile başlar ve küçülerek 1'e iner; {n + 1} hiç çarpılmaz."),
             ],
-            hint="faktoriyel(n), n * faktoriyel(n - 1) demektir. n = 1'e inene kadar aç.",
+            hint=f"{func}({p}), {p} * {func}({p} - 1) demektir. 1'e inene kadar aç.",
         )
+    func = random.choice(["topla", "toplam"])
     return output_question(
-        f"def topla(n):\n    if n == 0:\n        return 0\n    return n + topla(n - 1)\n\nprint(topla({n}))",
+        f"def {func}({p}):\n    if {p} == 0:\n        return 0\n    return {p} + {func}({p} - 1)\n\nprint({func}({n}))",
         str(n * (n + 1) // 2),
-        f"topla({n}) = {n} + topla({n - 1}) = ... = {n * (n + 1) // 2}. n == 0 durma koşuludur.",
+        f"{func}({n}) = {n} + {func}({n - 1}) = ... = {n * (n + 1) // 2}. {p} == 0 durma koşuludur.",
         wrongs=[
-            Wrong(str(n * (n - 1) // 2), f"topla({n}) {n}'i de toplar; {n} + {n - 1} + ... + 1."),
+            Wrong(str(n * (n - 1) // 2), f"{func}({n}) {n}'i de toplar; {n} + {n - 1} + ... + 1."),
             Wrong(str(math.factorial(n)), "Bu çarpım; fonksiyon sayıları topluyor."),
             Wrong(str(n), "Fonksiyon kendini çağırarak 0'a kadar tüm sayıları ekler."),
         ],
-        hint="topla(n), n + topla(n - 1) demektir. n = 0'a inene kadar aç.",
+        hint=f"{func}({p}), {p} + {func}({p} - 1) demektir. 0'a inene kadar aç.",
     )
 
 
@@ -146,24 +186,27 @@ def math_module():
         code, res = f"import math\nprint(math.sqrt({x}))", str(math.sqrt(x))
         why = "math.sqrt() karekök alır ve float döndürür"
         wrongs = [Wrong(str(int(math.sqrt(x))), "math.sqrt() sonucu float'tur; tam kare olsa da .0 ile yazılır."),
-                  Wrong(str(x / 2), "Karekök, sayının yarısı değildir.")]
+                  Wrong(str(x / 2), "Karekök, sayının yarısı değildir."),
+                  Wrong(str(x * x), "sqrt karekök alır; sayının karesini değil.")]
     elif variant == "ceil":
         code, res = f"import math\nprint(math.ceil({y}))", str(math.ceil(y))
         why = "math.ceil() yukarı yuvarlar"
         wrongs = [Wrong(str(math.floor(y)), "ceil her zaman yukarı yuvarlar; aşağı yuvarlayan floor'dur."),
-                  Wrong(str(y), "ceil kesirli kısmı atıp tam sayıya yuvarlar.")]
+                  Wrong(str(y), "ceil kesirli kısmı atıp tam sayıya yuvarlar."),
+                  Wrong(f"{math.ceil(y)}.0", "math.ceil() tam sayı (int) döndürür; sonuç .0 ile yazılmaz.")]
     elif variant == "floor":
         code, res = f"import math\nprint(math.floor({y}))", str(math.floor(y))
         why = "math.floor() aşağı yuvarlar"
         wrongs = [Wrong(str(math.ceil(y)), "floor her zaman aşağı yuvarlar; yukarı yuvarlayan ceil'dir."),
-                  Wrong(str(y), "floor kesirli kısmı atıp tam sayıya yuvarlar.")]
+                  Wrong(str(y), "floor kesirli kısmı atıp tam sayıya yuvarlar."),
+                  Wrong(f"{math.floor(y)}.0", "math.floor() tam sayı (int) döndürür; sonuç .0 ile yazılmaz.")]
     else:
         digits = random.choice([2, 3])
         code, res = f"from math import pi\nprint(round(pi, {digits}))", str(round(math.pi, digits))
         why = f"round(sayı, {digits}) virgülden sonra {digits} basamağa yuvarlar"
         wrongs = [Wrong(str(round(math.pi, 5 - digits)), f"round'un ikinci parametresi basamak sayısıdır: {digits}."),
-                  Wrong("3", "İkinci parametre verildiği için tam sayıya değil, ondalık basamaklara yuvarlanır.")]
-    wrongs.append(Wrong(err("NameError"), "Modül ya da ad içe aktarıldığı için tanımlıdır; hata oluşmaz."))
+                  Wrong("3", "İkinci parametre verildiği için tam sayıya değil, ondalık basamaklara yuvarlanır."),
+                  Wrong(str(math.pi), "round() sayıyı istenen basamağa yuvarlar; pi'nin tamamı yazılmaz.")]
     return output_question(
         code, res,
         f"{why}. <code>import math</code> modülü yükler; fonksiyonlara <code>math.ad</code> ile ulaşılır.",

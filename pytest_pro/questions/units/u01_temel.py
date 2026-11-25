@@ -61,15 +61,15 @@ def fstring():
     val = random.choice(PEOPLE)
     age = random.randint(14, 18)
     return output_question(
-        f'{vname} = "{val}"\nyas = {age}\nprint(f"Merhaba {{{vname}}}, yasiniz: {{yas}}")',
-        f"Merhaba {val}, yasiniz: {age}",
+        f'{vname} = "{val}"\nyas = {age}\nprint(f"Merhaba {{{vname}}}, yaşınız: {{yas}}")',
+        f"Merhaba {val}, yaşınız: {age}",
         "f-string içinde süslü parantez <code>{}</code> içindeki değişkenler kendi değerleriyle değiştirilir.",
         wrongs=[
-            Wrong(f"Merhaba {{{vname}}}, yasiniz: {{yas}}", "Metnin başındaki <code>f</code> harfi süslü parantezleri "
+            Wrong(f"Merhaba {{{vname}}}, yaşınız: {{yas}}", "Metnin başındaki <code>f</code> harfi süslü parantezleri "
                                                            "etkin hâle getirir; parantezler olduğu gibi yazılmaz."),
-            Wrong(f"Merhaba {vname}, yasiniz: yas", "Parantez içindeki ad değişkenin <strong>değeriyle</strong> "
+            Wrong(f"Merhaba {vname}, yaşınız: yas", "Parantez içindeki ad değişkenin <strong>değeriyle</strong> "
                                                    "değiştirilir, adının kendisi yazılmaz."),
-            Wrong(f'f"Merhaba {val}, yasiniz: {age}"', "<code>f</code> ve tırnaklar metnin yazımına aittir; ekrana "
+            Wrong(f'f"Merhaba {val}, yaşınız: {age}"', "<code>f</code> ve tırnaklar metnin yazımına aittir; ekrana "
                                                       "yalnızca metnin içi çıkar."),
         ],
         text="Aşağıdaki f-string kodunun ekran çıktısı aşağıdakilerden hangisidir?",
@@ -211,14 +211,16 @@ def fill_print_params():
     end = random.choice(["!", "...", "?", ":", ";", "="])
     params = [("sep", sep), ("end", end)]
     random.shuffle(params)
-    args = ", ".join(f'____="{value}"' for _, value in params)
+    hidden = random.choice([{"sep", "end"}, {"sep"}, {"end"}])  # bazen yalnızca bir parametre boş bırakılır
+    args = ", ".join(f'{"____" if name in hidden else name}="{value}"' for name, value in params)
     expect = f"{w1}{sep}{w2}{end}{w3}"
     return fill_question(
         f'print("{w1}", "{w2}", {args})\nprint("{w3}")',
-        [[name] for name, _ in params],
+        [[name] for name, _ in params if name in hidden],
         expect,
         f"Aşağıdaki kod ekrana tek satırda <code>{e(expect)}</code> yazdırmalı. "
-        "Boşluklara gereken parametre adlarını yazın.",
+        + ("Boşluklara gereken parametre adlarını yazın." if len(hidden) == 2
+           else "Boşluğa gereken parametre adını yazın."),
         f'<code>sep="{e(sep)}"</code> değerlerin <strong>arasına</strong> "{e(sep)}" koyar; '
         f'<code>end="{e(end)}"</code> ise satırın <strong>sonuna</strong> yeni satır yerine "{e(end)}" ekler. '
         "Bu yüzden ikinci print aynı satırdan devam eder.",

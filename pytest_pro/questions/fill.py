@@ -6,8 +6,16 @@ kabul edilen cevapların listesidir: [["range"], ["1"], ["6"]]. Öğrencinin cev
 olarak saklanır: boşluk cevaplarının JSON dizisi, örn. '["range","1","6"]'.
 
 Karşılaştırmada metin (tırnak) dışındaki boşluk farkları ve ' ile " farkı önemsenmez;
-tırnak içindeki boşluklar ise olduğu gibi karşılaştırılır.
+tırnak içindeki boşluklar ise olduğu gibi karşılaştırılır. Python ifadesi olarak okunabilen
+cevaplar ayrıca sözdizimi ağacıyla karşılaştırılır: `b, a` ile `(b, a)` aynıdır (öğrenci cevabı
+yalnızca ast.parse ile okunur, çalıştırılmaz).
+
+İsteğe bağlı alanlar:
+    "answer_sets": birbirine bağlı boşluklar için kabul edilen tam takımlar: [[">=", "18"], [">", "17"]].
+                   Varsa puanlama bu takımlara göre yapılır ("answer" gösterim ve kod izi içindir).
+    "blank_whys":  her boşluk için yaygın yanlış cevapların açıklaması: [{"str": "..."}, {}].
 """
+import ast
 import json
 import re
 
@@ -87,11 +95,49 @@ def parse_answer(raw, n):
     return values + [""] * (n - len(values))
 
 
+def _tree(value):
+    try:
+        return ast.dump(ast.parse(str(value).strip(), mode="eval"))
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+
+
+def same_blank(value, accepted):
+    """Boşluğa yazılan değer kabul edilen cevapla eşdeğer mi?"""
+    if not str(value).strip():
+        return False
+    if normalize(value) == normalize(accepted):
+        return True
+    tree = _tree(value)
+    return tree is not None and tree == _tree(accepted)
+
+
 def marks(question, raw):
     """Her boşluğun doğru olup olmadığı (okunamayan cevapta hepsi yanlış)."""
     key = question["answer"]
     values = parse_answer(raw, len(key)) or [""] * len(key)
-    return [bool(v.strip()) and normalize(v) in {normalize(a) for a in alts} for v, alts in zip(values, key)]
+    sets = question.get("answer_sets")
+    if sets:
+        rows = [[same_blank(v, a) for v, a in zip(values, combo)] for combo in sets]
+        return max(rows, key=sum)
+    return [any(same_blank(v, a) for a in alts) for v, alts in zip(values, key)]
+
+
+def blank_why(question, raw):
+    """Yanlış doldurulan ilk boşluğun açıklaması ("2. boşluk: ..."); yoksa None."""
+    whys = question.get("blank_whys")
+    if not whys:
+        return None
+    values = parse_answer(raw, len(question["answer"]))
+    if values is None:
+        return None
+    for i, (value, ok) in enumerate(zip(values, marks(question, raw))):
+        if ok or i >= len(whys):
+            continue
+        for wrong, why in whys[i].items():
+            if same_blank(value, wrong):
+                return why if len(values) == 1 else f"{i + 1}. boşluk: {why}"
+    return None
 
 
 def grade_fill(question, raw):

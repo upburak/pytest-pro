@@ -16,20 +16,26 @@ q = UNIT.question
 def range_list():
     a = random.randint(0, 5)
     b = a + random.randint(4, 9)
-    s = random.choice([1, 2, 3])
+    s = random.choice([2, 3])
     form = random.choice([f"{b}", f"{a}, {b}", f"{a}, {b}, {s}"])
     near = list(eval(f"range({form})"))  # noqa: S307 - yalnızca bizim ürettiğimiz sabit ifade
-    step = s if form.count(",") == 2 else 1
+    start, step = (0, 1) if "," not in form else (a, s if form.count(",") == 2 else 1)
+    wrongs = []
+    if step == 1:
+        wrongs.append(Wrong(str(near + [b]), "Bitiş değerini de dahil ettin; range bitiş değerini üretmez."))
+    else:
+        if (b - start) % step == 0:  # bitiş adımlarla tam yakalanıyor: onu eklemek bitişi dahil etmektir (Y5)
+            wrongs.append(Wrong(str(near + [b]), f"Bitiş değerini ({b}) de dahil ettin; range bitiş değerini üretmez."))
+        wrongs.append(Wrong(str(list(range(start, b))), f"Üçüncü parametre ({step}) adımdır; sayılar {step}'er {step}'er "
+                                                        "artar."))
+    wrongs.append(Wrong(str(near[1:]), "Başlangıç değeri dahildir; liste onunla başlar."))
+    wrongs.append(Wrong(str([x + 1 for x in near]), "Tek parametreli range 0'dan başlar; her değeri 1 kaydırdın."
+                        if "," not in form else "Değerler başlangıçtan başlar, 1 fazlasından değil."))
     return output_question(
         f"print(list(range({form})))", str(near),
         "<code>range(başlangıç, bitiş, adım)</code>: başlangıç dahil, <strong>bitiş dahil değildir</strong>. "
         "Tek parametre verilirse başlangıç 0, adım verilmezse 1 kabul edilir.",
-        wrongs=[
-            Wrong(str(near + [near[-1] + step]), "Bitiş değerini de dahil ettin; range bitiş değerini üretmez."),
-            Wrong(str(near[1:]), "Başlangıç değeri dahildir; liste onunla başlar."),
-            Wrong(str([x + 1 for x in near]), "Tek parametreli range 0'dan başlar; her değeri 1 kaydırdın."
-                  if "," not in form else "Değerler başlangıçtan başlar, 1 fazlasından değil."),
-        ],
+        wrongs=wrongs,
         hint="range başlangıcı dahil eder mi, bitişi dahil eder mi? Parametre sayısı neyi değiştirir?",
     )
 
@@ -77,7 +83,7 @@ def while_count():
 def break_continue():
     n = random.randint(6, 9)
     if random.random() < 0.5:
-        stop = random.randint(3, n - 1)
+        stop = random.randint(3, n - 2)  # stop = n - 1 iken "continue sandın" şıkkı doğru cevaba eşit olur
         out = [str(i) for i in range(1, n) if i < stop]
         code = f"for i in range(1, {n}):\n    if i == {stop}:\n        break\n    print(i, end=\" \")"
         why = f"<code>break</code> döngüyü tamamen sonlandırır; i = {stop} olduğunda döngüden çıkılır."
@@ -107,7 +113,7 @@ def break_continue():
 
 @q("İç İçe Döngüler", verify="output")
 def nested():
-    a, b = random.randint(2, 6), random.randint(2, 6)
+    a, b = random.sample(range(2, 8), 2)  # a ≠ b: aksi hâlde "a" ve "b" şıkları aynı olur (Y1)
     if random.random() < 0.5:
         return output_question(
             f"sayac = 0\nfor i in range({a}):\n    for j in range({b}):\n        sayac += 1\nprint(sayac)", str(a * b),
@@ -119,6 +125,7 @@ def nested():
             ],
             hint="Dış döngünün her turunda iç döngü kaç kez çalışır?",
         )
+    a = random.randint(4, 8)  # a = 3 iken toplam (0 + 1 + 2) a'ya eşit olur
     total = a * (a - 1) // 2
     return output_question(
         f"sayac = 0\nfor i in range({a}):\n    for j in range(i):\n        sayac += 1\nprint(sayac)", str(total),
@@ -132,24 +139,53 @@ def nested():
     )
 
 
+LOOP_WORDS = ["bilgisayar", "programlama", "Antalya", "Ankara", "kelebek", "karakalem", "anahtar", "tencere",
+              "papatya", "çekirdek", "öğretmen", "Kastamonu", "matematik", "Edirne", "kitaplık"]
+VOWELS = "aeıioöuü"
+
+
 @q("Metin Üzerinde Döngü", verify="output")
 def loop_string():
-    word = random.choice(["Python", "kalem", "Ankara", "bilgisayar", "programlama", "elma", "Antalya"])
-    letter = random.choice(sorted(set(word)))
-    count = word.count(letter)
-    return output_question(
-        f'metin = "{word}"\nsayac = 0\nfor harf in metin:\n    if harf == "{letter}":\n        sayac += 1\nprint(sayac)',
-        str(count),
-        f"for döngüsü metnin her karakterini sırayla <code>harf</code> değişkenine verir. "
-        f"\"{letter}\" harfi \"{word}\" içinde {count} kez geçer.",
-        wrongs=[
-            Wrong(str(count + 1), "sayac 0'dan başlar ve yalnızca eşleşen her harfte 1 artar."),
-            Wrong(str(len(word)), "sayac her karakterde değil, yalnızca harf eşleşince artar."),
-            Wrong("0" if count else "1", "for döngüsü metnin her karakterini dolaşır; eşleşmeleri tek tek say. "
-                                         "Büyük/küçük harfe dikkat et."),
-        ],
-        hint=f"Metindeki her harfi sırayla \"{letter}\" ile karşılaştır.",
-    )
+    """Sayılan harf, harfin metinde geçme sayısıyla ağırlıklı seçilir; ayrıca sesli harf sayımı değişkesi
+    vardır. Böylece doğru cevap 1'e yığılmaz (K4)."""
+    word = random.choice(LOOP_WORDS)
+    var = random.choice(["sayac", "adet", "toplam"])
+    if random.random() < 0.4:
+        count = sum(ch in VOWELS for ch in word)
+        upper_vowels = sum(ch.lower() in VOWELS and ch not in VOWELS for ch in word)
+        code = (f'metin = "{word}"\n{var} = 0\nfor harf in metin:\n    if harf in "{VOWELS}":\n'
+                f"        {var} += 1\nprint({var})")
+        expl = (f"Döngü her karakteri <code>harf</code> değişkenine verir; harf \"{VOWELS}\" içindeyse {var} 1 artar. "
+                f"\"{word}\" içinde {count} küçük sesli harf vardır.")
+        wrongs = [Wrong(str(len(word) - count), "Sesli harfleri değil, sessizleri saydın; koşul harfin "
+                                                f"\"{VOWELS}\" içinde olmasıdır.")]
+        if upper_vowels:
+            wrongs.append(Wrong(str(count + upper_vowels), "Büyük harfle yazılan sesli harf \"aeıioöuü\" içinde yoktur; "
+                                                           "in büyük/küçük harfe duyarlıdır."))
+        wrongs += [Wrong(str(len(word)), f"{var} her karakterde değil, yalnızca koşul sağlanınca artar."),
+                   Wrong(str(count - 1), "Sesli harfleri tek tek yeniden say; ilk harf de döngüye girer."),
+                   Wrong(str(count + 1), f"{var} 0'dan başlar; yalnızca sesli harflerde 1 artar.")]
+        hint = "Metindeki her harf için koşulun doğru olup olmadığına bak; kaç kez doğru oluyor?"
+    else:
+        letters = sorted(set(word))
+        weights = [word.count(ch) ** 2 for ch in letters]
+        letter = random.choices(letters, weights=weights)[0]
+        count = word.count(letter)
+        code = (f'metin = "{word}"\n{var} = 0\nfor harf in metin:\n    if harf == "{letter}":\n        {var} += 1\n'
+                f"print({var})")
+        expl = (f"for döngüsü metnin her karakterini sırayla <code>harf</code> değişkenine verir. "
+                f"\"{letter}\" harfi \"{word}\" içinde {count} kez geçer.")
+        wrongs = []
+        other_case = letter.upper() if letter.islower() else letter.lower()
+        if other_case in word:
+            wrongs.append(Wrong(str(count + word.count(other_case)), "Büyük ve küçük harf farklı karakterlerdir; == "
+                                                                     "yalnızca aynısını sayar."))
+        wrongs += [Wrong(str(len(word)), f"{var} her karakterde değil, yalnızca harf eşleşince artar."),
+                   Wrong(str(count + 1), f"{var} 0'dan başlar ve yalnızca eşleşen her harfte 1 artar."),
+                   Wrong(str(count - 1) if count > 1 else "0", "Döngü metnin ilk karakterinden başlar; eşleşmeleri tek "
+                                                               "tek, ilki de dahil say.")]
+        hint = f"Metindeki her harfi sırayla \"{letter}\" ile karşılaştır."
+    return output_question(code, str(count), expl, wrongs=wrongs, hint=hint)
 
 
 @q("for Döngüsü (Kod Yazma)")
