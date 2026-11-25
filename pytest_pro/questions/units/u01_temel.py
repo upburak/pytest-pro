@@ -1,8 +1,23 @@
 """Ünite 1 - Temel Giriş/Çıkış ve Değişkenler."""
+import ast
 import random
+import re
 
-from ..helpers import (PEOPLE, STR_VALUES, Wrong, e, fill_question, output_question, shown, tf_question, unique_options,
-                       whys_for_options)
+from ..codecheck import OK, Tracker, assigned_names, checker, find_prints, is_print, print_values, same_value
+from ..helpers import (
+    PEOPLE,
+    STR_VALUES,
+    Wrong,
+    code_options_question,
+    e,
+    fill_question,
+    output_question,
+    shown,
+    tf_claim,
+    tf_question,
+    unique_options,
+    whys_for_options,
+)
 from ..registry import register_unit
 
 UNIT = register_unit(
@@ -226,3 +241,374 @@ def fill_print_params():
         "Bu yüzden ikinci print aynı satırdan devam eder.",
         hint="Değerlerin arasına konan ayırıcıyı hangi parametre belirler? Satırın sonuna eklenen metni hangisi?",
     )
+
+
+# ================================================================= yeni şablonlar (ölçme raporu Ö1.1-Ö1.7)
+COMMENT_WORDS = ["Elma", "Armut", "Kiraz", "Muz", "Nar", "Erik", "İncir"]
+
+
+@q("Yorum Satırları", verify="output")
+def comments():
+    """Kazanım: # işaretinden sonrasının çalıştırılmadığını bilir · Bloom: H/U"""
+    full, real, tail, nospace, inner = random.sample(COMMENT_WORDS, 5)
+    in_string = random.random() < 0.3  # tırnak içindeki # yorum başlatmaz
+    shown_text = f"{real} # {inner.lower()}" if in_string else real
+    lines = [f'# print("{full}")', f'print("{shown_text}")  # print("{tail}")', f'#print("{nospace}")']
+    random.shuffle(lines)
+    common = [
+        Wrong(full, "<code>#</code> ile başlayan satırın tamamı yorumdur; içinde print yazsa da çalışmaz."),
+        Wrong(nospace, "<code>#</code> ile kod arasında boşluk olmasa da satır yorumdur ve çalışmaz."),
+        Wrong(f"{shown_text} {tail}", "Satırdaki <code>#</code> işaretinden sonrası yorumdur; o print çalışmaz."),
+        Wrong(f"{shown_text}{tail}", "Satırdaki <code>#</code> işaretinden sonrası yorumdur; o print çalışmaz."),
+    ]
+    if in_string:
+        common.append(Wrong(real, "Tırnak içindeki <code>#</code> metnin bir parçasıdır, yorum başlatmaz; "
+                                  "metnin tamamı yazılır."))
+    return output_question(
+        "\n".join(lines), shown_text,
+        "<code>#</code> işaretinden satırın sonuna kadar olan kısım yorumdur ve çalıştırılmaz; satırın başındaysa "
+        "satırın tamamı yorum olur. Tırnak içindeki <code>#</code> ise metnin bir parçasıdır.",
+        common_wrongs=common, norm="metin",
+        hint="<code>#</code> işaretinden sonra satırın sonuna kadar olan kısım çalışır mı? Tırnak içindeki "
+             "<code>#</code> de yorum mu başlatır?",
+    )
+
+
+SEP_CHOICES = ["-", "*", "", ", ", "+"]
+END_CHOICES = ["!", "", " ", "...", "?"]
+
+
+@q("sep ve end Birlikte (Doğru/Yanlış)", verify="tf_output")
+def sep_end_claim():
+    """Kazanım: sep ve end parametrelerinin birlikte etkisini izler · Bloom: U"""
+    words = random.sample(PEOPLE, random.choice([3, 4]))
+    first, last = words[:-1], words[-1]
+    sep, end = random.choice(SEP_CHOICES), random.choice(END_CHOICES)
+    kwargs = [f'sep="{sep}"', f'end="{end}"']
+    random.shuffle(kwargs)
+    args = ", ".join(f'"{w}"' for w in first)
+    line1 = sep.join(first)
+    newline = [] if end == " " else [  # sondaki boşluk alt alta yazılan iddiada görünmez
+        Wrong(line1 + end + "\n" + last, "<code>end</code> yeni satırın <strong>yerine</strong> geçer; ilk print "
+                                        "alt satıra inmez, ikinci print aynı satırdan devam eder.")]
+    return tf_claim(
+        f'print({args}, {", ".join(kwargs)})\nprint("{last}")',
+        line1 + end + last,
+        newline + [
+         Wrong(" ".join(first) + end + last, f"<code>sep</code> verildiği için değerlerin arasına boşluk değil "
+                                             f"{e(shown(sep))} konur."),
+         Wrong(sep.join(words) + end, "<code>sep</code> yalnızca aynı print'e verilen değerlerin arasına girer; "
+                                      "<code>end</code> ise ilk print'in sonuna eklenir."),
+         Wrong(end.join(first) + sep + last, "<code>sep</code> ile <code>end</code> yer değiştirmiş: sep değerlerin "
+                                             "arasına, end ise satırın sonuna gelir.")],
+        f"<code>sep</code> ({e(shown(sep))}) ilk print'teki değerlerin arasına, <code>end</code> ({e(shown(end))}) "
+        "ise satırın sonuna yeni satır yerine eklenir; bu yüzden ikinci print aynı satırdan devam eder.",
+        hint="sep nereye, end nereye eklenir? İkinci print hangi satırdan başlar?",
+    )
+
+
+FSTRING_SECOND = [("yas", (14, 18), "yaşım"), ("sinif", (9, 12), "sınıfım"), ("puan", (50, 100), "puanım")]
+
+
+@q("f-string Tamamlama (Boşluk Doldurma)", verify="fill")
+def fstring_blank():
+    """Kazanım: f-string sözdizimini kurar · Bloom: U"""
+    v1 = random.choice(["ad", "isim", "kullanici"])
+    v2, (lo, hi), label = random.choice(FSTRING_SECOND)
+    name, value = random.choice(PEOPLE), random.randint(lo, hi)
+    shape = random.choice(["Benim adım {A}, {L} {B}", "Adım {A}; {L} {B}."])
+    template = shape.replace("{L}", label)
+    expect = template.replace("{A}", name).replace("{B}", str(value))
+    head = f'{v1} = "{name}"\n{v2} = {value}\n'
+    solution = ("Tırnağın önündeki <code>f</code> metni f-string yapar; süslü parantez içine yazılan değişken "
+                "adları, değişkenlerin değerleriyle değiştirilir.")
+    if random.random() < 0.3:
+        body = template.replace("{A}", "{" + v1 + "}").replace("{B}", "{" + v2 + "}")
+        return fill_question(
+            head + f'print(____"{body}")', [["f", "F"]], expect,
+            f"Aşağıdaki kod ekrana <code>{e(expect)}</code> yazmalı. Boşluğa gereken öneki yazın.",
+            solution,
+            hint="Süslü parantezlerin değişken değerine dönüşmesi için tırnağın önüne ne gelir?",
+            wrongs=[[Wrong("str", "<code>str()</code> bir fonksiyondur; tırnağın önüne önek olarak yazılmaz."),
+                     Wrong("%", "Burada süslü parantezleri çalıştıran tek harflik bir önek isteniyor."),
+                     Wrong("format", "Burada süslü parantezleri çalıştıran tek harflik bir önek isteniyor."),
+                     Wrong("r", "<code>r</code> öneki ham metin yapar; süslü parantezler olduğu gibi yazılır.")]],
+        )
+    body = template.replace("{A}", "{____}").replace("{B}", "{____}")
+    quoted = "Tırnak içindeki ad metin olarak yazılır; süslü parantezin içine değişkenin adı tırnaksız yazılır."
+    return fill_question(
+        head + f'print(f"{body}")', [[v1], [v2]], expect,
+        f"Aşağıdaki kod ekrana <code>{e(expect)}</code> yazmalı. Süslü parantezlere gereken "
+        "<strong>değişken adlarını</strong> yazın.",
+        solution,
+        hint="Süslü parantezin içine değerin kendisi mi, onu tutan değişkenin adı mı yazılır?",
+        wrongs=[[Wrong(f'"{v1}"', quoted),
+                 Wrong(name, f"<code>{e(name)}</code> bir değişken adı değil, değerin kendisi; tırnaksız yazılınca "
+                             "Python onu değişken sanar ve NameError verir."),
+                 Wrong(v2, "Sıra önemli: ilk süslü parantezde ad, ikincisinde sayı yazılmalı.")],
+                [Wrong(f'"{v2}"', quoted),
+                 Wrong(v1, "Sıra önemli: ilk süslü parantezde ad, ikincisinde sayı yazılmalı.")]],
+    )
+
+
+SWAP_PAIRS = [("a", "b"), ("x", "y"), ("sol", "sag"), ("ilk", "son")]
+SWAP_TRIPLES = [("a", "b", "c"), ("x", "y", "z")]
+
+
+@q("Değer Takası (Boşluk Doldurma)", verify="fill")
+def swap_blank():
+    """Kazanım: çoklu atamayla değer takası yapar · Bloom: U/An"""
+    hint = "Sağ taraf önce bütünüyle hesaplanır; sağa hangi sırayla yazarsan sola o sırayla atanır."
+    solution = ("Çoklu atamada önce sağ taraf bütünüyle hesaplanır, sonra değerler soldaki değişkenlere aynı anda "
+                "atanır. Bu yüzden geçici bir değişkene gerek kalmaz. Parantezli ya da köşeli parantezli yazım da "
+                "aynı sonucu verir.")
+    if random.random() < 0.7:
+        p, r = random.choice(SWAP_PAIRS)
+        x, y = random.sample(range(1, 31), 2)
+        expect = f"{y} {x}"
+        names = f"{r}, {p}"
+        wrongs = [Wrong(f"{p}, {r}", "Sağ taraf aynı sırada kalırsa değerler değişmez."),
+                  Wrong(f"{r}, {r}", "İki değişkene de aynı değeri atarsın; biri kaybolur."),
+                  Wrong(f"{p}, {p}", "İki değişkene de aynı değeri atarsın; biri kaybolur.")]
+        code = f"{p}, {r} = {x}, {y}\n{p}, {r} = ____\nprint({p}, {r})"
+        task = f"<code>{p}</code> ile <code>{r}</code> değişkenlerinin değerlerini yer değiştirmeli"
+    else:
+        a, b, c = random.choice(SWAP_TRIPLES)
+        x, y, z = random.sample(range(1, 31), 3)
+        expect = f"{y} {z} {x}"
+        names = f"{b}, {c}, {a}"
+        wrongs = [Wrong(f"{c}, {a}, {b}", "Değerleri sağa kaydırdın; istenen çıktıda her değer bir sola kayıyor."),
+                  Wrong(f"{a}, {b}, {c}", "Sağ taraf aynı sırada kalırsa değerler değişmez."),
+                  Wrong(f"{b}, {a}, {c}", "Yalnızca ilk iki değeri değiştirdin; üçü de yer değiştirmeli.")]
+        code = f"{a}, {b}, {c} = {x}, {y}, {z}\n{a}, {b}, {c} = ____\nprint({a}, {b}, {c})"
+        task = "değişkenlerin değerlerini birer sola kaydırmalı"
+    return fill_question(
+        code, [[names, f"({names})", f"[{names}]"]], expect,
+        f"Aşağıdaki kod {task}; yani ekrana <code>{expect}</code> yazmalı. Boşluğa <strong>değişken adlarını "
+        "kullanarak</strong> gereken ifadeyi yazın (sayı yazmayın).",
+        solution, hint=hint, wrongs=[wrongs],
+    )
+
+
+GREETINGS = ["Merhaba", "Selam", "Hoş geldin"]
+
+
+@q("Selamlama (Kod Yazma)")
+def write_greet():
+    """Kazanım: değişkendeki metni print içinde başka metinle birlikte kullanır · Bloom: O"""
+    greet = random.choice(GREETINGS)
+    var = random.choice(["ad", "isim", "kullanici"])
+    name = random.choice(PEOPLE)
+    return {
+        "type": "code",
+        "text": (
+            "Şu adımları gerçekleştiren Python kodunu yazınız:<br>"
+            f"1. <code>{var}</code> adında bir değişken tanımlayıp <code>\"{e(name)}\"</code> metnini atayın.<br>"
+            f"2. Ekrana <strong>{e(greet)}</strong> sözcüğüyle birlikte adı yazdırın (çıktı: "
+            f"<code>{e(greet)} {e(name)}</code>).<br>"
+            f"Adı print içine elle yazmayın; <code>{var}</code> değişkenini kullanın."
+        ),
+        "code": None,
+        "check": {"kind": "greet_var", "var": var, "name": name, "greet": greet},
+        "answer": f'{var} = "{name}"\nprint("{greet}", {var})',
+        "hint": "İki satır yeterli: önce atama, sonra print. print'e virgülle birden çok değer verilebilir.",
+        "solution": "Değişkene metin atanır; print'e selam metni ve değişken virgülle verilir. Virgül araya bir "
+                    "boşluk koyar. <code>+</code> ile birleştirirken boşluğu metnin içine yazmak gerekir; "
+                    "f-string de kullanılabilir.",
+    }
+
+
+RECT_NAMES = [("en", "boy"), ("a", "b"), ("kisa", "uzun")]
+
+
+@q("Dikdörtgen Alan ve Çevre (Kod Yazma)")
+def write_rect():
+    """Kazanım: değişkenlerle aritmetik ifade kurup sonucu yazdırır · Bloom: O"""
+    en_ad, boy_ad = random.choice(RECT_NAMES)
+    while True:
+        en, boy = random.randint(3, 15), random.randint(2, 12)
+        if en != boy and en * boy != 2 * (en + boy):
+            break
+    if en_ad == "kisa":
+        en, boy = min(en, boy), max(en, boy)
+    return {
+        "type": "code",
+        "text": (
+            f"<code>{en_ad}</code> değişkenine <strong>{en}</strong>, <code>{boy_ad}</code> değişkenine "
+            f"<strong>{boy}</strong> atayın. Ardından dikdörtgenin önce <strong>alanını</strong>, sonra "
+            f"<strong>çevresini</strong> iki ayrı satırda yazdırın (çıktı: alt alta {en * boy} ve {2 * (en + boy)}). "
+            "Değerleri elle hesaplamayın; değişkenleri kullanın."
+        ),
+        "code": None,
+        "check": {"kind": "rect_area", "en_ad": en_ad, "boy_ad": boy_ad, "en": en, "boy": boy},
+        "answer": f"{en_ad} = {en}\n{boy_ad} = {boy}\nprint({en_ad} * {boy_ad})\nprint(2 * ({en_ad} + {boy_ad}))",
+        "hint": "Alan iki kenarın çarpımı, çevre iki kenarın toplamının iki katıdır. İşlem önceliğine dikkat et.",
+        "solution": "Alan <code>en * boy</code>, çevre <code>2 * (en + boy)</code> ile hesaplanır. Parantez "
+                    "olmazsa çarpma önce yapılır ve çevre yanlış çıkar.",
+    }
+
+
+WHICH_SEPS = ["-", "*", "/", "_", "."]
+
+
+@q("Hangi Kod Bu Çıktıyı Verir?", verify="code_one")
+def which_print():
+    """Kazanım: aynı çıktıyı üreten print biçimlerini ayırt eder · Bloom: An"""
+    a, b = random.sample(PEOPLE, 2)
+    s = random.choice(WHICH_SEPS)
+    target = f"{a}{s}{b}"
+    correct = random.choice([f'print("{a}", "{b}", sep="{s}")', f'print("{a}" + "{s}" + "{b}")'])
+    pool = [
+        Wrong(f'print("{a}", "{s}", "{b}")', f"Varsayılan sep boşluktur; ekrana <code>{e(a)} {e(s)} {e(b)}</code> "
+                                             "yazılır."),
+        Wrong(f'print("{a}", "{b}", end="{s}")', f"end araya değil sona eklenir; ekrana <code>{e(a)} {e(b)}{e(s)}"
+                                                 "</code> yazılır."),
+        Wrong(f'print("{a}" + "{b}" + "{s}")', f"+ metinleri yazıldığı sırayla birleştirir; ekrana "
+                                               f"<code>{e(a)}{e(b)}{e(s)}</code> yazılır."),
+        Wrong(f'print("{a}", "{b}", sep=" {s} ")', f"Ayırıcının çevresine boşluk koydun; ekrana "
+                                                   f"<code>{e(a)} {e(s)} {e(b)}</code> yazılır."),
+        Wrong(f'print("{a}" + "{s}", "{b}")', f"Virgül araya bir boşluk ekler; ekrana <code>{e(a)}{e(s)} {e(b)}"
+                                              "</code> yazılır."),
+    ]
+    if s in "-*/":
+        pool.append(Wrong(f'print("{a}" {s} "{b}")', f"Metinler arasında <code>{e(s)}</code> işlemi yapılamaz; "
+                                                     "TypeError oluşur."))
+    return code_options_question(
+        f"Aşağıdakilerden hangisi ekrana <code>{e(target)}</code> yazar?",
+        correct, random.sample(pool, 3),
+        cases=[{"expect": target}],
+        solution=f"<code>sep</code> değerlerin arasına konan metni belirler; <code>+</code> ise metinleri araya "
+                 f"hiçbir şey koymadan birleştirir. Bu yüzden <code>{e(correct)}</code> tam olarak "
+                 f"<code>{e(target)}</code> yazar.",
+        hint="Her seçenekte araya ne konduğunu ve sona ne eklendiğini ayrı ayrı yaz.",
+    )
+
+
+# ================================================================= düz kod izleme (Ünite 1-3 denetleyicileri)
+UNSET = object()
+
+
+def straight_run(tree, overrides=None):
+    """Dallanmayan koddaki üst düzey print satırlarını, o satırdan önceki izleme durumuyla döndürür.
+
+    Dönüş: (prints, firsts) -> prints: [(print çağrısı, Tracker kopyası)], firsts: {ad: ilk atanan değer}.
+    overrides {ad: değer}: adın ilk atamasından hemen sonra değeri bununla değiştirilir. Böylece kod
+    "verilen değer" değişince sonucun da değişip değişmediği (sabit cevap yazılmış mı) denetlenir."""
+    tr = Tracker()
+    pending = dict(overrides or {})
+    prints, firsts = [], {}
+    for stmt in tree.body:
+        if isinstance(stmt, ast.Expr) and is_print(stmt):
+            prints.append((stmt.value, tr.copy()))
+        tr.feed(stmt)
+        if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+            for name in sorted(assigned_names(stmt)):
+                if name not in firsts:
+                    firsts[name] = tr.values.get(name, UNSET)
+                    if name in pending:
+                        tr.values[name] = pending.pop(name)
+                        tr.defs.pop(name, None)
+    return prints, firsts
+
+
+def print_numbers(call, tr):
+    """print'in yazdırdığı değerler (etiket metinleri hariç); sayı biçimindeki metinler sayıya çevrilir,
+    demetler açılır, hesaplanamayan değer UNSET olur."""
+    out = []
+    for node in print_values(call):
+        for item in (node.elts if isinstance(node, ast.Tuple) else [node]):
+            if isinstance(item, ast.FormattedValue):
+                item = ast.JoinedStr(values=[item])
+            value = tr.try_value(item, UNSET)
+            if isinstance(value, str) and re.fullmatch(r"\s*-?\d+(\.\d+)?\s*", value):
+                value = float(value) if "." in value else int(value)
+            out.append(value)
+    return out
+
+
+def print_text(call, tr):
+    """print satırının ekrana yazacağı metin (sep dahil, end hariç); hesaplanamazsa None."""
+    pieces = []
+    for arg in call.args:
+        value = tr.try_value(arg, UNSET)
+        if value is UNSET or isinstance(arg, ast.Starred):
+            return None
+        pieces.append(str(value))
+    sep = tr.try_value(next((k.value for k in call.keywords if k.arg == "sep"), ast.Constant(" ")), UNSET)
+    return str(sep).join(pieces) if isinstance(sep, str) else None
+
+
+def _greet_norm(text):
+    text = text.replace("İ", "i").replace("I", "ı").lower()
+    return " ".join(re.sub(r"[,.!?;:'\"]", " ", text).split())
+
+
+GREET_ALT_NAMES = ["Kerem", "Selin"]
+
+
+@checker("greet_var")
+def check_greet_var(tree, p):
+    """var değişkenine name atanır; print ile "greet name" yazdırılır (ad değişkenden gelmeli)."""
+    var, name, greet = p["var"], p["name"], p["greet"]
+    prints, firsts = straight_run(tree)
+    if firsts.get(var) != name:
+        return False, f"<code>{var}</code> değişkenine <code>\"{e(name)}\"</code> metni atanmamış."
+    if not find_prints(tree):
+        return False, "Ekrana yazdırmak için <code>print()</code> kullanılmalı."
+    goal = _greet_norm(f"{greet} {name}")
+    texts = [print_text(call, tr) for call, tr in prints]
+    good = [i for i, t in enumerate(texts) if t is not None and _greet_norm(t) == goal]
+    if good:
+        alt = next(n for n in GREET_ALT_NAMES if n != name)
+        alt_prints, _ = straight_run(tree, {var: alt})
+        alt_text = print_text(*alt_prints[good[0]])
+        if alt_text is None or _greet_norm(alt_text) != _greet_norm(f"{greet} {alt}"):
+            return False, (f"Adı print içine elle yazma; <code>{var}</code> değişkenini kullan. Değişkendeki ad "
+                           "değişince çıktı da değişmeli.")
+        return True, OK
+    known = [t for t in texts if t is not None]
+    if any(re.search(rf"\b{re.escape(var)}\b", t) and name not in t for t in known):
+        return False, (f"Tırnak içine yazdığın <code>{var}</code> metin olarak yazılır; değişkenin değerini yazdırmak "
+                       "için onu tırnaksız kullan.")
+    if any(_greet_norm(t).replace(" ", "") == goal.replace(" ", "") for t in known):
+        return False, "Selam sözcüğü ile ad arasında bir boşluk olmalı."
+    if any(name in t for t in known):
+        return False, f"Ekrana <strong>{e(greet)}</strong> sözcüğü ve ad birlikte, bu sırayla yazılmalı."
+    return False, (f"Ekrana <code>{e(greet)} {e(name)}</code> yazdıran bir print bulunamadı; print satırının atamadan "
+                   "sonra geldiğinden emin ol.")
+
+
+@checker("rect_area")
+def check_rect_area(tree, p):
+    """en ve boy atanır; önce alan, sonra çevre ayrı satırlarda yazdırılır (değişkenlerle hesaplanmalı)."""
+    en_ad, boy_ad, en, boy = p["en_ad"], p["boy_ad"], p["en"], p["boy"]
+    names = f"<code>{en_ad}</code> ve <code>{boy_ad}</code>"
+    prints, firsts = straight_run(tree)
+    if not (same_value(firsts.get(en_ad), en) and same_value(firsts.get(boy_ad), boy)):
+        return False, f"{names} değişkenlerine istenen değerler atanmamış."
+    lines = [vals for vals in (print_numbers(call, tr) for call, tr in prints) if vals]
+    if not lines:
+        return False, "Alan ve çevre <code>print()</code> ile yazdırılmalı."
+    if any(len(vals) > 1 for vals in lines):
+        return False, "Alan ve çevreyi ayrı satırlarda (iki ayrı print ile) yazdır."
+    if len(lines) != 2:
+        return False, "Tam iki değer yazdırılmalı: önce alan, sonra çevre."
+    area, per = lines[0][0], lines[1][0]
+    want_area, want_per = en * boy, 2 * (en + boy)
+    if not same_value(area, want_area):
+        if same_value(area, want_per) and same_value(per, want_area):
+            return False, "Sıra ters: önce alan, sonra çevre yazdırılmalı."
+        return False, "Alan değeri beklenen sonucu vermiyor; alan iki kenarın çarpımıdır."
+    if not same_value(per, want_per):
+        if same_value(per, en + 2 * boy) or same_value(per, 2 * en + boy):
+            return False, "Çevre 2 × (en + boy) olmalı; parantez gerekiyor mu?"
+        if same_value(per, en + boy):
+            return False, "Çevre, iki kenarın toplamının iki katıdır."
+        return False, "Çevre değeri beklenen sonucu vermiyor; formülü kontrol et."
+    alt_en, alt_boy = en + 3, boy + 5
+    alt_prints, _ = straight_run(tree, {en_ad: alt_en, boy_ad: alt_boy})
+    alt_lines = [vals for vals in (print_numbers(call, tr) for call, tr in alt_prints) if vals]
+    if not (len(alt_lines) == 2 and same_value(alt_lines[0][0], alt_en * alt_boy)
+            and same_value(alt_lines[1][0], 2 * (alt_en + alt_boy))):
+        return False, f"Sonuçları elle yazma; {names} değişkenleriyle hesapla. Değerler değişince sonuç da değişmeli."
+    return True, OK
