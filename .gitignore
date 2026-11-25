@@ -10,3 +10,4 @@ venv/
 *.csv
 build/
 *.egg-info/
+.claude/
