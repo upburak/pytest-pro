@@ -65,6 +65,8 @@ REV = code_q("reverse_text", var="kelime", word="kalem")
     'kelime = "kalem"\nters = ""\nfor i in range(len(kelime) - 1, -1, -1):\n    ters += kelime[i]\nprint(ters)',
     'kelime = "kalem"\nters = ""\nfor i in range(len(kelime)):\n    ters = kelime[i] + ters\nprint(ters)',
     'kelime = "kalem"\nprint("Ters:", kelime[::-1])',
+    'kelime = "kalem"\nprint(kelime[-1::-1])',
+    'kelime = "kalem"\nprint(kelime[len(kelime) - 1::-1])',
     "kelime = 'kalem'\nsonuc = ''\nfor harf in kelime:\n    sonuc = harf + sonuc\nprint(f\"{sonuc}\")",
 ])
 def test_reverse_accepts(src):
@@ -79,6 +81,7 @@ def test_reverse_accepts(src):
     ('kelime = "kalem"\nprint(reversed(kelime))', "join"),
     ('kelime = "kitap"\nprint(kelime[::-1])', "<code>kelime</code> değişkenine"),
     ('kelime = "kalem"\nprint(kelime[::1])', "tersi değil"),
+    ('kelime = "kalem"\nprint(kelime[4::-1])', "her kelime için"),
     ('kelime = "kalem"\nters = ""\nfor h in kelime:\n    ters = h + ters\n    break\nprint(ters)', "break"),
     ('kelime = "kalem"', "print"),
     ('kelime = "kalem"\nfor i in range(len(kelime) - 1, 0, -1):\n    print(kelime[i], end="")', "döngü bittikten"),

@@ -677,10 +677,25 @@ def _is_name(node, name):
     return isinstance(node, ast.Name) and node.id == name
 
 
+REV_PROBES = ("kalem", "Python", "ab")
+
+
+def _slices_to(node, var, text):
+    """var[a:b:c] diliminin var = text iken sonucu; dilim değilse ya da hesaplanamazsa None."""
+    if not (isinstance(node, ast.Subscript) and _is_name(node.value, var) and isinstance(node.slice, ast.Slice)):
+        return None
+    parts = []
+    for part in (node.slice.lower, node.slice.upper, node.slice.step):
+        value = None if part is None else const_value(part, {var: text}, UNSET)
+        if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+            return None
+        parts.append(value)
+    return None if parts[2] == 0 else text[slice(*parts)]
+
+
 def _is_rev_slice(node, var):
-    return (isinstance(node, ast.Subscript) and _is_name(node.value, var) and isinstance(node.slice, ast.Slice)
-            and node.slice.lower is None and node.slice.upper is None and node.slice.step is not None
-            and const_value(node.slice.step) == -1)
+    """var[::-1] ya da her uzunlukta aynı sonucu veren eşdeğeri (var[-1::-1], var[len(var) - 1::-1])."""
+    return all(_slices_to(node, var, probe) == probe[::-1] for probe in REV_PROBES)
 
 
 def _is_join_reversed(node, var):
@@ -776,12 +791,17 @@ def check_reverse_text(tree, p):
                     notes.append("same")
                 elif not uses_name(expr, var):
                     notes.append("const" if tr.try_value(expr) == target else "other")
+                elif _slices_to(expr, var, word) == target:
+                    notes.append("specific")
                 else:
                     notes.append("other")
     if "forward" in notes:
         return False, "Döngü harfleri aynı sırayla ekliyor; ters çevirmek için her harfi yeni metnin başına ekle."
     if "const" in notes:
         return False, "Ters metni elle yazma; kod her kelime için çalışmalı. Değişkeni kullan."
+    if "specific" in notes:
+        return False, ("Dilim yalnızca bu kelimede doğru sonuç veriyor; kod her kelime için çalışmalı. Bu kelimenin "
+                       "uzunluğuna bağlı sayı yazma.")
     if "reversed" in notes:
         return False, ("<code>reversed()</code> metin değil, bir sıralayıcı döndürür; harfleri <code>\"\".join(...)"
                        "</code> ile birleştir ya da dilimleme kullan.")
