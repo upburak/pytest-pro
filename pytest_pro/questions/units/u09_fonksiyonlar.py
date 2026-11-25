@@ -363,7 +363,8 @@ def print_return_claim():
                                            "yazdırılır.")]
         solution = (f"Fonksiyon önce {a} yazar, sonra {val} değerini döndürür; dıştaki print {val} + {c} = "
                     f"{val + c} yazar.")
-    return tf_claim(code, output, wrongs, solution,
+    true_why = "İddia doğru: bu kodda gerçekten <code>TypeError</code> hatası oluşur." if variant == "print_expr" else None
+    return tf_claim(code, output, wrongs, solution, true_why=true_why,
                     hint="Fonksiyon bir değer döndürüyor mu, yoksa yalnızca ekrana mı yazıyor?")
 
 
