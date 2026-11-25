@@ -3,21 +3,21 @@
 Bu dosya koddan otomatik üretilir; elle düzenlemeyin:
 `python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md`
 
-Toplam **11 ünite**, **78 soru şablonu**. Her şablon her çağrıldığında farklı değerlerle yeni bir soru üretir.
+Toplam **11 ünite**, **164 soru şablonu**. Her şablon her çağrıldığında farklı değerlerle yeni bir soru üretir.
 
 | # | Ünite | Seviye | Şablon |
 |---|---|---|---|
-| 1 | Temel Giriş/Çıkış ve Değişkenler | Başlangıç | 9 |
-| 2 | Veri Tipleri ve Dönüşümler | Başlangıç | 8 |
-| 3 | Operatörler | Başlangıç | 6 |
-| 4 | Metinler (String) | Başlangıç | 8 |
-| 5 | Koşullu İfadeler | Başlangıç | 5 |
-| 6 | Döngüler | Orta | 8 |
-| 7 | Listeler | Orta | 8 |
-| 8 | Sözlük, Demet ve Küme | Orta | 7 |
-| 9 | Fonksiyonlar ve Modüller | Orta | 10 |
-| 10 | Hata Yönetimi | Orta | 4 |
-| 11 | Nesne Yönelimli Programlama | İleri | 5 |
+| 1 | Temel Giriş/Çıkış ve Değişkenler | Başlangıç | 16 |
+| 2 | Veri Tipleri ve Dönüşümler | Başlangıç | 15 |
+| 3 | Operatörler | Başlangıç | 13 |
+| 4 | Metinler (String) | Başlangıç | 16 |
+| 5 | Koşullu İfadeler | Başlangıç | 13 |
+| 6 | Döngüler | Orta | 16 |
+| 7 | Listeler | Orta | 16 |
+| 8 | Sözlük, Demet ve Küme | Orta | 15 |
+| 9 | Fonksiyonlar ve Modüller | Orta | 19 |
+| 10 | Hata Yönetimi | Orta | 12 |
+| 11 | Nesne Yönelimli Programlama | İleri | 13 |
 
 ## 1. Temel Giriş/Çıkış ve Değişkenler
 
@@ -36,6 +36,13 @@ print() ve parametreleri, input(), değişken tanımlama ve adlandırma, f-strin
 | Çoklu Atama | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Değişken & Aritmetik (Kod Yazma) | Kod yazma | — |
 | Print Parametreleri (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Yorum Satırları | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| sep ve end Birlikte (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| f-string Tamamlama (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Değer Takası (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Selamlama (Kod Yazma) | Kod yazma | — |
+| Dikdörtgen Alan ve Çevre (Kod Yazma) | Kod yazma | — |
+| Hangi Kod Bu Çıktıyı Verir? | Çoktan seçmeli | Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli |
 
 ## 2. Veri Tipleri ve Dönüşümler
 
@@ -53,6 +60,13 @@ int, float, str, bool; type(), int()/float()/str()/bool() dönüşümleri, input
 | Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Metin ve Sayı Birleştirme | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Dönüşüm Hataları | Çoktan seçmeli | Her seçenek çalıştırılır |
+| Tip İddiası (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| int(input()) Boşluğu | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Dönüşüm Yönü (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Karışık Dönüşüm Çıktısı | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| bool Aritmetiği | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Metinleri Sayıya Çevirip Toplama (Kod Yazma) | Kod yazma | — |
+| Sıcaklık Dönüşümü (Kod Yazma) | Kod yazma | — |
 
 ## 3. Operatörler
 
@@ -68,6 +82,13 @@ Aritmetik (+ - * / // % **), işlem önceliği, karşılaştırma, mantıksal (a
 | Karşılaştırma ve Mantıksal Operatörler | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Birleşik Atama Operatörleri | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
 | Atama ve Karşılaştırma | Doğru / Yanlış | — |
+| Operatör İddiası (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Eksik Operatör (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Birleşik Atama Zinciri | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Bölünebilme Koşulu | Çoktan seçmeli | Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli |
+| Kısa Devre Değerlendirme | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Saniyeyi Dakikaya Çevir (Kod Yazma) | Kod yazma | — |
+| Üç Notun Ortalaması (Kod Yazma) | Kod yazma | — |
 
 ## 4. Metinler (String)
 
@@ -85,6 +106,14 @@ Aritmetik (+ - * / // % **), işlem önceliği, karşılaştırma, mantıksal (a
 | split() ve strip() | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | in Operatörü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | f-string Biçimlendirme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| İndeks İddiası (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Dilimi Tamamla (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Metot Bul (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| find() ve count() | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Metinler Değiştirilemez | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Metin İşlemleri İddiası (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Kelimeyi Ters Çevir (Kod Yazma) | Kod yazma | — |
+| Sesli Harf Sayısı (Kod Yazma) | Kod yazma | — |
 
 ## 5. Koşullu İfadeler
 
@@ -99,6 +128,14 @@ if, elif, else blokları, girinti, iç içe koşullar ve mantıksal operatörler
 | Koşullarda Mantıksal Operatörler | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Tek / Çift Kontrolü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Girinti ve Blok Yapısı | Doğru / Yanlış | — |
+| İç İçe Koşullar | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| Koşul Sırası Hatası | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| Koşulu Tamamla (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Eşitlikte Hangisi? | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Koşullar (Doğru / Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Tek mi Çift mi? (Kod Yazma) | Kod yazma | — |
+| Not Harfi (Kod Yazma) | Kod yazma | — |
+| Hangi Kod Doğru Çalışır? | Çoktan seçmeli | Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli |
 
 ## 6. Döngüler
 
@@ -116,6 +153,14 @@ for döngüsü ve range(), while döngüsü, sayaç ve toplam değişkenleri, br
 | Metin Üzerinde Döngü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | for Döngüsü (Kod Yazma) | Kod yazma | — |
 | range() ile Döngü (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Kaç Tur? (Doğru / Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| range'i Tamamla (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| while Koşulunu Tamamla (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Koşullu Toplam | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| while True ve break | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Hangi Döngü Hiç Bitmez? | Çoktan seçmeli | Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli |
+| 1'den n'e Toplam (Kod Yazma) | Kod yazma | — |
+| Çarpım Tablosu (Kod Yazma) | Kod yazma | — |
 
 ## 7. Listeler
 
@@ -133,6 +178,14 @@ Liste oluşturma, indeksleme, dilimleme, append/insert/remove/pop, len/sum/max/m
 | sort() ve sorted() | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Listeler Değiştirilebilir | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Liste Üreteçleri | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| append ile extend (Doğru / Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Liste Metodunu Bul (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Liste Üreteci (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| index() ve count() | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| İç İçe Liste | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Listeyi Kopyalama | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| max() Kullanmadan En Büyük (Kod Yazma) | Kod yazma | — |
+| Listeyi Süzme (Kod Yazma) | Kod yazma | — |
 
 ## 8. Sözlük, Demet ve Küme
 
@@ -149,6 +202,14 @@ dict (anahtar-değer, get, keys/values/items, güncelleme), tuple (değiştirile
 | Demetler Değiştirilemez | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
 | Demet Açma | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Kümeler | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| in Sözlükte Neye Bakar? (Doğru / Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| keys / values / items (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Sözlükle Sayma | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Yinelenen Anahtar | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
+| Sözlük Boyutu | Kısa cevap | Kod çalıştırılıp çıktı karşılaştırılır |
+| Kümeler ve Tek Elemanlı Demet (Doğru / Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| En Yüksek Notlu Öğrenci (Kod Yazma) | Kod yazma | — |
+| Sözlükle Frekans (Kod Yazma) | Kod yazma | — |
 
 ## 9. Fonksiyonlar ve Modüller
 
@@ -168,6 +229,15 @@ def ile fonksiyon tanımlama, parametre ve return, varsayılan parametre, yerel/
 | Fonksiyon Kavramları | Doğru / Yanlış | — |
 | Fonksiyon Yazma (Kod Yazma) | Kod yazma | — |
 | def ve return (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| print mi return mü? (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Argümanlarla Çağrı (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| global Anahtar Sözcüğü (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| İsimli Argümanlar | Kısa cevap | — |
+| Fonksiyon İçinde Fonksiyon | Kısa cevap | — |
+| Hangi Fonksiyon Doğru? | Çoktan seçmeli | Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli |
+| True/False Döndüren Fonksiyon (Kod Yazma) | Kod yazma | — |
+| Liste Ortalaması Fonksiyonu (Kod Yazma) | Kod yazma | — |
+| Faktöriyel Fonksiyonu (Kod Yazma) | Kod yazma | — |
 
 ## 10. Hata Yönetimi
 
@@ -181,6 +251,14 @@ Sık karşılaşılan hata türleri (ZeroDivisionError, ValueError, TypeError, I
 | try / except | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | else ve finally | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Hata Yönetimi Kavramları | Doğru / Yanlış | — |
+| Hata Türü İddiası (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| Doğru except Türü (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Birden Fazla except | Kısa cevap | — |
+| Doğrulama Döngüsü | Kısa cevap | — |
+| Hatanın Yayılması | Çoktan seçmeli | Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır |
+| Hata Yönetimi Kavramları II | Doğru / Yanlış | — |
+| Güvenli Bölme Fonksiyonu (Kod Yazma) | Kod yazma | — |
+| Geçerli Girdiyi Yakala (Kod Yazma) | Kod yazma | — |
 
 ## 11. Nesne Yönelimli Programlama
 
@@ -195,3 +273,11 @@ class, __init__ ve self, nesne özellikleri ve metotları, sınıf değişkenler
 | Kalıtım ve Metot Ezme | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | __str__ Metodu | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Nesne Yönelimli Kavramlar | Doğru / Yanlış | — |
+| Sınıf mı Nesne mi? (Doğru/Yanlış) | Doğru / Yanlış | Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır |
+| self Boşlukları (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| super() ile Kalıtım (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
+| Banka Hesabı | Kısa cevap | — |
+| isinstance ve Kalıtım | Çoktan seçmeli | — |
+| Nesne Listesi | Kısa cevap | — |
+| Şekil Sınıfı (Kod Yazma) | Kod yazma | — |
+| Sayaç Sınıfı (Kod Yazma) | Kod yazma | — |
