@@ -7,12 +7,14 @@ import random
 
 from .registry import ordered_units
 
-TYPE_NAMES = {"mc": "Çoktan seçmeli", "tf": "Doğru / Yanlış", "short": "Kısa cevap", "code": "Kod yazma"}
+TYPE_NAMES = {"mc": "Çoktan seçmeli", "tf": "Doğru / Yanlış", "short": "Kısa cevap", "code": "Kod yazma",
+              "fill": "Boşluk doldurma"}
 VERIFY_NAMES = {
     "output": "Kod çalıştırılıp çıktı karşılaştırılır",
     "error": "Kod çalıştırılıp hata türü karşılaştırılır",
     "raises_one": "Her seçenek çalıştırılır",
     "identifier": "Python ad kurallarıyla denetlenir",
+    "fill": "Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır",
     None: "—",
 }
 

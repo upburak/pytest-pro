@@ -18,6 +18,9 @@ Kaynak: `pytest_pro/static/css/style.css`. Tüm değerler dosyanın başındaki 
 1. **Önce oku, hemen altında cevapla.** Kodlu soruda kod üstte, soru ve şıklar altta. Kodsuz soruda
    soru metni editörde büyük yazılır, cevap panelinde kısa bir yönerge ("Doğru cevabı seç.") kalır. Kod yazma
    sorusunda görev metni editörün üstünde, yazma alanı hemen altındadır.
+   Boşluk doldurma sorusunda her `____` yerinde kod satırına gömülü, yazdıkça genişleyen eş aralıklı bir kutu
+   vardır; Tab/Shift+Tab (ve Enter) boşluklar arasında gezer, cevap panelinde kısa yönerge kalır. Pratikte kontrolden
+   sonra her kutu doğruysa yeşil, yanlışsa kırmızı kenarlıkla kilitlenir.
 2. **Tek vurgu rengi yeşil.** Seçili şık, ilerleme, gönder düğmesi ve durum çubuğu yeşildir. Kırmızı yalnızca
    yanlış cevap ve son dakika uyarısı içindir; sarı yalnızca boş soru uyarısı ve kod izindeki çalışan satır içindir.
 3. **Dosya listesi = soru haritası.** `✓` cevaplandı, `●` şu anki soru, `○` boş. Gönderirken boş sorular

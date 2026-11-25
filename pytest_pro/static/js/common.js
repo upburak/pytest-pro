@@ -5,7 +5,24 @@ window.PyTest = (function () {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   const tfLabel = (v) => (v === 'True' ? 'Doğru (True)' : v === 'False' ? 'Yanlış (False)' : v);
-  const fmtAnswer = (type, v) => (type === 'tf' ? tfLabel(v) : v);
+  /**
+   * Boşluk doldurma cevabı -> boşluk değerleri listesi. Cevap anahtarı [["range"], ["1"]] (her boşluğun ilk
+   * kabul edilen cevabı alınır), öğrenci cevabı '["range","1"]' JSON metnidir. Okunamazsa null.
+   */
+  function fillValues(v) {
+    if (Array.isArray(v)) return v.map((a) => String((Array.isArray(a) ? a[0] : a) ?? ''));
+    try {
+      const a = JSON.parse(v);
+      if (Array.isArray(a)) return a.map((x) => String(x ?? ''));
+    } catch (e) { /* düz metin */ }
+    return null;
+  }
+  const fmtFill = (v) => {
+    const vals = fillValues(v);
+    if (!vals) return String(v ?? '');
+    return vals.map((x, i) => `${i + 1}) ${x.trim() === '' ? '(boş)' : x}`).join(' ');
+  };
+  const fmtAnswer = (type, v) => (type === 'tf' ? tfLabel(v) : type === 'fill' ? fmtFill(v) : v);
   const LEVEL_CLASS = { 'Başlangıç': 'b-ok', 'Orta': 'b-time', 'İleri': 'b-live' };
   const levelBadge = (level) => `<span class="badge ${LEVEL_CLASS[level] || ''}">${esc(level)}</span>`;
 
@@ -59,6 +76,56 @@ window.PyTest = (function () {
     el.innerHTML = `<code class="codeview">${highlight(code)}</code>`;
   }
 
+  // ---------- boşluk doldurma ----------
+  const BLANK = /____/g;
+  let fillHost = null; // renderQuestion'ın boşluklu kodu çizdiği yer; renderAnswer kutuları burada bağlar
+
+  /** Boşluklu kodu renklendirir; her ____ yerine satırın içine gömülü bir metin kutusu koyar. */
+  function renderFillCode(el, code) {
+    let n = 0;
+    const html = highlight(code).replace(BLANK, () => {
+      n += 1;
+      return `<input type="text" class="blank" data-blank="${n - 1}" aria-label="Boşluk ${n}" ` +
+        'autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100">';
+    });
+    el.innerHTML = `<code class="codeview">${html}</code>`;
+  }
+
+  /** Kutu yazılan metin kadar genişler (eş aralıklı yazıda 1ch = bir karakter). */
+  function fitBlank(inp) {
+    inp.style.width = Math.max(4, inp.value.length + 1) + 'ch';
+  }
+
+  /** Boşluk kutularını bağlar: kayıtlı değerler, Tab/Shift+Tab ve Enter ile gezinme, JSON metni olarak kayıt. */
+  function bindBlanks(host, saved, onChange, focus) {
+    const inputs = [...host.querySelectorAll('input.blank')];
+    const vals = fillValues(saved) || [];
+    // hepsi boşsa cevap yok sayılır (boş metin); yoksa JSON dizisi metni: '["range","1","6"]'
+    const emit = () => {
+      const v = inputs.map((x) => x.value);
+      onChange(v.some((x) => x.trim()) ? JSON.stringify(v) : '');
+    };
+    inputs.forEach((inp, i) => {
+      inp.value = vals[i] || '';
+      fitBlank(inp);
+      inp.addEventListener('input', () => { fitBlank(inp); emit(); });
+      inp.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key !== 'Tab' && e.key !== 'Enter') return;
+        const j = i + (e.shiftKey ? -1 : 1);
+        if (j >= 0 && j < inputs.length) {
+          e.preventDefault();
+          inputs[j].focus();
+          inputs[j].select();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+      });
+    });
+    if (focus && inputs.length) (inputs.find((x) => !x.value) || inputs[0]).focus();
+    return inputs;
+  }
+
   /** Satır numaralı kod yazma alanı (kod sorusu). */
   function codeEditor(saved, onChange, focus) {
     const wrap = document.createElement('div');
@@ -92,8 +159,9 @@ window.PyTest = (function () {
   }
 
   /**
-   * Soru tipine göre cevap alanını çizer (çoktan seçmeli, doğru/yanlış, kısa cevap, kod).
-   * Kod sorusunda yazma alanı codeBox'a (ortadaki editör) çizilir.
+   * Soru tipine göre cevap alanını çizer (çoktan seçmeli, doğru/yanlış, kısa cevap, kod, boşluk doldurma).
+   * Kod sorusunda yazma alanı codeBox'a (ortadaki editör) çizilir. Boşluk doldurmada kutular renderQuestion'ın
+   * çizdiği kodun içindedir; burada yalnızca bağlanır ve cevap panelinde kısa yönerge kalır.
    * onChange(değer) her değişiklikte çağrılır.
    */
   function renderAnswer(box, q, saved, onChange, focus, codeBox) {
@@ -146,6 +214,21 @@ window.PyTest = (function () {
       if (focus) inp.focus();
       return;
     }
+    if (q.type === 'fill') {
+      const note = document.createElement('p');
+      note.className = 'pane-note';
+      note.textContent = 'Koddaki boşlukları doldur. Tab ile sonraki boşluğa, Shift+Tab ile öncekine geçersin.';
+      box.appendChild(note);
+      let host = fillHost && fillHost.querySelector('input.blank') ? fillHost : null;
+      if (!host) { // renderQuestion çağrılmadıysa kod cevap alanında gösterilir
+        host = document.createElement('div');
+        host.className = 'editor-body';
+        renderFillCode(host, q.code || '');
+        box.appendChild(host);
+      }
+      bindBlanks(host, saved, onChange, focus);
+      return;
+    }
     if (q.type === 'code') {
       const note = document.createElement('p');
       note.className = 'pane-note';
@@ -162,6 +245,7 @@ window.PyTest = (function () {
    * - kodlu soru: ortada renklendirilmiş kod, sağda soru metni
    * - kodsuz soru: soru metni ortada büyük, sağda kısa yönerge
    * - kod yazma sorusu: görev metni ve altında yazma alanı ortada, cevap panelinde kısa yönerge
+   * - boşluk doldurma: ortada renklendirilmiş kod, her ____ yerinde satıra gömülü bir metin kutusu
    * Metin sunucunun şablonlardan ürettiği güvenli HTML'dir.
    */
   function renderQuestion(els, q, n) {
@@ -176,7 +260,11 @@ window.PyTest = (function () {
     // uzun görev metinleri başlık yazısıyla değil, okunaklı gövde yazısıyla gösterilir
     const plain = String(q.text).replace(/<[^>]*>/g, '');
     els.text.classList.toggle('long', plain.length > 90 && !!q.code);
-    if (q.code) {
+    fillHost = q.type === 'fill' ? els.code : null;
+    if (q.type === 'fill') {
+      renderFillCode(els.code, q.code || '');
+      els.text.innerHTML = q.text;
+    } else if (q.code) {
       renderCode(els.code, q.code);
       els.text.innerHTML = q.text;
     } else if (isCode) {

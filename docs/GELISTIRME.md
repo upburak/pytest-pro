@@ -26,6 +26,7 @@ pytest_pro/
     registry.py              Ünite ve şablon kaydı (register_unit, @UNIT.question)
     helpers.py               Şablonlarda ortak yardımcılar (output_question, tf_question, ...)
     codecheck.py             Kod yazma sorularının AST denetleyicileri
+    fill.py                  Boşluk doldurma: boşluk yerleştirme, cevap okuma, puanlama
     catalog.py               Müfredat haritası üretici (docs/MUFREDAT.md)
     tracer.py                Adım adım kod izleme motoru (yalnızca şablon kodu çalıştırır)
     units/uNN_*.py           Her ünite ayrı bir dosya
@@ -62,6 +63,8 @@ Kurallar:
   - `"error"`: kod çalıştırılır, hata vermeli ve hatanın adı cevapta geçmeli.
   - `"raises_one"`: seçenekler birer ifadedir, yalnızca doğru seçenek hata vermeli.
   - `"identifier"`: seçenekler değişken adıdır, yalnızca doğru seçenek geçerli olmalı.
+  - `"fill"`: boşluk doldurma; her kabul edilen cevap koda yerleştirilip çalıştırılır, çıktı `expect` ile
+    birebir aynı olmalı.
   - `None`: otomatik doğrulama yok (doğru/yanlış ve kod yazma soruları).
 - Mümkünse `verify` kullanın. Testler her şablonu 120 farklı tohumla üretip doğrular; yanlış
   cevap anahtarı olan bir şablon test aşamasında yakalanır.
@@ -69,6 +72,27 @@ Kurallar:
   otomatik tamamlar, yine de anlamlı çeldiriciler (öğrencilerin sık yaptığı hatalar) yazın.
 - Kod `input()` kullanıyorsa klavye girdisini `stdin=` ile verin.
 - Soru metni ve açıklama HTML'dir; içine değer gömerken `e()` ile kaçışlayın.
+
+### Boşluk doldurma soruları
+
+`fill_question(kod, cevaplar, beklenen_çıktı, metin, çözüm, hint=...)` ile yazılır ve `verify="fill"` alır:
+
+```python
+@q("range() ile Döngü (Boşluk Doldurma)", verify="fill")
+def fill_range_loop():
+    ...
+    return fill_question("for i in ____(____, ____):\n    print(i)", [["range"], ["1"], ["6"]], "1\n2\n3\n4\n5",
+                         "Aşağıdaki kod ekrana ... yazdırmalı. Boşlukları doldurun.", "Açıklama", hint="...")
+```
+
+- Koddaki her `____` (dört alt çizgi) bir boşluktur; cevap listesi her boşluk için **kabul edilen
+  cevapların listesidir** (birden fazla doğru varsa hepsini yazın: `["12", "13", "14"]`).
+- `expect`, doldurulmuş kodun ekran çıktısıdır; öğrenciye gönderilmez. Testler her kabul edilen cevabı koda
+  yerleştirip çalıştırır ve çıktıyı `expect` ile karşılaştırır; boşluklu kodun tek başına çalışmadığını da denetler.
+- Öğrencinin cevabı JSON dizisi metni olarak saklanır (`'["range","1","6"]'`). Puanlamada her boşluk ayrı
+  karşılaştırılır: tırnak dışındaki boşluk farkları ve `'`/`"` farkı önemsenmez; tüm boşluklar doğruysa
+  soru doğrudur ve not alanı "3 boşluktan 2'si doğru." biçimindedir. Öğrenci kodu hiçbir zaman çalıştırılmaz.
+- Soru metninde beklenen sonucu açıkça yazın ki boşlukların tek bir anlamı olsun.
 
 ### İpucu ve yanlış şık açıklamaları
 
@@ -112,6 +136,7 @@ return output_question(
 Kod izi, `trace` alanından otomatik çıkarılır; şablon yazarı bir şey yapmaz:
 - `verify="output"` veya `"error"` olan sorularda sorunun kendi kodu izlenir.
 - Kod yazma sorularında örnek çözüm izlenir.
+- Boşluk doldurma sorularında cevap anahtarı yerleştirilmiş kod izlenir.
 
 `tests/test_tracer.py`, izin son çıktısının cevap anahtarıyla aynı olduğunu her şablon için doğrular.
 İzlenen kodda yalnızca `math` modülü içe aktarılabilir; `open`, `eval` gibi işlemler kapalıdır.
@@ -190,7 +215,7 @@ ekleyin. Öğretmen panelinde göstermek için `templates/teacher.html` ve `stat
 - **Ünite 12 – Dosya İşlemleri:** `open`, `with`, okuma/yazma (çıktı soruları geçici dosyayla doğrulanabilir).
 - **Ünite 13 – Modüller ve Kütüphaneler:** `random`, `datetime`, kendi modülünü yazma.
 - **Algoritmalar:** arama, sıralama, sayaç/biriktirici kalıpları; iz sürme (trace table) soruları.
-- **Yeni soru tipi – kod tamamlama:** boşluk doldurma (`for i in ____(5):`).
+- **Boşluk doldurma:** altyapı ve ilk şablonlar hazır (Ünite 1, 6, 9); diğer ünitelere şablon eklenebilir.
 - **Yeni denetleyiciler:** listedeki çift sayıları yazdırma, sözlükte sayma, sınıf tanımlama.
 - **Zorluk seviyesi:** şablonlara zorluk etiketi ve sınavda zorluk dağılımı seçimi.
 - **Öğrenci geçmişi:** aynı öğrencinin sınavlar boyunca konu bazında gelişimi.
