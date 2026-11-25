@@ -1,7 +1,8 @@
 """Ünite 1 - Temel Giriş/Çıkış ve Değişkenler."""
 import random
 
-from ..helpers import PEOPLE, STR_VALUES, Wrong, e, output_question, shown, tf_question, unique_options, whys_for_options
+from ..helpers import (PEOPLE, STR_VALUES, Wrong, e, fill_question, output_question, shown, tf_question, unique_options,
+                       whys_for_options)
 from ..registry import register_unit
 
 UNIT = register_unit(
@@ -201,3 +202,25 @@ def write_mult():
         "solution": "Değişkenlere değer atanır, çarpım <code>*</code> operatörüyle yapılıp <code>print()</code> "
                     "ile yazdırılır.",
     }
+
+
+@q("Print Parametreleri (Boşluk Doldurma)", verify="fill")
+def fill_print_params():
+    w1, w2, w3 = random.sample(STR_VALUES, 3)
+    sep = random.choice(["-", "*", "#", "/", "+", "_"])
+    end = random.choice(["!", "...", "?", ":", ";", "="])
+    params = [("sep", sep), ("end", end)]
+    random.shuffle(params)
+    args = ", ".join(f'____="{value}"' for _, value in params)
+    expect = f"{w1}{sep}{w2}{end}{w3}"
+    return fill_question(
+        f'print("{w1}", "{w2}", {args})\nprint("{w3}")',
+        [[name] for name, _ in params],
+        expect,
+        f"Aşağıdaki kod ekrana tek satırda <code>{e(expect)}</code> yazdırmalı. "
+        "Boşluklara gereken parametre adlarını yazın.",
+        f'<code>sep="{e(sep)}"</code> değerlerin <strong>arasına</strong> "{e(sep)}" koyar; '
+        f'<code>end="{e(end)}"</code> ise satırın <strong>sonuna</strong> yeni satır yerine "{e(end)}" ekler. '
+        "Bu yüzden ikinci print aynı satırdan devam eder.",
+        hint="Değerlerin arasına konan ayırıcıyı hangi parametre belirler? Satırın sonuna eklenen metni hangisi?",
+    )

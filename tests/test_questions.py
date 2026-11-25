@@ -8,12 +8,14 @@ yazmaya gerek yoktur.
 import builtins
 import contextlib
 import io
+import json
 import keyword
 import random
 
 import pytest
 
 from pytest_pro import questions as qs
+from pytest_pro.questions.fill import BLANK, blank_count, fill_in
 from pytest_pro.questions.registry import UNITS, all_generators
 
 SEEDS = range(120)
@@ -60,7 +62,7 @@ def test_every_unit_has_auto_verified_questions():
 @pytest.mark.parametrize("gen", GENERATORS, ids=lambda g: g.name)
 def test_structure(gen):
     for q in samples(gen):
-        assert q["type"] in ("mc", "tf", "short", "code")
+        assert q["type"] in ("mc", "tf", "short", "code", "fill")
         assert q["topic"] and q["text"] and q["solution"] and q["answer"]
         assert q["unit"] == gen.unit and q["gen"] == gen.name
         if q["type"] == "mc":
@@ -73,6 +75,11 @@ def test_structure(gen):
             assert "\n" not in q["answer"]
         if q["type"] == "code":
             assert q["check"]["kind"] in qs.codecheck.CHECKS
+        if q["type"] == "fill":
+            assert gen.verify == "fill", "boşluk doldurma şablonu doldurulmuş kodla doğrulanmalı"
+            assert blank_count(q["code"]) == len(q["answer"]) >= 1
+            for alts in q["answer"]:
+                assert alts and all(isinstance(a, str) and a.strip() and "\n" not in a for a in alts), alts
 
 
 # ---------------------------------------------------------------- cevap anahtarı
@@ -92,6 +99,21 @@ def test_error_answers_match_real_error(gen):
         with pytest.raises(Exception) as info:
             run(q["code"], q.get("stdin", ""))
         assert type(info.value).__name__ in q["answer"], q["code"]
+
+
+@pytest.mark.parametrize("gen", _by("fill"), ids=lambda g: g.name)
+def test_filled_code_gives_expected_output(gen):
+    """Her boşluğun her kabul edilen cevabı (diğerleri ilk cevapla) yerleştirilince kod beklenen çıktıyı vermeli."""
+    for q in samples(gen):
+        first = [alts[0] for alts in q["answer"]]
+        assert run(fill_in(q["code"], first)).rstrip("\n") == q["expect"], q["code"]
+        for i, alts in enumerate(q["answer"]):
+            for alt in alts[1:]:
+                values = first[:i] + [alt] + first[i + 1:]
+                assert run(fill_in(q["code"], values)).rstrip("\n") == q["expect"], (q["code"], values)
+        assert qs.grade(q, json.dumps(first))[0]
+        with pytest.raises(Exception):  # boşluklu kod tek başına çalışmamalı (gerçekten eksik)
+            run(q["code"].replace(BLANK, "__bos__"))
 
 
 @pytest.mark.parametrize("gen", _by("raises_one"), ids=lambda g: g.name)

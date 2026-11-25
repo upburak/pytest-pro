@@ -75,7 +75,8 @@ def test_tracer_does_not_touch_real_stdout(capsys):
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.parametrize("gen", [g for g in all_generators() if g.verify in ("output", "error")], ids=lambda g: g.name)
+@pytest.mark.parametrize("gen", [g for g in all_generators() if g.verify in ("output", "error", "fill")],
+                         ids=lambda g: g.name)
 def test_trace_agrees_with_answer_key(gen):
     for seed in range(30):
         random.seed(seed)
@@ -84,6 +85,8 @@ def test_trace_agrees_with_answer_key(gen):
         if gen.verify == "output":
             echo = "".join(line + "\n" for line in q["trace"]["stdin"].splitlines())  # input() girdisi ekranda görünür
             assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == echo + q["answer"]
+        elif gen.verify == "fill":  # cevap anahtarı yerleştirilmiş kod izlenir
+            assert t["error"] is None and t["steps"][-1]["output"].rstrip("\n") == q["expect"]
         else:
             assert t["error"]["type"] in q["answer"]
 

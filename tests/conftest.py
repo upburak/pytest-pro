@@ -43,6 +43,9 @@ def correct_answers(secrets_of):
     def build(exam_id):
         out = {}
         for q in secrets_of(exam_id):
-            out[str(q["id"])] = q["answer"]
+            if q["type"] == "fill":  # boşluk cevapları JSON dizisi metni olarak saklanır
+                out[str(q["id"])] = json.dumps([alts[0] for alts in q["answer"]], ensure_ascii=False)
+            else:
+                out[str(q["id"])] = q["answer"]
         return out
     return build

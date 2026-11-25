@@ -92,6 +92,8 @@ def check():
         why = note
     else:
         why = qs.why_for(q, answer)
-    return jsonify({"correct": bool(ok), "note": note, "answer": q["answer"], "solution": q["solution"],
-                    "type": q["type"], "why": why, "gen": q.get("gen"),
-                    "has_trace": bool(qs.trace_source(q))})
+    out = {"correct": bool(ok), "note": note, "answer": q["answer"], "solution": q["solution"],
+           "type": q["type"], "why": why, "gen": q.get("gen"), "has_trace": bool(qs.trace_source(q))}
+    if q["type"] == "fill":
+        out["blanks"] = qs.fill_marks(q, answer)  # her boşluk doğru mu (ön yüz kutuları işaretler)
+    return jsonify(out)

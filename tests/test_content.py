@@ -50,6 +50,7 @@ def test_public_question_hides_new_fields():
 
 
 # ---------------------------------------------------------------- içerik kapsamı
+import json  # noqa: E402
 import random  # noqa: E402
 
 import pytest  # noqa: E402
@@ -65,6 +66,10 @@ def test_content_complete(gen):
         random.seed(seed)
         q = gen()
         assert q.get("hint"), "ipucu yok"
+        if q["type"] == "fill":
+            for alts in q["answer"]:
+                assert all(a not in q["hint"] for a in alts if len(a) > 3), "ipucu cevabı içeriyor"
+            continue
         if len(q["answer"]) > 3:
             assert q["answer"] not in q["hint"], "ipucu cevabı içeriyor"
         assert q["answer"] not in q.get("whys", {})
@@ -88,7 +93,7 @@ def test_template_variety(gen):
     for seed in range(500):
         random.seed(seed)
         q = gen()
-        seen.add((q["text"], q.get("code"), q["answer"], tuple(sorted(q.get("options") or []))))
+        seen.add((q["text"], q.get("code"), json.dumps(q["answer"]), tuple(sorted(q.get("options") or []))))
     assert len(seen) >= VARIETY_MIN, f"yalnızca {len(seen)} farklı soru"
 
 

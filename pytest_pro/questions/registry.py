@@ -9,12 +9,16 @@ verify değerleri (testlerin cevap anahtarını nasıl doğrulayacağı):
     "error"      kod çalıştırılır; hata vermeli ve hatanın adı cevapta geçmeli
     "raises_one" seçenekler birer ifadedir; yalnızca doğru seçenek hata vermeli
     "identifier" seçenekler değişken adıdır; yalnızca doğru seçenek geçerli ad olmalı
+    "fill"       boşluk doldurma: her kabul edilen cevap koda yerleştirilip çalıştırılır;
+                 çıktı sorunun "expect" alanıyla birebir aynı olmalı
     None         otomatik doğrulama yok (doğru/yanlış soruları, kod yazma vb.)
 """
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
-VERIFY_KINDS = ("output", "error", "raises_one", "identifier", None)
+from .fill import fill_in
+
+VERIFY_KINDS = ("output", "error", "raises_one", "identifier", "fill", None)
 LEVELS = ("Başlangıç", "Orta", "İleri")
 
 
@@ -38,9 +42,12 @@ class Generator:
         return q
 
     def _trace(self, q):
-        """Adım adım izlenecek kod: çıktı/hata sorularında sorunun kodu, kod yazmada örnek çözüm."""
+        """Adım adım izlenecek kod: çıktı/hata sorularında sorunun kodu, kod yazmada örnek çözüm,
+        boşluk doldurmada cevap anahtarı yerleştirilmiş kod."""
         if q["type"] == "code":
             return {"code": q["answer"], "stdin": ""}
+        if q["type"] == "fill":
+            return {"code": fill_in(q["code"], [alts[0] for alts in q["answer"]]), "stdin": q.get("stdin", "")}
         if self.verify in ("output", "error") and q.get("code"):
             return {"code": q["code"], "stdin": q.get("stdin", "")}
         return None

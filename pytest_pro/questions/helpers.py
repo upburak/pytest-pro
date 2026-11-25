@@ -3,6 +3,8 @@ import html
 import random
 from typing import NamedTuple
 
+from .fill import blank_count
+
 STR_VALUES = ["Python", "Kodlama", "Gelisim", "Yazilim", "Bilgisayar", "Algoritma"]
 PEOPLE = ["Ali", "Ayşe", "Can", "Deniz", "Ece", "Elif", "Mert", "Zeynep"]
 FRUITS = ["elma", "armut", "kiraz", "muz", "nar", "erik", "incir"]
@@ -128,6 +130,18 @@ def tf_question(statements_true, statements_false, solution, code=None, hint=Non
         "solution": solution,
         "whys": {("False" if is_true else "True"): why} if why else {},
     }
+    if hint is not None:
+        q["hint"] = hint
+    return q
+
+
+def fill_question(code, answer, expect, text, solution, hint=None):
+    """Boşluk doldurma sorusu. code içindeki her ____ bir boşluktur; answer her boşluk için kabul edilen
+    cevapların listesidir ([["range"], ["1"], ["6"]]); expect doldurulmuş kodun ekran çıktısıdır
+    (verify="fill" ile testlerde kod çalıştırılarak doğrulanır, öğrenciye gönderilmez)."""
+    if blank_count(code) != len(answer):
+        raise ValueError(f"Boşluk sayısı ({blank_count(code)}) cevap sayısıyla ({len(answer)}) uyuşmuyor")
+    q = {"type": "fill", "text": text, "code": code, "answer": answer, "expect": expect, "solution": solution}
     if hint is not None:
         q["hint"] = hint
     return q

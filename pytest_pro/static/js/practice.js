@@ -184,6 +184,14 @@
         if (inp.checked && !d.correct) l.classList.remove('sel');
       });
     }
+    if (d.type === 'fill') { // boşluk kutuları kilitlenir; her biri doğruysa yeşil, yanlışsa kırmızı
+      $('q-code').querySelectorAll('input.blank').forEach((inp, i) => {
+        const ok = !!(d.blanks && d.blanks[i]);
+        inp.readOnly = true;
+        inp.classList.add(ok ? 'right' : 'wrong');
+        inp.setAttribute('aria-label', `Boşluk ${i + 1}: ${ok ? 'doğru' : 'yanlış'}`);
+      });
+    }
     const fb = $('feedback');
     fb.className = 'sol ' + (d.correct ? 'ok' : 'no');
     if (d.correct) {

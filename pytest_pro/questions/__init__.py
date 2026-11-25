@@ -8,6 +8,7 @@ import random
 
 from .units import MODULES as UNIT_MODULES  # ünite dosyalarını yükler (kayıt yan etkisi)
 from .codecheck import MAX_CODE_LEN, check_code
+from .fill import fill_in, grade_fill, marks as _fill_marks
 from .registry import UNITS, all_generators, ordered_units
 
 PUBLIC_KEYS = ("id", "type", "topic", "text", "code", "options")
@@ -104,21 +105,34 @@ def trace_source(question):
         return question["trace"]
     if question.get("type") in ("mc", "short") and question.get("code"):
         return {"code": question["code"], "stdin": question.get("stdin", "")}
+    if question.get("type") == "fill" and question.get("code") and question.get("answer"):
+        # cevap anahtarı yerleştirilmiş kod
+        return {"code": fill_in(question["code"], [alts[0] for alts in question["answer"]]),
+                "stdin": question.get("stdin", "")}
     return None
 
 
+def fill_marks(question, user_ans):
+    """Boşluk doldurma sorusunda her boşluğun doğru olup olmadığı; başka tiplerde None."""
+    if question.get("type") != "fill":
+        return None
+    return _fill_marks(question, "" if user_ans is None else str(user_ans))
+
+
 def grade(question, user_ans):
-    """(doğru_mu, not) döndürür. Not yalnızca kod sorularında doludur."""
+    """(doğru_mu, not) döndürür. Not yalnızca kod ve boşluk doldurma sorularında doludur."""
     raw = "" if user_ans is None else str(user_ans)
     qtype = question["type"]
     if not raw.strip():
-        return False, ("Boş bırakıldı." if qtype == "code" else None)
+        return False, ("Boş bırakıldı." if qtype in ("code", "fill") else None)
     if qtype == "code":
         return check_code(raw.strip(), question["check"])
+    if qtype == "fill":
+        return grade_fill(question, raw)
     if qtype == "short":
         return _norm_short(raw) == _norm_short(question["answer"]), None
     return raw == question["answer"], None
 
 
-__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "CONTENT_UNITS", "why_for", "trace_source", "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog",
+__all__ = ["UNITS", "UNIT_MODULES", "DEFAULT_UNITS", "CONTENT_UNITS", "fill_marks", "why_for", "trace_source", "MAX_CODE_LEN", "PUBLIC_KEYS", "all_generators", "catalog",
            "generate_one", "generate_questions", "grade", "public_question", "unit_title", "valid_unit_ids"]

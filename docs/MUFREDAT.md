@@ -3,19 +3,19 @@
 Bu dosya koddan otomatik üretilir; elle düzenlemeyin:
 `python -m pytest_pro.questions.catalog > docs/MUFREDAT.md`
 
-Toplam **11 ünite**, **75 soru şablonu**. Her şablon her çağrıldığında farklı değerlerle yeni bir soru üretir.
+Toplam **11 ünite**, **78 soru şablonu**. Her şablon her çağrıldığında farklı değerlerle yeni bir soru üretir.
 
 | # | Ünite | Seviye | Şablon |
 |---|---|---|---|
-| 1 | Temel Giriş/Çıkış ve Değişkenler | Başlangıç | 8 |
+| 1 | Temel Giriş/Çıkış ve Değişkenler | Başlangıç | 9 |
 | 2 | Veri Tipleri ve Dönüşümler | Başlangıç | 8 |
 | 3 | Operatörler | Başlangıç | 6 |
 | 4 | Metinler (String) | Başlangıç | 8 |
 | 5 | Koşullu İfadeler | Başlangıç | 5 |
-| 6 | Döngüler | Orta | 7 |
+| 6 | Döngüler | Orta | 8 |
 | 7 | Listeler | Orta | 8 |
 | 8 | Sözlük, Demet ve Küme | Orta | 7 |
-| 9 | Fonksiyonlar ve Modüller | Orta | 9 |
+| 9 | Fonksiyonlar ve Modüller | Orta | 10 |
 | 10 | Hata Yönetimi | Orta | 4 |
 | 11 | Nesne Yönelimli Programlama | İleri | 5 |
 
@@ -35,6 +35,7 @@ print() ve parametreleri, input(), değişken tanımlama ve adlandırma, f-strin
 | Değişken Atama | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Çoklu Atama | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Değişken & Aritmetik (Kod Yazma) | Kod yazma | — |
+| Print Parametreleri (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
 
 ## 2. Veri Tipleri ve Dönüşümler
 
@@ -114,6 +115,7 @@ for döngüsü ve range(), while döngüsü, sayaç ve toplam değişkenleri, br
 | İç İçe Döngüler | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Metin Üzerinde Döngü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | for Döngüsü (Kod Yazma) | Kod yazma | — |
+| range() ile Döngü (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
 
 ## 7. Listeler
 
@@ -165,6 +167,7 @@ def ile fonksiyon tanımlama, parametre ve return, varsayılan parametre, yerel/
 | math Modülü | Çoktan seçmeli | Kod çalıştırılıp çıktı karşılaştırılır |
 | Fonksiyon Kavramları | Doğru / Yanlış | — |
 | Fonksiyon Yazma (Kod Yazma) | Kod yazma | — |
+| def ve return (Boşluk Doldurma) | Boşluk doldurma | Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır |
 
 ## 10. Hata Yönetimi
 

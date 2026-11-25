@@ -255,6 +255,16 @@ button.tab { cursor: pointer; }
   counter-increment: ln; content: counter(ln); display: inline-block; width: 64px; padding-right: 22px;
   text-align: right; color: var(--gutter); user-select: none;
 }
+/* boşluk doldurma: kod satırına gömülü kutu; genişliği yazılan metne göre (JS, ch cinsinden) büyür */
+.codeview input.blank {
+  display: inline-block; box-sizing: content-box; width: 4ch; min-width: 4ch; max-width: 32ch;
+  margin: 0 1px; padding: 0 .4ch; vertical-align: baseline;
+  font: inherit; line-height: 1.45; color: var(--ink); font-variant-ligatures: none;
+  background: #FFF; border: 1px dashed var(--green); border-radius: var(--r-sm);
+}
+.codeview input.blank:focus-visible { border-style: solid; }
+.codeview input.blank.right { border: 1px solid var(--green); background: var(--green-wash); }
+.codeview input.blank.wrong { border: 1px solid var(--bad); background: var(--bad-wash); }
 .tk-kw { color: var(--tk-kw); } .tk-st { color: var(--tk-st); } .tk-nu { color: var(--tk-nu); }
 .tk-fn { color: var(--tk-fn); } .tk-cm { color: var(--tk-cm); font-style: italic; }
 

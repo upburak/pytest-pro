@@ -2,7 +2,7 @@
 import math
 import random
 
-from ..helpers import PEOPLE, Wrong, err, output_question, tf_question
+from ..helpers import PEOPLE, Wrong, err, fill_question, output_question, tf_question
 from ..registry import register_unit
 
 UNIT = register_unit(
@@ -221,3 +221,27 @@ def write_square_func():
         "solution": f"<code>def {name}({param}):</code> ile fonksiyon tanımlanır; <code>return {param} * {param}</code> "
                     f"(veya <code>{param} ** 2</code>) sonucu çağırana geri verir.",
     }
+
+
+FILL_FUNCS = [("kare", "x * x"), ("kup", "x * x * x"), ("iki_kati", "2 * x"), ("bir_fazlasi", "x + 1"),
+              ("yarisi", "x // 2"), ("on_kati", "x * 10")]
+
+
+@q("def ve return (Boşluk Doldurma)", verify="fill")
+def fill_def_return():
+    name, expr = random.choice(FILL_FUNCS)
+    arg = random.randint(2, 9)
+    result = eval(expr, {"x": arg})  # noqa: S307 - yalnızca bizim ürettiğimiz sabit ifade
+    call = random.choice([f"print({name}({arg}))", f"sonuc = {name}({arg})\nprint(sonuc)"])
+    return fill_question(
+        f"____ {name}(x):\n    ____ {expr}\n\n{call}",
+        [["def"], ["return"]],
+        str(result),
+        f"Aşağıdaki kod <code>{name}</code> adında bir fonksiyon tanımlayıp ekrana <code>{result}</code> "
+        "yazdırmalı. Boşluklara gereken anahtar kelimeleri yazın.",
+        "Fonksiyon <code>def</code> anahtar kelimesiyle tanımlanır. <code>return</code>, hesaplanan değeri "
+        f"fonksiyonun çağrıldığı yere geri gönderir; böylece <code>{name}({arg})</code> çağrısı {result} olur "
+        "ve print bunu yazar.",
+        hint="Fonksiyon tanımlayan satır hangi anahtar kelimeyle başlar? Bulunan değeri çağrıldığı yere geri "
+             "göndermek için hangisi kullanılır?",
+    )

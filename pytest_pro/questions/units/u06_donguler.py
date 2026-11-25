@@ -1,7 +1,7 @@
 """Ünite 6 - Döngüler."""
 import random
 
-from ..helpers import Wrong, output_question
+from ..helpers import Wrong, fill_question, output_question
 from ..registry import register_unit
 
 UNIT = register_unit(
@@ -167,3 +167,29 @@ def write_range_print():
         "solution": f"<code>range(1, {n + 1})</code> 1'den {n}'e kadar sayıları üretir; bitiş değeri dahil "
                     "olmadığı için bir fazlası yazılır.",
     }
+
+
+@q("range() ile Döngü (Boşluk Doldurma)", verify="fill")
+def fill_range_loop():
+    var = random.choice(["i", "sayi", "x", "n"])
+    step = random.choice([1, 1, 2, 3])
+    start = random.randint(0, 6)
+    nums = [start + k * step for k in range(random.randint(3, 6))]
+    last = nums[-1]
+    stops = [str(last + d) for d in range(1, step + 1)]  # son sayıdan büyük, bir sonrakinden küçük her bitiş olur
+    step_part = f", {step}" if step > 1 else ""
+    if step == 1:
+        stop_note = f"bitiş dahil olmadığı için son sayının bir fazlası, yani {stops[0]} yazılır."
+    else:
+        stop_note = (f"bitiş dahil olmadığı için {last} sayısından büyük, {last + step} sayısından küçük ya da ona "
+                     f"eşit bir bitiş gerekir ({' veya '.join(stops)}).")
+    return fill_question(
+        f"for {var} in ____(____, ____{step_part}):\n    print({var})",
+        [["range"], [str(start)], stops],
+        "\n".join(map(str, nums)),
+        f"Aşağıdaki kod ekrana <code>{', '.join(map(str, nums))}</code> sayılarını alt alta (her satıra bir sayı) "
+        "yazdırmalı. Boşlukları doldurun.",
+        f"<code>range(başlangıç, bitiş{', adım' if step > 1 else ''})</code> başlangıcı dahil eder, bitişi dahil "
+        f"etmez. İlk sayı {start} olduğu için başlangıç {start}; {stop_note}",
+        hint="Döngünün sayacağı sayıları üreten hazır fonksiyonu düşün. Bitiş değeri üretilen sayılara dahil mi?",
+    )
