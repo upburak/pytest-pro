@@ -1209,7 +1209,7 @@ def _ladder_options():
              for x in sorted({0, 100, *limits, *(lim - 1 for lim in limits), (limits[0] + 100) // 2})]
     rule = (f"{limits[0]} ve üstüne {labels[0]}, {limits[1]} ile {limits[0] - 1} arasına {labels[1]}, {limits[2]} ile "
             f"{limits[1] - 1} arasına {labels[2]}, daha düşük puanlara {labels[3]}")
-    return (f"Hangi kod {e(rule)} yazar?", chain(pairs), pool[:3], cases,
+    return (f"Hangi kod <code>puan</code> değişkenine göre {e(rule)} yazar?", chain(pairs), pool[:3], cases,
             "Zincir en yüksek eşikten başlar, &gt;= ile sınır puanı kapsar ve elif ile tek bir sonuç yazar.",
             "Her seçeneği sınır puanlarla (ör. tam eşik ve bir eksiği) ve 100 ile dene.")
 
