@@ -1002,4 +1002,4 @@ Uygulama sırası önerisi: (1) K1-K5 ve Y1 düzeltmeleri (puanlama adaleti). (2
 - [ ] `verify` türü uygun; yeni tür gerekiyorsa testi de yazıldı.
 - [ ] KC/BD'de kabul listesi eşdeğerleri kapsıyor ve çalıştırılarak doğrulanıyor.
 - [ ] KY'de 6 kabul ve 6 ret testi var; sabit cevap yakalanıyor.
-- [ ] `python -m pytest_pro.questions.catalog > docs/MUFREDAT.md` ile müfredat belgesi yenilendi.
+- [ ] `python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md` ile müfredat belgesi yenilendi.
