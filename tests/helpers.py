@@ -11,36 +11,71 @@ import contextlib
 import io
 import json
 import random
+import sys
 from collections import Counter
 
 from pytest_pro import questions as qs
-from pytest_pro.questions.helpers import FILLER_WHY_NUMBER, FILLER_WHY_OTHER, err
+from pytest_pro.questions.helpers import FILLER_WHY_NUMBER, FILLER_WHY_OTHER, LOOP_OUTCOME, err, option_program
 from pytest_pro.questions.registry import UNITS, all_generators
 
 OK = "Kod tüm kriterleri sağlıyor."
 
 
 # ---------------------------------------------------------------- öğretmen kodunu çalıştırma
-def run(code, stdin=""):
-    """Şablon kodunu çalıştırıp ekran çıktısını döndürür (input() için stdin satırları kullanılır)."""
+MAX_STEPS = 200_000
+
+
+class TooManySteps(BaseException):
+    """Kod adım sınırını aştı (sonsuz döngü). BaseException: şablon kodundaki except'ler yakalamasın."""
+
+
+def run(code, stdin="", max_steps=None):
+    """Şablon kodunu çalıştırıp ekran çıktısını döndürür (input() için stdin satırları kullanılır).
+    max_steps verilirse o kadar satır çalıştırıldıktan sonra TooManySteps fırlatılır."""
     out = io.StringIO()
     lines = iter(stdin.splitlines())
     original = builtins.input
     builtins.input = lambda prompt="": next(lines)
+    steps = 0
+
+    def tracer(frame, event, arg):
+        nonlocal steps
+        if event == "line" and frame.f_code.co_filename == "<soru>":
+            steps += 1
+            if steps > max_steps:
+                raise TooManySteps
+        return tracer
+
+    old_trace = sys.gettrace()
     try:
         with contextlib.redirect_stdout(out):
-            exec(code, {"__name__": "__soru__"})  # noqa: S102 - yalnızca bizim ürettiğimiz kod
+            compiled = compile(code, "<soru>", "exec")
+            if max_steps:
+                sys.settrace(tracer)
+            exec(compiled, {"__name__": "__soru__"})  # noqa: S102 - yalnızca bizim ürettiğimiz kod
     finally:
+        if max_steps:
+            sys.settrace(old_trace)
         builtins.input = original
     return out.getvalue()
 
 
 def outcome(code, stdin=""):
-    """Kodun sonucu: hata vermezse sondaki satır sonu atılmış çıktı, verirse 'Hata verir (TürAdı)'."""
+    """Kodun sonucu: hata vermezse sondaki satır sonu atılmış çıktı, verirse 'Hata verir (TürAdı)',
+    adım sınırını aşarsa LOOP_OUTCOME."""
     try:
-        return run(code, stdin).rstrip("\n")
+        return run(code, stdin, max_steps=MAX_STEPS).rstrip("\n")
+    except TooManySteps:
+        return LOOP_OUTCOME
     except Exception as exc:  # noqa: BLE001 - hata türünün adı cevaptır
         return err(type(exc).__name__)
+
+
+def passing_options(question):
+    """code_one sorusunda her durumda beklenen sonucu veren seçenekler (doğru soru: yalnızca cevap)."""
+    return [opt for opt in question["options"]
+            if all(outcome(option_program(question, opt, case), case["stdin"]) == case["expect"]
+                   for case in question["cases"])]
 
 
 # ---------------------------------------------------------------- şablon seçme ve üretme

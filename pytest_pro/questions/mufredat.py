@@ -17,6 +17,7 @@ VERIFY_NAMES = {
     "error": "Kod çalıştırılıp hata türü karşılaştırılır",
     "outcome": "Kod çalıştırılıp çıktı ya da hata türü karşılaştırılır",
     "tf_output": "Kod çalıştırılıp iddia gerçek sonuçla karşılaştırılır",
+    "code_one": "Her seçenek çalıştırılır; yalnızca doğrusu beklenen sonucu vermeli",
     "raises_one": "Her seçenek çalıştırılır",
     "identifier": "Python ad kurallarıyla denetlenir",
     "fill": "Doldurulmuş kod çalıştırılıp çıktı karşılaştırılır",

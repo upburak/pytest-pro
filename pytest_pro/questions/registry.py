@@ -7,6 +7,9 @@ Her ünite kendi dosyasında `register_unit(...)` ile tanımlanır ve şablonlar
 verify değerleri (testlerin cevap anahtarını nasıl doğrulayacağı):
     "output"     kod çalıştırılır; ekran çıktısı cevapla birebir aynı olmalı
     "error"      kod çalıştırılır; hata vermeli ve hatanın adı cevapta geçmeli
+    "code_one"   seçenekler birer koddur (helpers.code_options_question): her seçenek sorunun "harness"
+                 kalıbına konup her "cases" durumunda çalıştırılır; yalnızca doğru seçenek her durumda
+                 beklenen sonucu ("expect": çıktı, "Hata verir (Tür)" ya da LOOP_OUTCOME) vermeli
     "raises_one" seçenekler birer ifadedir; yalnızca doğru seçenek hata vermeli
     "identifier" seçenekler değişken adıdır; yalnızca doğru seçenek geçerli ad olmalı
     "outcome"    kod çalıştırılır; hata vermezse çıktı, verirse "Hata verir (TürAdı)" cevapla aynı olmalı
@@ -23,8 +26,14 @@ from typing import Callable, Dict, List, Optional
 
 from .fill import fill_in
 
-VERIFY_KINDS = ("output", "error", "outcome", "tf_output", "raises_one", "identifier", "fill", None)
+VERIFY_KINDS = ("output", "error", "outcome", "tf_output", "code_one", "raises_one", "identifier", "fill", None)
 LEVELS = ("Başlangıç", "Orta", "İleri")
+# Ortak kalite testleri (tests/test_quality.py); şablon @q(..., exempt={ad: gerekçe}) ile istisna alabilir
+QUALITY_CHECKS = {
+    "filler": "anlamsız dolgu şık içeren soru oranı en fazla %5",
+    "top_answer": "en sık doğru cevap en fazla %40",
+    "error_giveaway": "hep yanlış olan 'Hata verir' şıkkı soruların en fazla %60'ında",
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +42,7 @@ class Generator:
     unit: str
     topic: str
     verify: Optional[str]
+    exempt: Dict[str, str] = field(default_factory=dict, compare=False, hash=False)
 
     @property
     def name(self):
@@ -67,12 +77,20 @@ class Unit:
     order: int
     generators: List[Generator] = field(default_factory=list)
 
-    def question(self, topic, verify=None):
+    def question(self, topic, verify=None, exempt=None):
+        """Şablon kaydı. exempt: ortak kalite testlerinden (tests/test_quality.py) gerekçeli istisna,
+        ör. {"top_answer": "Ölçülen şey anahtar sözcük; cevap doğası gereği sabit."}."""
         if verify not in VERIFY_KINDS:
             raise ValueError(f"Bilinmeyen verify türü: {verify}")
+        exempt = dict(exempt or {})
+        for check, reason in exempt.items():
+            if check not in QUALITY_CHECKS:
+                raise ValueError(f"Bilinmeyen kalite denetimi: {check} (geçerli: {', '.join(QUALITY_CHECKS)})")
+            if not str(reason).strip():
+                raise ValueError("Kalite istisnasının gerekçesi yazılmalı")
 
         def decorator(func):
-            self.generators.append(Generator(func, self.id, topic, verify))
+            self.generators.append(Generator(func, self.id, topic, verify, exempt))
             return func
         return decorator
 

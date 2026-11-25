@@ -9,7 +9,7 @@ import json
 import keyword
 
 import pytest
-from helpers import outcome, run, samples
+from helpers import outcome, passing_options, run, samples
 
 from pytest_pro import questions as qs
 from pytest_pro.questions.fill import BLANK, blank_count, fill_in
@@ -125,6 +125,13 @@ def test_filled_code_gives_expected_output(gen):
         assert qs.grade(q, json.dumps(first))[0]
         with pytest.raises(Exception):  # boşluklu kod tek başına çalışmamalı (gerçekten eksik)
             run(q["code"].replace(BLANK, "__bos__"), stdin)
+
+
+@pytest.mark.parametrize("gen", _by("code_one"), ids=lambda g: g.name)
+def test_only_answer_option_gives_expected_results(gen):
+    """Seçenekleri kod olan ÇS: yalnızca doğru seçenek her durumda (case) beklenen sonucu vermeli."""
+    for q in samples(gen, 40):
+        assert passing_options(q) == [q["answer"]], (q["options"], q["cases"])
 
 
 @pytest.mark.parametrize("gen", _by("raises_one"), ids=lambda g: g.name)

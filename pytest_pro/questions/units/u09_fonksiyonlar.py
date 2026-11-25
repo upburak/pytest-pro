@@ -270,7 +270,9 @@ FILL_FUNCS = [("kare", "x * x"), ("kup", "x * x * x"), ("iki_kati", "2 * x"), ("
               ("yarisi", "x // 2"), ("on_kati", "x * 10")]
 
 
-@q("def ve return (Boşluk Doldurma)", verify="fill")
+@q("def ve return (Boşluk Doldurma)", verify="fill",
+   exempt={"top_answer": "Ölçülen şey def ve return anahtar sözcüklerinin yeri; cevap doğası gereği sabit, "
+                         "çeşitlilik fonksiyon gövdesi ve çağrıdan gelir."})
 def fill_def_return():
     name, expr = random.choice(FILL_FUNCS)
     arg = random.randint(2, 9)

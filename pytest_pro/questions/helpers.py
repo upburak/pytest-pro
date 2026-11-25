@@ -188,6 +188,50 @@ def fill_question(code, answer, expect, text, solution, hint=None, wrongs=None, 
     return q
 
 
+# ---------------------------------------------------------------- seçenekleri kod olan ÇS
+LOOP_OUTCOME = "Sonsuz döngü (adım sınırı aşıldı)"
+
+
+def code_options_question(text, correct, wrongs, cases, solution, hint=None, harness="{option}", code=None):
+    """Seçenekleri kod (ya da ifade) olan çoktan seçmeli soru (verify="code_one").
+
+    correct: doğru seçenek; wrongs: Wrong(kod, neden) listesi (yanılgıyı adlandıran açıklamalarla).
+    cases:   [{"setup": "x = 5", "stdin": "", "expect": "Evet"}, ...]. Testlerde her seçenek
+             setup + harness kalıbıyla her durumda çalıştırılır; YALNIZCA doğru seçenek her durumda
+             expect sonucunu vermelidir. expect: sondaki satır sonu atılmış çıktı, err("TypeError")
+             ya da sonsuz döngü için LOOP_OUTCOME.
+    harness: seçeneğin yerleştirileceği kod kalıbı; "{option}" yerine seçenek konur.
+             İfade seçenekleri için "print({option})", fonksiyon seçenekleri için
+             "{option}\\nprint(mutlak(-5), mutlak(0), mutlak(7))" gibi.
+    code:    köke ek olarak öğrenciye gösterilecek ortak kod (isteğe bağlı).
+    Öğrenciye yalnızca text, code ve options gider; cases ve harness gizlidir."""
+    if not cases or any("expect" not in case for case in cases):
+        raise ValueError("Her durumun (case) beklenen sonucu (expect) yazılmalı")
+    if "{option}" not in harness:
+        raise ValueError("harness içinde {option} geçmeli")
+    options = unique_options(correct, wrongs)
+    q = {
+        "type": "mc",
+        "text": text,
+        "code": code,
+        "options": options,
+        "answer": correct,
+        "whys": whys_for_options(correct, wrongs, options),
+        "solution": solution,
+        "cases": [{"setup": c.get("setup", ""), "stdin": c.get("stdin", ""), "expect": c["expect"]} for c in cases],
+        "harness": harness,
+    }
+    if hint is not None:
+        q["hint"] = hint
+    return q
+
+
+def option_program(question, option, case):
+    """code_one sorusunda bir seçeneğin bir durumda çalıştırılacak tam kodu (testler kullanır)."""
+    body = question["harness"].replace("{option}", option)
+    return (case["setup"] + "\n" + body) if case["setup"] else body
+
+
 # ---------------------------------------------------------------- hesaplanan doğru/yanlış
 ERROR_PREFIX = "Hata verir ("
 

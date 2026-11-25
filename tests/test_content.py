@@ -70,7 +70,7 @@ def test_content_complete(gen):
             for alts in q["answer"]:
                 assert all(a not in q["hint"] for a in alts if len(a) > 3), "ipucu cevabı içeriyor"
             continue
-        if len(q["answer"]) > 3:
+        if len(q["answer"]) > 3 and q["type"] != "tf":  # D/Y'de "True" sözcüğü cevabı ele vermez
             assert q["answer"] not in q["hint"], "ipucu cevabı içeriyor"
         assert q["answer"] not in q.get("whys", {})
         if q["type"] == "mc":

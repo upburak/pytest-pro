@@ -4,10 +4,10 @@ import json
 import random
 
 import pytest
-from helpers import outcome, run
+from helpers import outcome, passing_options, run
 
 from pytest_pro import questions as qs
-from pytest_pro.questions.helpers import Wrong, err, fill_question, output_question, tf_claim
+from pytest_pro.questions.helpers import LOOP_OUTCOME, Wrong, err, fill_question, output_question, tf_claim
 from pytest_pro.questions.registry import VERIFY_KINDS, register_unit
 
 
@@ -186,3 +186,54 @@ def test_curriculum_module_does_not_shadow_catalog_function():
     assert callable(qs.catalog) and isinstance(qs.catalog(), list)
     assert mod.render().startswith("# Müfredat Haritası")
     assert "python -m pytest_pro.questions.mufredat" in mod.render()
+    assert set(mod.VERIFY_NAMES) == set(VERIFY_KINDS), "her doğrulama türünün müfredatta bir adı olmalı"
+
+
+# ---------------------------------------------------------------- seçenekleri kod olan ÇS
+def test_code_options_question_fields():
+    from pytest_pro.questions.helpers import code_options_question
+    q = code_options_question(
+        "Hangisi <code>x</code> 3'e tam bölünüyorsa True verir?", "x % 3 == 0",
+        [Wrong("x / 3 == 0", "Yalnızca x 0 iken True olur."), Wrong("x // 3 == 0", "0, 1, 2 için True olur."),
+         Wrong("x % 3 == 1", "Kalan 1 ise bölünmez.")],
+        cases=[{"setup": f"x = {v}", "expect": str(v % 3 == 0)} for v in range(-6, 7)],
+        solution="Tam bölünen sayının kalanı 0'dır.", hint="Kalan kaç olmalı?", harness="print({option})")
+    assert q["type"] == "mc" and q["answer"] == "x % 3 == 0" and len(q["options"]) == 4
+    assert q["harness"] == "print({option})" and len(q["cases"]) == 13
+    assert q["whys"]["x / 3 == 0"] == "Yalnızca x 0 iken True olur."
+    assert not {"cases", "harness"} & set(qs.public_question(q))
+    assert passing_options(q) == ["x % 3 == 0"]
+    broken = dict(q, cases=[{"setup": "x = 0", "stdin": "", "expect": "True"}])  # x = 0 için hepsi True
+    assert len(passing_options(broken)) > 1  # test bunu yakalar: tek durum ayırt etmeye yetmiyor
+    loops = code_options_question(
+        "Hangisi sonsuz döngüdür?", "i = 0\nwhile i < 3:\n    print(i)",
+        [Wrong("i = 0\nwhile i < 3:\n    i += 1", "i her turda artar; döngü biter.")],
+        cases=[{"expect": LOOP_OUTCOME}], solution="s")
+    assert passing_options(loops) == [loops["answer"]]
+    with pytest.raises(ValueError):
+        code_options_question("t", "a", [Wrong("b", "n")], cases=[{"setup": ""}], solution="s")
+
+
+def test_outcome_stops_infinite_loops():
+    from pytest_pro.questions.helpers import LOOP_OUTCOME
+    assert outcome("while True:\n    pass") == LOOP_OUTCOME
+    assert outcome("i = 0\nwhile i < 5:\n    i += 1\nprint(i)") == "5"
+
+
+# ---------------------------------------------------------------- kalite istisnası şablonda
+def test_quality_exemption_is_declared_on_the_template():
+    from pytest_pro.questions.registry import QUALITY_CHECKS, UNITS
+    unit = register_unit("_deneme_istisna", "Deneme", "Başlangıç", "deneme", order=901)
+    try:
+        @unit.question("Deneme", verify="output", exempt={"top_answer": "Anahtar sözcük sorusu; cevap sabit."})
+        def deneme():
+            return output_question("print(1)", "1", "s", wrongs=[Wrong("2", "n")], hint="h")
+
+        assert unit.generators[0].exempt == {"top_answer": "Anahtar sözcük sorusu; cevap sabit."}
+        assert set(QUALITY_CHECKS) == {"filler", "top_answer", "error_giveaway"}
+        with pytest.raises(ValueError):
+            unit.question("Deneme", exempt={"yok": "x"})
+        with pytest.raises(ValueError):
+            unit.question("Deneme", exempt={"filler": "  "})
+    finally:
+        del UNITS["_deneme_istisna"]
