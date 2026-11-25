@@ -52,6 +52,27 @@ def test_tf_claim_text_forms():
         tf_claim("print(1)", "1", [Wrong("1", "aynı")], "s")
 
 
+def _true_side(*args, **kw):
+    for seed in range(50):
+        random.seed(seed)
+        q = tf_claim(*args, **kw)
+        if q["answer"] == "True":
+            return q
+    raise AssertionError("doğru iddia üretilemedi")
+
+
+def test_tf_claim_default_true_why_is_proper_turkish():
+    """Varsayılan "neden" cümlesi hata iddiasında da düzgün Türkçe olmalı."""
+    error = _true_side("print(1 / 0)", err("ZeroDivisionError"), [Wrong("0", "n")], "s")
+    why = error["whys"]["False"]
+    assert why == "İddia doğru: bu kodda gerçekten <code>ZeroDivisionError</code> hatası oluşur."
+    assert "kod gerçekten" not in why
+    out = _true_side("print(5)", "5", [Wrong("6", "n")], "s")
+    assert out["whys"]["False"] == "İddia doğru: bu kod çalıştırıldığında gerçekten ekrana <code>5</code> yazılır."
+    multi = _true_side("print(1)\nprint(2)", "1\n2", [Wrong("1 2", "n")], "s")
+    assert multi["whys"]["False"].startswith("İddia doğru: bu kod çalıştırıldığında gerçekten ekrana alt alta")
+
+
 def test_tf_claim_registered_as_tf_output_and_traced():
     assert "tf_output" in VERIFY_KINDS and "outcome" in VERIFY_KINDS
     unit = register_unit("_deneme_tf", "Deneme", "Başlangıç", "deneme", order=900)

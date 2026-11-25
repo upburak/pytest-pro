@@ -266,7 +266,12 @@ def tf_claim(code, output, wrong_claims, solution, hint=None, stdin=None, text=N
     else:
         statement = text.format(claim=f"<code>{e(claim)}</code>")
     if is_true:
-        why = true_why or f"İddia doğru: kod gerçekten {claim_html(output)}."
+        if true_why:
+            why = true_why
+        elif output.startswith(ERROR_PREFIX):
+            why = f"İddia doğru: bu kodda gerçekten {claim_html(output)}."
+        else:
+            why = f"İddia doğru: bu kod çalıştırıldığında gerçekten {claim_html(output)}."
         whys = {"False": why}
     else:
         whys = {"True": chosen.why}
