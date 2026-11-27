@@ -81,8 +81,8 @@ Pratik modu     : http://192.168.1.25:5000/pratik
   - **Bu konudan yeni soru:** Yanlıştan sonra aynı kavram farklı değerlerle hemen tekrar sorulur.
   - **Konu tamamlama:** Bir şablonda ipucusuz iki doğru konuyu tamamlar; içindekiler sayfası ilerlemeyi gösterir.
 - **Sınav sonucu:** Öğretmen çözümleri açtıysa her yanlışta "neden yanlış" notu ve kodun adım adım izi görünür.
-- **Soru tipleri:** çoktan seçmeli, doğru/yanlış, boşluk doldurma, kısa cevap ve kod yazma (açık uçlu)
-  (değişken/aritmetik, `for` döngüsü, fonksiyon tanımlama).
+- **Soru tipleri:** çoktan seçmeli, doğru/yanlış, boşluk doldurma, kısa cevap ve kod yazma (açık uçlu;
+  her ünitede en az iki kod yazma sorusu).
 
 ## Ayarlar (isteğe bağlı ortam değişkenleri)
 
