@@ -34,10 +34,12 @@ def test_slice_blank_accepts_equivalent_slices():
 
 
 def test_method_blank_single_method():
-    methods = ["upper", "lower", "title", "capitalize", "strip", "lstrip", "rstrip", "swapcase"]
+    """Kabul edilen cevaplar tam olarak aynı çıktıyı veren metotlardır (casefold = lower gibi eşdeğerler dahil)."""
+    methods = ["upper", "lower", "title", "capitalize", "strip", "lstrip", "rstrip", "swapcase", "casefold"]
     for q in samples(gen_by_name("metinler.method_blank"), 80):
-        hits = [m for m in methods if outcome(fill_in(q["code"], [m])) == q["expect"]]
-        assert hits == q["answer"][0], (q["code"], hits)
+        hits = {m for m in methods if outcome(fill_in(q["code"], [m])) == q["expect"]}
+        assert hits == set(q["answer"][0]), (q["code"], hits)
+        assert q["answer"][0][0] in ("upper", "lower", "title", "capitalize", "strip")
 
 
 def test_find_index_accepts_unicode_minus():
@@ -137,3 +139,71 @@ def test_vowel_model_answers_count_correctly():
         word = q["check"]["word"]
         assert str(sum(ch in "aeıioöuü" for ch in word)) in q["text"]
         assert json.dumps(q["check"], ensure_ascii=False)
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_index_claim_whys_read_naturally_at_edges():
+    """[0] ve [-1] için açıklama "0 adım sonradır" ya da "[-1] ... [-1] sondan 1." gibi bozuk cümle kurmamalı."""
+    for q in samples(gen_by_name("metinler.index_claim"), 400):
+        for why in q["whys"].values():
+            assert "0 adım" not in why
+            assert "[-1] son karakterdir, [-1]" not in why
+
+
+def test_method_blank_accepts_casefold_for_lower():
+    """casefold() bu metinlerde lower() ile aynı sonucu verir; doğru cevap reddedilmemeli."""
+    seen = 0
+    for q in samples(gen_by_name("metinler.method_blank"), 300):
+        if q["answer"] == [["lower"]] or "lower" in q["answer"][0]:
+            seen += 1
+            assert "casefold" in q["answer"][0]
+    assert seen
+
+
+
+@pytest.mark.parametrize("src", [
+    'kelime = "kalem"\nters = ""\ni = len(kelime) - 1\nwhile i >= 0:\n    ters = ters + kelime[i]\n    i -= 1\nprint(ters)',
+    'kelime = "kalem"\nliste = list(kelime)\nliste.reverse()\nprint("".join(liste))',
+    'kelime = "kalem"\nters = ""\nfor i in range(1, len(kelime) + 1):\n    ters += kelime[-i]\nprint(ters)',
+])
+def test_reverse_accepts_other_correct_loops(src):
+    """Doğru çıktıyı her kelimede veren while / indeksli döngü / reverse + join çözümleri haksız reddedilmemeli."""
+    assert accepts(REV, src)
+
+
+@pytest.mark.parametrize("src, reason", [
+    ('kelime = "kalem"\nters = ""\nfor i in range(len(kelime) - 1, 0, -1):\n    ters += kelime[i]\nprint(ters)',
+     "tersi değil"),
+    ('kelime = "kalem"\nters = ""\ni = len(kelime) - 1\nwhile i > 0:\n    ters += kelime[i]\n    i -= 1\nprint(ters)',
+     "tersi değil"),
+    ('kelime = "kalem"\nters = ""\ni = 0\nwhile i < len(kelime):\n    ters += kelime[i]\n    i += 1\nprint(ters)',
+     "tersi değil"),
+])
+def test_reverse_still_rejects_wrong_loops(src, reason):
+    assert rejects(REV, src, reason)
+
+
+@pytest.mark.parametrize("src", [
+    'metin = "bilgisayar"\nsayac = 0\nfor i in range(len(metin)):\n    if metin[i] in "aeıioöuü":\n        sayac += 1\n'
+    'print(sayac)',
+    'metin = "bilgisayar"\ntoplam = 0\nfor s in "aeıioöuü":\n    toplam += metin.count(s)\nprint(toplam)',
+    'metin = "bilgisayar"\nprint(len([h for h in metin if h in "aeıioöuü"]))',
+    'metin = "bilgisayar"\nsayac = 0\ni = 0\nwhile i < len(metin):\n    if metin[i] in "aeıioöuü":\n        sayac += 1\n'
+    '    i += 1\nprint(sayac)',
+])
+def test_vowels_accepts_index_loop_and_count_loop(src):
+    assert accepts(VOW, src)
+
+
+@pytest.mark.parametrize("src, reason", [
+    # her sesli harf bir kez sayılıyor (farklı sesli harf sayısı): "bilgisayar" için 2, doğrusu 4
+    ('metin = "bilgisayar"\nsayac = 0\nfor h in "aeıioöuü":\n    if h in metin:\n        sayac += 1\nprint(sayac)',
+     "sesli harf sayısı değil"),
+    ('metin = "bilgisayar"\nsayac = 0\nfor i in range(len(metin)):\n    if metin[i] in "aeiou":\n        sayac += 1\n'
+     'print(sayac)', "sesli harf sayısı değil"),
+    ('metin = "bilgisayar"\nsayac = 0\nfor i in range(1, len(metin)):\n    if metin[i] in "aeıioöuü":\n        sayac += 1\n'
+     'print(sayac)', "sesli harf sayısı değil"),
+])
+def test_vowels_still_rejects_wrong_variants(src, reason):
+    assert rejects(VOW, src, reason)

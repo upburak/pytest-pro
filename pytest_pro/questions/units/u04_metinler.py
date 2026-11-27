@@ -7,6 +7,7 @@ from ..codecheck import (
     OK,
     UNREADABLE,
     Tracker,
+    Unknown,
     assigned_names,
     assignments,
     checker,
@@ -362,19 +363,22 @@ def index_claim():
     word = random.choice(CLAIM_WORDS)
     while True:
         i = random.randint(-3, min(4, len(word) - 2))
-        if i >= 0:
-            wrongs = [Wrong(word[i + 1], f"Bir sonraki karakteri aldın; [{i}] ilk karakterden {i} adım sonradır.")]
-            if i > 0:
-                wrongs.append(Wrong(word[i - 1], f"Saymaya 1'den başlamış olabilirsin; indeksler 0'dan başlar, [{i}] "
-                                                 f"{i + 1}. karakterdir."))
+        if i == 0:
+            wrongs = [Wrong(word[1], "Bir sonraki karakteri aldın; [0] ilk karakterin kendisidir, [1] ikinci "
+                                     "karakterdir.")]
+        elif i > 0:
+            wrongs = [Wrong(word[i + 1], f"Bir sonraki karakteri aldın; [{i}] ilk karakterden {i} adım sonradır."),
+                      Wrong(word[i - 1], f"Saymaya 1'den başlamış olabilirsin; indeksler 0'dan başlar, [{i}] "
+                                         f"{i + 1}. karakterdir.")]
+        elif i == -1:
+            wrongs = [Wrong(word[-2], "Sondan bir fazla saydın; [-1] son karakterin kendisidir, sondan ikinci "
+                                      "karakter [-2] indeksindedir."),
+                      Wrong(word[0], "[-1] ilk karakter değil, son karakterdir.")]
         else:
             wrongs = [Wrong(word[i - 1], f"Sondan bir fazla saydın; [-1] son karakterdir, [{i}] sondan {-i}. "
+                                         "karakterdir."),
+                      Wrong(word[i + 1], f"Sondan bir eksik saydın; [-1] son karakterdir, [{i}] sondan {-i}. "
                                          "karakterdir.")]
-            if i == -1:
-                wrongs.append(Wrong(word[0], "[-1] ilk karakter değil, son karakterdir."))
-            else:
-                wrongs.append(Wrong(word[i + 1], f"Sondan bir eksik saydın; [-1] son karakterdir, [{i}] sondan {-i}. "
-                                                 "karakterdir."))
         wrongs = [w for w in wrongs if w.value != word[i]]
         if wrongs:
             break
@@ -456,8 +460,10 @@ def method_blank():
     if "i" in text and method in ("upper", "title", "capitalize") and "I" in target:
         note = (" Dikkat: Python küçük <code>i</code> harfini Türkçedeki gibi <code>İ</code> değil, <code>I</code> "
                 "yapar.")
+    # Bu metinde aynı sonucu veren başka parametresiz metotlar da doğrudur (ör. casefold() = lower()).
+    same = [m for m in ("casefold", "swapcase", "lstrip", "rstrip") if getattr(text, m)() == target]
     return fill_question(
-        code, [[method]], expect,
+        code, [[method, *same]], expect,
         f"Aşağıdaki kod ekrana <code>{e(expect)}</code> yazmalı. Boşluğa gereken metot adını yazın."
         + (" (Köşeli parantezler boşlukları görünür kılmak için eklendi.)" if padded else ""),
         f"<code>{method}()</code> {CASE_DESC[method]}. Metotlar orijinal metni değiştirmez, yeni bir metin "
@@ -678,6 +684,23 @@ def _is_name(node, name):
 
 
 REV_PROBES = ("kalem", "Python", "ab")
+VOWEL_PROBES = ("aeıioöuü", "bcd", "kitap", "üzüm", "saat")
+
+
+def _behaves(tree, var, probes, expect):
+    """Kod, var değişkenine her deneme metni konunca ekrana tam olarak expect(metin) yazıyor mu?
+    Öğrenci kodu çalıştırılmaz: u05'teki sınırlı izleyici (Sim) ile AST üzerinde izlenir. İzleyicinin
+    desteklemediği bir yapı varsa False döner (bu yol yalnızca ek kabul içindir)."""
+    from .u05_kosullar import sim_run  # u05 bu modülden sonra yüklenir; döngüsel içe aktarmayı önler
+
+    for probe in probes:
+        try:
+            sim, note = sim_run(tree, {var: probe})
+        except Unknown:
+            return False
+        if note or sim.lines() != [str(expect(probe))]:
+            return False
+    return True
 
 
 def _slices_to(node, var, text):
@@ -780,7 +803,7 @@ def check_reverse_text(tree, p):
                 if isinstance(node, ast.Name) and node.id in built:
                     if built[node.id] == target:
                         return True, OK
-                    notes.append("forward")
+                    notes.append("forward" if built[node.id] == word else "other")
                     continue
                 expr = tr.inline(node)
                 if _is_rev_slice(expr, var) or _is_join_reversed(expr, var):
@@ -795,6 +818,9 @@ def check_reverse_text(tree, p):
                     notes.append("specific")
                 else:
                     notes.append("other")
+    # Kalıplara uymayan ama her kelimede doğru sonucu veren çözümler (while, indeksli döngü, reverse + join)
+    if "const" not in notes and _behaves(tree, var, (word, *REV_PROBES), lambda s: s[::-1]):
+        return True, OK
     if "forward" in notes:
         return False, "Döngü harfleri aynı sırayla ekliyor; ters çevirmek için her harfi yeni metnin başına ekle."
     if "const" in notes:
@@ -957,6 +983,10 @@ def check_count_vowels(tree, p):
                     notes.append("const")
                 else:
                     notes.append("other")
+    # Kalıplara uymayan ama her metinde doğru sayıyı veren çözümler (indeksli döngü, while, count döngüsü...)
+    if "const" not in notes and _behaves(tree, var, (word, *VOWEL_PROBES),
+                                         lambda s: sum(ch in VOWELS for ch in s)):
+        return True, OK
     if "const" in notes:
         return False, "Sonucu elle yazma; kod her metin için çalışmalı. Harfleri döngüyle say."
     if "other" in notes:

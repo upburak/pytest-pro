@@ -685,6 +685,11 @@ class Sim:
                     raise Unknown("anahtar sözcüklü argüman")
                 if name in ("lower", "upper", "strip", "count", "startswith", "endswith", "replace"):
                     return _sized(getattr(obj, name)(*args))
+                if name == "join":
+                    items = self.iterate(args[0]) if len(args) == 1 else _arity()
+                    if not all(isinstance(x, str) for x in items):
+                        raise Crash("TypeError")
+                    return _sized(obj.join(items))
         except _ERRORS as exc:
             raise Crash(type(exc).__name__) from None
         raise Unknown(f".{name}() izlenemiyor")
