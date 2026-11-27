@@ -182,7 +182,7 @@ def recursion():
             f"Fonksiyon kendini {p} - 1 ile çağırır ve {p} <= 1 olunca durur: {n}! = "
             + " × ".join(str(i) for i in range(n, 0, -1)) + f" = {math.factorial(n)}.",
             wrongs=[
-                Wrong(str(math.factorial(n - 1)), f"{func}({n}), {n}'den 1'e kadar tüm sayıların çarpımıdır; {n} de "
+                Wrong(str(math.factorial(n - 1)), f"{func}({n}), {n} ile 1 arasındaki tüm sayıların çarpımıdır; {n} de "
                                                   "dahil."),
                 Wrong(str(n * (n + 1) // 2), "Bu toplama; fonksiyon sayıları çarpıyor."),
                 Wrong(str(math.factorial(n + 1)), f"Çağrı {n} ile başlar ve küçülerek 1'e iner; {n + 1} hiç çarpılmaz."),
@@ -195,7 +195,7 @@ def recursion():
         str(n * (n + 1) // 2),
         f"{func}({n}) = {n} + {func}({n - 1}) = ... = {n * (n + 1) // 2}. {p} == 0 durma koşuludur.",
         wrongs=[
-            Wrong(str(n * (n - 1) // 2), f"{func}({n}) {n}'i de toplar; {n} + {n - 1} + ... + 1."),
+            Wrong(str(n * (n - 1) // 2), f"{func}({n}) {n} sayısını da toplar; {n} + {n - 1} + ... + 1."),
             Wrong(str(math.factorial(n)), "Bu çarpım; fonksiyon sayıları topluyor."),
             Wrong(str(n), "Fonksiyon kendini çağırarak 0'a kadar tüm sayıları ekler."),
         ],

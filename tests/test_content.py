@@ -1,4 +1,5 @@
 """Soru içeriği: ipucu, yanlış şık açıklamaları ve izlenecek kod."""
+import re
 from pytest_pro import questions as qs
 from pytest_pro.questions.helpers import FILLER_WHY_NUMBER, Wrong, output_question
 
@@ -104,3 +105,65 @@ def test_tf_statement_reasons_become_whys():
         q = tf_question([("D", "neden-d")], [("Y", "neden-y")], "s")
         wrong = "False" if q["answer"] == "True" else "True"
         assert q["whys"] == {wrong: "neden-d" if q["text"] == "D" else "neden-y"}
+
+
+
+# ---------------------------------------------------------------- sayıdan sonra gelen ekler (uzman denetimi)
+_UNITS_WORD = {0: "sıfır", 1: "bir", 2: "iki", 3: "üç", 4: "dört", 5: "beş", 6: "altı", 7: "yedi", 8: "sekiz",
+               9: "dokuz"}
+_TENS_WORD = {10: "on", 20: "yirmi", 30: "otuz", 40: "kırk", 50: "elli", 60: "altmış", 70: "yetmiş", 80: "seksen",
+              90: "doksan"}
+_VOWELS = "aeıioöuü"
+
+
+def _number_word(n):
+    """Sayının okunuşundaki son sözcük (ekin uyumu buna göre belirlenir): 6 -> altı, 40 -> kırk, 300 -> yüz."""
+    n = abs(n)
+    if n == 0:
+        return "sıfır"
+    if n % 1000 == 0:
+        return "bin"
+    if n % 100 == 0:
+        return "yüz"
+    if n % 10 == 0:
+        return _TENS_WORD[n % 100]
+    return _UNITS_WORD[n % 10]
+
+
+def _suffixes(word):
+    """Sözcüğe gelebilecek doğru ekler (yönelme, bulunma, ayrılma, belirtme, ilgi, vasıta, ek-fiil, üleştirme)."""
+    last = [ch for ch in word if ch in _VOWELS][-1]
+    two = "e" if last in "eiöü" else "a"
+    four = {"a": "ı", "ı": "ı", "e": "i", "i": "i", "o": "u", "u": "u", "ö": "ü", "ü": "ü"}[last]
+    vowel_end = word[-1] in _VOWELS
+    d = "t" if word[-1] in "fstkçşhp" else "d"
+    return {("y" if vowel_end else "") + two, d + two, d + two + "n", ("y" if vowel_end else "") + four,
+            ("n" if vowel_end else "") + four + "n", ("y" if vowel_end else "") + "l" + two, d + four + "r",
+            ("ş" if vowel_end else "") + two + "r"}
+
+
+def test_number_suffix_helper():
+    assert {"e", "te", "ten", "ü", "ün"} <= _suffixes(_number_word(4)) and "den" not in _suffixes(_number_word(4))
+    assert {"şer", "ye", "yi", "nin"} <= _suffixes(_number_word(2)) and "er" not in _suffixes(_number_word(2))
+    assert {"ya", "da", "dan", "yı", "nın"} <= _suffixes(_number_word(6))
+    assert {"e", "te", "ten", "ü", "ün"} <= _suffixes(_number_word(3))
+    assert {"a", "ta", "tan", "ı", "ın"} <= _suffixes(_number_word(40))
+    assert "dan" in _suffixes(_number_word(0)) and "den" in _suffixes(_number_word(1))
+
+
+_NUM_SUFFIX = re.compile(r"(?<![\w.])(-?\d+)'([a-zçğıöşü]+)")
+
+
+@pytest.mark.parametrize("gen", [g for u in UNITS.values() for g in u.generators], ids=lambda g: g.name)
+def test_number_suffixes_follow_vowel_harmony(gen):
+    """Sayıdan sonra gelen ek, sayının okunuşuna uymalı: "6'ya", "4'e", "40'tan" (ör. "{n}'e" 6 için yanlıştır).
+    Kılavuz değişken sayılarda eksiz yazımı önerir ("1 ile n arasında")."""
+    for seed in range(60):
+        random.seed(seed)
+        q = gen()
+        texts = [q.get("text") or "", q.get("solution") or "", q.get("hint") or ""]
+        texts += [str(v) for v in (q.get("whys") or {}).values()]
+        texts += [str(v) for bw in q.get("blank_whys") or [] for v in bw.values()]
+        for text in texts:
+            for m in _NUM_SUFFIX.finditer(text):
+                assert m.group(2) in _suffixes(_number_word(int(m.group(1)))), f"ek uyumsuz: {m.group(0)!r} ({text[:80]})"

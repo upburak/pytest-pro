@@ -46,7 +46,7 @@ def class_basics():
         "print(o.ad, o.yas)",
         f"{name} {age + k}",
         "<code>__init__</code> nesne oluşturulurken çalışır ve özellikleri <code>self</code> üzerinden atar. "
-        f"<code>buyu({k})</code> metodu nesnenin yas özelliğini {age}'den {age + k}'e günceller.",
+        f"<code>buyu({k})</code> metodu nesnenin yas özelliğini {age} değerinden {age + k} değerine günceller.",
         wrongs=[
             Wrong(f"{name} {age}", "buyu() metodu self.yas'ı kalıcı olarak artırır; değişiklik nesnede kalır."),
             Wrong(f"ad {age + k}", "o.ad özelliğin değerini yazar, özelliğin adını değil."),
@@ -91,7 +91,7 @@ def inheritance():
     wrongs = [
         Wrong(f"{intro}...", f"{animal}, ses() metodunu ezer; self.ses() nesnenin kendi sınıfındaki metodu çağırır."),
         Wrong(sound, "tanit() sesi bir giriş metniyle birleştirerek döndürür."),
-        Wrong("...", f"tanit() giriş metnini de ekler; ses() ezildiği için \"...\" yerine {animal}'in sesi gelir."),
+        Wrong("...", f"tanit() giriş metnini de ekler; ses() ezildiği için \"...\" yerine {animal} sınıfının sesi gelir."),
     ]
     if random.random() < 0.5:  # hata şıkkı her soruda görünmesin (O8)
         wrongs.append(Wrong(err("AttributeError"), f"tanit() üst sınıftan miras alınır; {animal} nesnesinde de bulunur."))
@@ -102,7 +102,7 @@ def inheritance():
         f"class {animal}(Hayvan):\n    def ses(self):\n        return \"{sound}\"\n\nprint({animal}().tanit())",
         f"{intro}{sound}",
         f"{animal} sınıfı Hayvan'dan <strong>kalıtım</strong> alır; tanit() metodunu miras alır ama ses() metodunu "
-        f"<strong>ezer</strong> (override). tanit() içindeki self.ses() çağrısı {animal}'in metodunu çalıştırır.",
+        f"<strong>ezer</strong> (override). tanit() içindeki self.ses() çağrısı {animal} sınıfının metodunu çalıştırır.",
         wrongs=wrongs,
         hint=f"{animal} nesnesinde tanit() nereden geliyor? İçindeki self.ses() hangi sınıfın metodunu çağırır?",
     )

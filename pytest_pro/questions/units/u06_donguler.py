@@ -30,7 +30,7 @@ def range_list():
     else:
         if (b - start) % step == 0:  # bitiş adımlarla tam yakalanıyor: onu eklemek bitişi dahil etmektir (Y5)
             wrongs.append(Wrong(str(near + [b]), f"Bitiş değerini ({b}) de dahil ettin; range bitiş değerini üretmez."))
-        wrongs.append(Wrong(str(list(range(start, b))), f"Üçüncü parametre ({step}) adımdır; sayılar {step}'er {step}'er "
+        wrongs.append(Wrong(str(list(range(start, b))), f"Üçüncü parametre ({step}) adımdır; sayılar her adımda {step} "
                                                         "artar."))
     wrongs.append(Wrong(str(near[1:]), "Başlangıç değeri dahildir; liste onunla başlar."))
     wrongs.append(Wrong(str([x + 1 for x in near]), "Tek parametreli range 0'dan başlar; her değeri 1 kaydırdın."
@@ -54,7 +54,7 @@ def for_sum():
         f"Döngü i = {start}, ..., {n} değerlerini alır (bitiş {n + 1} dahil değil). Her adımda i toplama eklenir: "
         f"toplam = {total}.",
         common_wrongs=[
-            Wrong(str(total - n), f"range({start}, {n + 1}) son değer olarak {n}'i de üretir; bitiş ({n + 1}) "
+            Wrong(str(total - n), f"range({start}, {n + 1}) son değer olarak {n} sayısını da üretir; bitiş ({n + 1}) "
                                   "hariçtir ama ondan önceki sayı dahildir."),
             Wrong(str(total + n + 1), f"Bitiş değeri {n + 1} dahil değildir."),
         ],
@@ -75,7 +75,7 @@ def while_count():
     one_more = f"x, {limit} değerine ulaşınca ya da geçince koşul yanlış olur ve döngü hemen biter."
     return output_question(
         f"x = {x}\nadim = 0\nwhile x < {limit}:\n    x *= {k}\n    adim += 1\nprint(x, adim)", f"{v} {count}",
-        f"Koşul (x < {limit}) her turdan önce kontrol edilir. x değerleri {x}'den başlayıp {k} ile çarpılarak "
+        f"Koşul (x < {limit}) her turdan önce kontrol edilir. x değerleri {x} sayısından başlayıp {k} ile çarpılarak "
         f"{v} olunca döngü biter; döngü {count} kez çalışır.",
         wrongs=[Wrong(f"{v // k} {count - 1}", one_less), Wrong(f"{v} {count + 1}", one_more),
                 Wrong(f"{v * k} {count + 1}", one_more)],
@@ -198,13 +198,13 @@ def write_range_print():
     var = random.choice(["i", "sayi", "x"])
     return {
         "type": "code",
-        "text": f"1'den {n}'e kadar (ikisi de dahil) sayıları <code>for</code> döngüsü ve <code>range()</code> "
+        "text": f"1 ile {n} arasındaki (ikisi de dahil) sayıları <code>for</code> döngüsü ve <code>range()</code> "
                 "kullanarak <strong>alt alta</strong> ekrana yazdıran kodu yazınız.",
         "code": None,
         "check": {"kind": "range_print", "start": 1, "stop": n},
         "answer": f"for {var} in range(1, {n + 1}):\n    print({var})",
         "hint": "range() bitiş değerini dahil etmez; bitişe ne yazman gerektiğini düşün.",
-        "solution": f"<code>range(1, {n + 1})</code> 1'den {n}'e kadar sayıları üretir; bitiş değeri dahil "
+        "solution": f"<code>range(1, {n + 1})</code> 1 ile {n} arasındaki sayıları üretir; bitiş değeri dahil "
                     "olmadığı için bir fazlası yazılır.",
     }
 
