@@ -1,10 +1,20 @@
 """Sınav sonucu ve öğretmen paneli: kod izi, yanlışın nedeni, en sık yanlış cevap."""
+import random
+
 from conftest import TEACHER
 
 
 def setup_exam(client, **settings):
+    """5 soruluk sınav. Sorular rastgele üretildiği için tohum sabitlenir; testler çoktan seçmeli
+    sorulara dayandığı için en az iki tane olduğu da denetlenir (yoksa test şansa kalır)."""
     client.put("/api/settings", json={"units": ["veri_tipleri"], "question_count": 5, **settings}, headers=TEACHER)
-    return client.post("/api/start", json={"name": "Ali", "no": "1"}).get_json()
+    for seed in range(50):
+        random.seed(seed)
+        d = client.post("/api/start", json={"name": "Ali", "no": "1"}).get_json()
+        if sum(q["type"] == "mc" for q in d["questions"]) >= 2:
+            return d
+        client.delete(f"/api/results/{d['exam_id']}", headers=TEACHER)
+    raise AssertionError("50 denemede en az iki çoktan seçmeli soru çıkmadı")
 
 
 def wrong_answers(secrets_of, exam_id):
