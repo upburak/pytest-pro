@@ -343,6 +343,10 @@ def check_filter_list(tree, p):
         if problem:
             return False, problem
     if not top_assigns(tree, res):
+        if any(isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == res for t in n.targets)
+               for loop in find_loops(tree) for n in ast.walk(loop)):
+            return False, (f"<code>{res}</code> listesi döngünün içinde her turda yeniden boşaltılıyor; boş listeyi "
+                           "döngüden önce bir kez kur.")
         return False, f"Sonuç <code>{res}</code> adında yeni bir listede tutulmalı ve bu liste yazdırılmalı."
     for n, values in enumerate([nums] + _filter_cases(rule, k)):
         sim, note = sim_run(tree, {var: values})
@@ -501,6 +505,9 @@ def comp_blank():
     a = random.randint(11, 25) if last_digit else random.randint(1, 5)
     b = a + random.randint(4, 6)
     alts = [t.format(v=v) for t in accepts_]
+    if last_digit and a // 10 == (b - 1) // 10:
+        # sayılar aynı onluktaysa onluğu çıkarmak da aynı listeyi verir (25..28 -> s - 20)
+        alts.append(f"{v} - {a - a % 10}")
     expected = [eval(alts[0], {v: x}) for x in range(a, b)]  # noqa: S307 - yalnızca bizim ürettiğimiz sabit ifade
     var = random.choice(["sonuc", "yeni", "liste"])
     return fill_question(

@@ -109,3 +109,30 @@ def test_list_copy_covers_every_copy_style():
 def test_code_templates_model_answers_vary():
     for name in ("listeler.write_max_loop", "listeler.write_filter_even"):
         assert len({q["answer"] for q in samples(gen_by_name(name), 60)}) > 30
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_comp_blank_accepts_subtraction_when_same_decade():
+    """range(25, 29) -> [5, 6, 7, 8]: "s - 20" de aynı listeyi verir ve kabul edilmeli."""
+    import re
+    seen = 0
+    for q in samples(gen_by_name("listeler.comp_blank"), 400):
+        alts = q["answer"][0]
+        if not any("% 10" in a for a in alts):
+            continue
+        a, b = map(int, re.search(r"range\((\d+), (\d+)\)", q["code"]).groups())
+        v = re.search(r"for (\w+) in", q["code"]).group(1)
+        if a // 10 == (b - 1) // 10:
+            seen += 1
+            assert f"{v} - {a - a % 10}" in alts
+            assert outcome(fill_in(q["code"], [f"{v} - {a - a % 10}"])) == q["expect"]
+    assert seen
+
+
+
+def test_filter_list_reset_inside_loop_is_named():
+    """Liste döngü içinde boşaltılıyorsa "yeni bir listede tutulmalı" demek yanıltıcıdır."""
+    src = ("sayilar = [4, 7, 10, 3, 8, 15]\nfor s in sayilar:\n    ciftler = []\n    if s % 2 == 0:\n"
+           "        ciftler.append(s)\nprint(ciftler)")
+    assert rejects(EVEN, src, "döngüden önce")
