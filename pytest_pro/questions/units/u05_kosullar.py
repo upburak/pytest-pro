@@ -954,7 +954,7 @@ COND_RULES = [
     ("{t} sayısından küçükse", "<"),
     ("{t} ya da daha küçükse", "<="),
     ("tam olarak {t} ise", "=="),
-    ("{t} değilse", "!="),
+    ("{t} sayısına eşit değilse", "!="),
 ]
 COND_CONTEXTS = [("yas", "Reşit", "Reşit değil", 15, 21), ("puan", "Geçti", "Kaldı", 40, 70),
                  ("sicaklik", "Sıcak", "Serin", 20, 35), ("hiz", "Ceza", "Uygun", 50, 120),
@@ -993,7 +993,7 @@ def cond_blank():
     return fill_question(
         f"{var} = {v}\nif {var} ____ {t}:\n    print(\"{yes}\")\nelse:\n    print(\"{no}\")",
         [[op]], yes if ok else no,
-        f"Kod, <code>{var}</code> {rule.format(t=t)} <code>{e(yes)}</code>, değilse <code>{e(no)}</code> yazmalı. "
+        f"Kod, <code>{var}</code> {rule.format(t=t)} <code>{e(yes)}</code>, aksi hâlde <code>{e(no)}</code> yazmalı. "
         "Boşluğa gelmesi gereken karşılaştırma işlecini yazınız.",
         f"Kural \"{rule.format(t=t)}\" olduğu için <code>{e(op)}</code> kullanılır: {OP_WHYS[op]}. "
         f"{var} = {v} için koşul {ok} olur ve \"{e(yes if ok else no)}\" yazılır.",

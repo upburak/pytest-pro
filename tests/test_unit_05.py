@@ -180,3 +180,12 @@ def test_which_condition_has_three_purposes():
 def test_cond_blank_filled_code_runs():
     for q in samples(gen_by_name("kosullar.cond_blank"), 40):
         assert outcome(fill_in(q["code"], [q["answer"][0][0]])) == q["expect"]
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_cond_blank_text_has_no_double_degilse():
+    """"hiz 62 değilse Ceza, değilse Uygun" bozuk cümledir; else kısmı "aksi hâlde" ile yazılır."""
+    for q in samples(gen_by_name("kosullar.cond_blank"), 300):
+        assert q["text"].count("değilse") <= 1, q["text"]
+        assert "aksi hâlde" in q["text"]
