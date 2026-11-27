@@ -127,3 +127,23 @@ def test_rect_accepts(src):
 ])
 def test_rect_rejects(src, reason):
     assert rejects(RECT, src, reason)
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3): haksız ret/kabul
+@pytest.mark.parametrize("src", [
+    'ad = "Ece"\nprint("Merhaba {}".format(ad))',
+    'ad = "Ece"\nprint("Merhaba {0}".format(ad))',
+    'ad = "Ece"\nprint("Merhaba %s" % ad)',
+])
+def test_greet_accepts_format_and_percent(src):
+    assert accepts(GREET, src)
+
+
+def test_greet_format_with_constant_name_still_rejected():
+    assert rejects(GREET, 'ad = "Ece"\nprint("Merhaba {}".format("Ece"))', "değişken")
+    assert rejects(GREET, 'ad = "Ece"\nprint("Merhaba {0.upper}".format(ad))', "")
+
+
+def test_rect_accepts_one_print_with_newline_sep():
+    assert accepts(RECT, 'en = 7\nboy = 4\nprint(en * boy, 2 * (en + boy), sep="\\n")')
+    assert rejects(RECT, 'en = 7\nboy = 4\nprint(28, 22, sep="\\n")', "elle yazma")

@@ -526,11 +526,45 @@ def print_numbers(call, tr):
     return out
 
 
+_PLAIN_FIELDS = re.compile(r"\{(\d*)\}")
+_PERCENT_FIELDS = re.compile(r"%[sd]")
+
+
+def format_value(node, tr):
+    """'... {} ...'.format(x) ve '... %s ...' % x biçimlerini (yalnızca düz {} / {0} / %s / %d alanlarıyla)
+    hesaplar; diğer her şeyde tr.try_value'ya döner. Öğrenci kodu çalıştırılmaz: şablon metni kendi
+    kodumuzla doldurulur; alanlarda nitelik ya da indeks erişimine izin verilmez."""
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format"
+            and isinstance(node.func.value, ast.Constant) and isinstance(node.func.value.value, str)
+            and not node.keywords):
+        template = node.func.value.value
+        rest = _PLAIN_FIELDS.sub("", template)
+        args = [tr.try_value(a, UNSET) for a in node.args]
+        if any(a is UNSET for a in args) or "{" in rest or "}" in rest:
+            return UNSET
+        auto = iter(args)
+        try:
+            return _PLAIN_FIELDS.sub(lambda m: str(args[int(m.group(1))] if m.group(1) else next(auto)), template)
+        except (IndexError, StopIteration):
+            return UNSET
+    if (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod) and isinstance(node.left, ast.Constant)
+            and isinstance(node.left.value, str)):
+        template = node.left.value
+        items = node.right.elts if isinstance(node.right, ast.Tuple) else [node.right]
+        args = [tr.try_value(a, UNSET) for a in items]
+        if (any(a is UNSET for a in args) or "%" in _PERCENT_FIELDS.sub("", template)
+                or len(args) != len(_PERCENT_FIELDS.findall(template))):
+            return UNSET
+        auto = iter(args)
+        return _PERCENT_FIELDS.sub(lambda m: str(next(auto)), template)
+    return tr.try_value(node, UNSET)
+
+
 def print_text(call, tr):
     """print satırının ekrana yazacağı metin (sep dahil, end hariç); hesaplanamazsa None."""
     pieces = []
     for arg in call.args:
-        value = tr.try_value(arg, UNSET)
+        value = format_value(arg, tr)
         if value is UNSET or isinstance(arg, ast.Starred):
             return None
         pieces.append(str(value))
@@ -578,6 +612,21 @@ def check_greet_var(tree, p):
                    "sonra geldiğinden emin ol.")
 
 
+def print_lines(prints):
+    """Her print'in yazdırdığı sayılar; sep="\\n" verilen print'in değerleri ayrı satırlar sayılır."""
+    lines = []
+    for call, tr in prints:
+        vals = print_numbers(call, tr)
+        if not vals:
+            continue
+        sep = next((k.value for k in call.keywords if k.arg == "sep"), None)
+        if len(vals) > 1 and sep is not None and tr.try_value(sep, UNSET) == "\n":
+            lines.extend([v] for v in vals)
+        else:
+            lines.append(vals)
+    return lines
+
+
 @checker("rect_area")
 def check_rect_area(tree, p):
     """en ve boy atanır; önce alan, sonra çevre ayrı satırlarda yazdırılır (değişkenlerle hesaplanmalı)."""
@@ -586,7 +635,7 @@ def check_rect_area(tree, p):
     prints, firsts = straight_run(tree)
     if not (same_value(firsts.get(en_ad), en) and same_value(firsts.get(boy_ad), boy)):
         return False, f"{names} değişkenlerine istenen değerler atanmamış."
-    lines = [vals for vals in (print_numbers(call, tr) for call, tr in prints) if vals]
+    lines = print_lines(prints)
     if not lines:
         return False, "Alan ve çevre <code>print()</code> ile yazdırılmalı."
     if any(len(vals) > 1 for vals in lines):
@@ -607,7 +656,7 @@ def check_rect_area(tree, p):
         return False, "Çevre değeri beklenen sonucu vermiyor; formülü kontrol et."
     alt_en, alt_boy = en + 3, boy + 5
     alt_prints, _ = straight_run(tree, {en_ad: alt_en, boy_ad: alt_boy})
-    alt_lines = [vals for vals in (print_numbers(call, tr) for call, tr in alt_prints) if vals]
+    alt_lines = print_lines(alt_prints)
     if not (len(alt_lines) == 2 and same_value(alt_lines[0][0], alt_en * alt_boy)
             and same_value(alt_lines[1][0], 2 * (alt_en + alt_boy))):
         return False, f"Sonuçları elle yazma; {names} değişkenleriyle hesapla. Değerler değişince sonuç da değişmeli."
