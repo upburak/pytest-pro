@@ -167,3 +167,37 @@ def test_global_blank_operator_is_unique():
 def test_print_return_claim_has_error_and_output_variants():
     outputs = {q["output"].startswith("Hata verir") for q in samples(gen_by_name("fonksiyonlar.print_return_claim"))}
     assert outputs == {True, False}
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_function_names_do_not_contradict_their_body():
+    """iki_kat(x) içinde x * 5, artir() içinde skor -= 4 gibi yanıltıcı adlar olmamalı."""
+    import re
+    for q in samples(gen_by_name("fonksiyonlar.print_return_claim"), 400):
+        m = re.search(r"def iki_kat\((\w+)\):\n.*?\1 ([*+]) (\d+)", q["code"], re.S)
+        if m:
+            assert m.group(2) == "*" and m.group(3) == "2", q["code"]
+        m = re.search(r"def artir\((\w+)\):\n.*?\1 ([*+]) (\d+)", q["code"], re.S)
+        if m:
+            assert m.group(2) == "+", q["code"]
+    for q in samples(gen_by_name("fonksiyonlar.global_blank"), 400):
+        if "def artir()" in q["code"]:
+            assert q["answer"][1] == ["+="], q["code"]
+
+
+
+@pytest.mark.parametrize("src", [
+    "def fakt(n):\n    return 1 if n == 0 else n * fakt(n - 1)",
+    "def fakt(n):\n    return n * fakt(n - 1) if n > 1 else 1",
+])
+def test_factorial_recursive_conditional_expression_accepted(src):
+    """Koşul ifadesinde (x if k else y) yalnızca seçilen dal hesaplanmalı; fakt(-1) erken çağrılmamalı."""
+    q = code_q("factorial", name="fakt", method="ozyineleme")
+    assert accepts(q, src)
+
+
+def test_factorial_base_case_one_names_zero():
+    """if n == 1 durma koşulu fakt(0) için bitmez; not 0! durumunu işaret etmeli."""
+    q = code_q("factorial", name="fakt", method="ozyineleme")
+    assert rejects(q, "def fakt(n):\n    if n == 1:\n        return 1\n    return n * fakt(n - 1)", "fakt(0)")

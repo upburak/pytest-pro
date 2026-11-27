@@ -325,6 +325,9 @@ def print_return_claim():
     name = random.choice(["iki_kat", "hesapla", "islem", "donustur", "artir"])
     p = random.choice(["x", "n", "sayi"])
     op, k = random.choice(["*", "+"]), random.randint(2, 5)
+    # ad, gövdedeki işlemle çelişmemeli (iki_kat içinde x * 5, artir içinde x * 3 yanıltıcı olur)
+    if (name == "iki_kat" and (op, k) != ("*", 2)) or (name == "artir" and op != "+"):
+        name = "katla" if op == "*" else "hesapla"
     a, c = random.randint(2, 9), random.randint(1, 9)
     val = a * k if op == "*" else a + k
     expr = f"{p} {op} {k}"
@@ -469,6 +472,8 @@ def global_blank():
         if len(set(results.values()) | {start}) == len(results) + 1:
             break
     op = random.choice(GLOBAL_OPS)
+    if func == "artir" and op != "+=":
+        func = "guncelle"  # artir() içinde -= ya da //= yanıltıcı olur
     expect = results[op]
     code = (f"{var} = {start}\n\ndef {func}():\n    ____ {var}\n    {var} ____ {d}\n\n" + f"{func}()\n" * calls
             + f"print({var})")
@@ -805,6 +810,10 @@ class FuncSim:
                 self.generic_visit(n)
                 return n
 
+            def visit_IfExp(self, n):
+                # yalnızca seçilen dal indirgenir: "1 if n == 0 else n * f(n - 1)" n = 0 iken f(-1)'i çağırmaz
+                return self.visit(n.body if sim.value(n.test, env) else n.orelse)
+
             def visit_Subscript(self, n):
                 if isinstance(n.value, ast.Name) and isinstance(env.get(n.value.id), list):
                     if isinstance(n.slice, ast.Slice):
@@ -1028,6 +1037,9 @@ def check_factorial(tree, p):
         try:
             got = sim.call(k)
         except NoBase:
+            if k == 0:
+                return False, (f"<code>{name}(0)</code> çağrısı durma koşuluna hiç ulaşmıyor (0! = 1 olmalı); durma "
+                               "koşulu 0'ı da kapsamalı (ör. <code>n &lt;= 1</code> ya da <code>n == 0</code>).")
             return False, ("Fonksiyon kendini çağırırken sayı küçülerek durma koşuluna ulaşmıyor; durma koşulunu ve "
                            "çağrıdaki değeri kontrol et.")
         except Endless:
