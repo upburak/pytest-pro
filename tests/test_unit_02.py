@@ -121,3 +121,27 @@ def test_celsius_float_answers_are_exact():
     for q in samples(gen_by_name("veri_tipleri.write_celsius"), 40):
         assert qs.grade(q, q["answer"])[0]
         assert json.dumps(q["check"])
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3): haksız ret/kabul
+def test_text_sum_accepts_sum_of_list():
+    q = code_q("text_sum", v1="a", v2="b", s1="35", s2="12")
+    assert accepts(q, 'a = "35"\nb = "12"\nprint(sum([int(a), int(b)]))')
+    assert accepts(q, 'a = "35"\nb = "12"\nprint(sum((int(a), int(b))))')
+
+
+def test_text_sum_mixed_types_named_as_type_error():
+    q = code_q("text_sum", v1="a", v2="b", s1="35", s2="12")
+    assert rejects(q, 'a = "35"\nb = "12"\nprint(int(a) + b)', "TypeError")
+    assert rejects(q, 'a = "35"\nb = "12"\nprint(a + int(b))', "TypeError")
+
+
+@pytest.mark.parametrize("src", [
+    "c = 45\nprint(c * 9 // 5 + 32)",
+    "c = 45\nprint(int(c * 9 / 5 + 32))",
+])
+def test_celsius_rejects_truncation_even_when_exact(src):
+    """c = 45 iken // ve int() tesadüfen doğru sonuç verir; başka değerlerde kesir atılır."""
+    q = code_q("celsius", var="c", c=45)
+    assert rejects(q, src, "kesir")

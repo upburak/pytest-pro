@@ -1,4 +1,5 @@
 """Ünite 2 - Veri Tipleri ve Tip Dönüşümleri."""
+import ast
 import random
 
 from ..codecheck import OK, checker, print_values, same_value
@@ -538,9 +539,30 @@ def write_celsius():
 
 
 # ================================================================= denetleyiciler
+def _node_value(node, tr):
+    """İfadenin değeri; sum([a, b]) / sum((a, b)) biçimi de (elemanlar sayıysa) hesaplanır."""
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "sum"
+            and len(node.args) == 1 and not node.keywords and isinstance(node.args[0], (ast.List, ast.Tuple))):
+        items = [tr.try_value(item, UNSET) for item in node.args[0].elts]
+        if items and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in items):
+            return sum(items)
+        return UNSET
+    return tr.try_value(node, UNSET)
+
+
+def _mixes_text_and_number(node, tr):
+    """İfadede bir tarafı metin, öbür tarafı sayı olan bir + var mı? (TypeError verecek toplama)"""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.BinOp) and isinstance(sub.op, ast.Add):
+            kinds = {type(tr.try_value(side, UNSET)) for side in (sub.left, sub.right)}
+            if str in kinds and (int in kinds or float in kinds):
+                return True
+    return False
+
+
 def _printed_values(prints):
     """Her print satırının yazdırdığı değerler (etiketler hariç, metinler sayıya çevrilmez)."""
-    return [[tr.try_value(n, UNSET) for n in print_values(call)] for call, tr in prints]
+    return [[_node_value(n, tr) for n in print_values(call)] for call, tr in prints]
 
 
 def _flat(lines):
@@ -569,6 +591,9 @@ def check_text_sum(tree, p):
         return False, f"Tam sayı istendi; <code>float()</code> kullanınca {want}.0 yazılır. <code>int()</code> kullan."
     if value == int(s1 + s2):
         return False, "Metinleri önce birleştirip sonra çevirdin; her birini ayrı ayrı <code>int()</code> ile çevir."
+    if value is UNSET and any(_mixes_text_and_number(n, tr) for call, tr in prints for n in print_values(call)):
+        return False, ("Metin ile sayı + ile toplanamaz (TypeError oluşur); iki değeri de <code>int()</code> ile "
+                       "çevir.")
     if not (isinstance(value, int) and value == want):
         return False, "Yazdırılan değer iki sayının toplamı değil; işlemi kontrol et."
     alt_prints, _ = straight_run(tree, {v1: "23", v2: "9"})
@@ -576,6 +601,10 @@ def check_text_sum(tree, p):
     if alt != [32]:
         return False, f"Sonucu elle yazma; {names} değişkenlerini kullan. Değerler değişince sonuç da değişmeli."
     return True, OK
+
+
+TRUNCATED_NOTE = ("Sonucun kesir kısmı atılıyor (örneğin 7 derece için 44.6 yerine 44 çıkar); <code>//</code> ya da "
+                  "<code>int()</code> yerine <code>/</code> kullan.")
 
 
 @checker("celsius")
@@ -596,11 +625,19 @@ def check_celsius(tree, p):
             return False, "32'yi eklemeyi unutma."
         if same_value(value, c * 5 / 9 + 32):
             return False, "Formülde 9 / 5 olmalı; kesri ters yazdın."
+        if isinstance(value, (int, float)) and same_value(value, int(c * 9 / 5 + 32)):
+            return False, TRUNCATED_NOTE
         return False, "Sonuç formülün değerini vermiyor; işlem önceliğini ve parantezleri kontrol et."
-    alt = c + 10
-    alt_prints, _ = straight_run(tree, {var: alt})
-    alt_values = _flat(print_numbers(call, tr) for call, tr in alt_prints)
-    if len(alt_values) != 1 or not same_value(alt_values[0], alt * 9 / 5 + 32):
-        return False, (f"Sonucu elle yazma; <code>{var}</code> değişkeniyle hesapla. Değer değişince sonuç da "
-                       "değişmeli.")
+    # İkinci deneme değeri 5'in katı değil: // ya da int() ile kesri atan yazımlar c = 45 gibi değerlerde
+    # tesadüfen doğru sonuç verir, burada yakalanır.
+    for alt in (c + 10, 7):
+        alt_prints, _ = straight_run(tree, {var: alt})
+        alt_values = _flat(print_numbers(call, tr) for call, tr in alt_prints)
+        want = alt * 9 / 5 + 32
+        if len(alt_values) == 1 and not same_value(alt_values[0], want) and isinstance(alt_values[0], (int, float)) \
+                and same_value(alt_values[0], int(want)):
+            return False, TRUNCATED_NOTE
+        if len(alt_values) != 1 or not same_value(alt_values[0], want):
+            return False, (f"Sonucu elle yazma; <code>{var}</code> değişkeniyle hesapla. Değer değişince sonuç da "
+                           "değişmeli.")
     return True, OK
