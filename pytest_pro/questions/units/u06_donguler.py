@@ -255,7 +255,7 @@ def loop_note(tree):
 
 
 def _only_given(var, n, value, want):
-    return (f"Kodun yalnızca <code>{var} = {n}</code> için doğru sonuç veriyor; <code>{var} = {value}</code> olsaydı "
+    return (f"Kod yalnızca <code>{var} = {n}</code> için doğru sonuç veriyor; <code>{var} = {value}</code> olsaydı "
             f"{want} yazmalıydı. Hesabı {var} değişkenini kullanarak kur, sayıyı elle yazma.")
 
 
@@ -298,8 +298,9 @@ def check_sum_loop(tree, p):
         if same_value(got, want - value):
             return False, f"Toplama {var} dahil edilmiyor; <code>range()</code> bitiş değerinin dahil olmadığını unutma."
         if same_value(got, value):
-            return False, ("Toplam değişkeni her turda üzerine yazılıyor; önceki toplamı koruyarak ekle "
-                           "(<code>toplam += i</code>).")
+            return False, ("Toplam her turda doğru biriktirilmiyor: ya üzerine yazılıyor (<code>toplam = i</code>) ya "
+                           "da her turda 1 ekleniyor (<code>toplam += 1</code> sayma yapar). Her turda döngü "
+                           "değişkenini ekle (<code>toplam += i</code>).")
         return False, f"<code>{var} = {value}</code> için toplam {want} olmalı; döngünün sınırlarını ve eklenen değeri kontrol et."
     return True, OK
 
@@ -314,7 +315,8 @@ def check_times_table(tree, p):
     if problem:
         return False, problem
     for call in find_prints(tree):
-        if any(kw.arg == "end" for kw in call.keywords):
+        if any(kw.arg == "end" and not (isinstance(kw.value, ast.Constant) and kw.value.value == "\n")
+               for kw in call.keywords):
             return False, "Her işlem ayrı bir satıra, alt alta yazılmalı; print'te <code>end</code> kullanma."
     for k, value in enumerate((n, 3, 9)):
         sim, note = sim_run(tree, {var: value})
@@ -330,15 +332,15 @@ def check_times_table(tree, p):
             nums = numbers_in(line)
             want = [value, i, value * i]
             if len(nums) != 3:
-                return False, (f"Her satırda üç sayı olmalı: {var}, çarpan ve sonuç (ör. <code>{n} x 2 = {n * 2}</code>). "
+                return False, (f"Her satırda üç sayı olmalı: {var}, çarpan ve sonuç (ör. <code>{n} * 2 = {n * 2}</code>). "
                                f"{i}. satırda {len(nums)} sayı var.")
             if all(same_value(a, b) for a, b in zip(nums, want)):
                 continue
             if k > 0:
-                return False, _only_given(var, n, value, f"<code>{value} x {i} = {value * i}</code>")
+                return False, _only_given(var, n, value, f"<code>{value} * {i} = {value * i}</code>")
             if all(same_value(a, b) for a, b in zip(nums[:2], want[:2])):
                 return False, f"{i}. satırdaki sonuç yanlış; {var} ile çarpanı çarp."
-            return False, (f"{i}. satır <code>{n} x {i} = {n * i}</code> olmalı; sayılar sırasıyla {var}, çarpan ve sonuç "
+            return False, (f"{i}. satır <code>{n} * {i} = {n * i}</code> olmalı; sayılar sırasıyla {var}, çarpan ve sonuç "
                            "olmalı.")
     return True, OK
 

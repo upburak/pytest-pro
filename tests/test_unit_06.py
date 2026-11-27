@@ -2,6 +2,8 @@
 import pytest
 from helpers import accepts, code_q, gen_by_name, outcome, rejects, samples
 
+from pytest_pro import questions as qs
+
 from pytest_pro.questions.fill import fill_in
 from pytest_pro.questions.helpers import LOOP_OUTCOME
 
@@ -115,3 +117,26 @@ def test_sentinel_break_answers_vary_and_include_negatives():
 def test_code_templates_model_answers_vary():
     for name in ("donguler.write_sum_loop", "donguler.write_times_table"):
         assert len({q["answer"] for q in samples(gen_by_name(name), 60)}) > 20
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_sum_loop_counting_instead_of_summing_named():
+    """toplam += 1 sayma yapar; "üzerine yazılıyor" demek yanlış teşhis olur."""
+    ok, note = qs.grade(SUM, "n = 10\ntoplam = 0\nfor i in range(1, n + 1):\n    toplam += 1\nprint(toplam)")
+    assert not ok and "toplam += 1" in note
+
+
+def test_only_given_note_is_grammatical():
+    ok, note = qs.grade(SUM, "n = 10\ntoplam = 0\nfor i in range(1, 11):\n    toplam += i\nprint(toplam)")
+    assert not ok and note.startswith("Kod yalnızca") and "Kodun yalnızca" not in note
+
+
+def test_times_table_notes_use_star_like_the_question():
+    """Soru "7 * 1 = 7" biçimini gösteriyor; ret notları "x" değil "*" kullanmalı."""
+    ok, note = qs.grade(TABLE, "n = 7\nfor i in range(5):\n    print(n, '*', i, '=', n * i)")
+    assert not ok and "7 * 1 = 7" in note and " x " not in note
+
+
+def test_times_table_allows_explicit_newline_end():
+    assert accepts(TABLE, 'n = 7\nfor i in range(1, 6):\n    print(n, "*", i, "=", n * i, end="\\n")')

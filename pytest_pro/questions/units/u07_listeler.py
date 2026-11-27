@@ -262,7 +262,7 @@ def _printed_list(line):
 
 
 def _from_list_only(var, given, values, want):
-    return (f"Kodun yalnızca verilen liste için doğru sonuç veriyor; <code>{var} = {e(values)}</code> olsaydı "
+    return (f"Kod yalnızca verilen liste için doğru sonuç veriyor; <code>{var} = {e(values)}</code> olsaydı "
             f"<code>{e(want)}</code> yazmalıydı. Sonucu {var} değişkenini kullanarak hesapla, elle yazma.")
 
 
