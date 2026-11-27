@@ -2,7 +2,7 @@
 import ast
 import random
 
-from ..codecheck import OK, checker, find_loops, loop_problems, same_value
+from ..codecheck import OK, Unknown, checker, find_loops, loop_problems, same_value
 from ..helpers import FRUITS, PEOPLE, Wrong, e, err, fill_question, output_question, tf_claim
 from ..registry import register_unit
 from .u05_kosullar import calls_name, given_ok, has_node, says, sim_run, top_assigns
@@ -293,6 +293,9 @@ def check_dict_max(tree, p):
             return False, (f"<code>max({var})</code> anahtarları (adları) harf sırasına göre karşılaştırır; "
                            "karşılaştırma notlara göre yapılmalı.")
         if k == 0:
+            if says(line, list(d)[-1]) and _prints_last_key(tree, var):
+                return False, ("Kod sözlükteki son öğrenciyi yazıyor; her notu o ana kadarki en yüksekle karşılaştır ve "
+                               "yalnızca daha yüksekse adı da güncelle.")
             if says(line, min(d, key=d.get)):
                 return False, "Kod en düşük notu alan öğrenciyi buluyor; karşılaştırma yönünü kontrol et."
             if says(line, list(d)[-1]):
@@ -303,7 +306,27 @@ def check_dict_max(tree, p):
     return True, OK
 
 
-FREQ_CASES = [["elma", "elma", "armut"], ["kiraz"], ["muz", "nar", "muz", "nar", "muz"]]
+def _prints_last_key(tree, var):
+    """Kod, son anahtarın ne en yüksek ne en düşük olduğu sözlüklerde de son anahtarı mı yazıyor?"""
+    probes = [{"Ece": 55, "Can": 90, "Ali": 70}, {"Selin": 40, "Emre": 99, "Deniz": 60}]
+    for d in probes:
+        try:
+            sim, note = sim_run(tree, {var: d})
+        except Unknown:
+            return False
+        lines = sim.lines()
+        if note or len(lines) != 1 or not says(lines[0], list(d)[-1]):
+            return False
+    return True
+
+
+def _reset_in_loop(tree, name):
+    """name döngünün içinde yeniden atanıyor mu (ör. her turda sayim = {})?"""
+    return any(isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)
+               for loop in find_loops(tree) for n in ast.walk(loop))
+
+
+FREQ_CASES =[["elma", "elma", "armut"], ["kiraz"], ["muz", "nar", "muz", "nar", "muz"]]
 
 
 def _counts(items):
@@ -328,6 +351,9 @@ def check_freq(tree, p):
     if problem:
         return False, problem
     if not top_assigns(tree, res):
+        if _reset_in_loop(tree, res):
+            return False, (f"<code>{res}</code> sözlüğü döngünün içinde her turda yeniden boşaltılıyor; boş sözlüğü "
+                           "döngüden önce bir kez kur.")
         return False, f"Sayılar <code>{res}</code> adında bir sözlükte tutulmalı ve bu sözlük yazdırılmalı."
     for k, values in enumerate([items] + FREQ_CASES):
         sim, note = sim_run(tree, {var: values})

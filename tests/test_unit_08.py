@@ -103,3 +103,21 @@ def test_dict_dup_key_error_option_is_not_always_shown():
 def test_code_templates_model_answers_vary():
     for name in ("koleksiyonlar.write_dict_max", "koleksiyonlar.write_freq"):
         assert len({q["answer"] for q in samples(gen_by_name(name), 60)}) > 30
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_dict_max_last_student_named_even_when_last_is_lowest():
+    """Ad döngüden sonra atanırsa kod hep son öğrenciyi yazar; son öğrenci tesadüfen en düşük notlu olsa da
+    teşhis "son öğrenci" olmalı."""
+    q = code_q("sozluk_en_yuksek", var="notlar", data={"Deniz": 75, "Mert": 97, "Ali": 64})
+    src = ("notlar = {'Deniz': 75, 'Mert': 97, 'Ali': 64}\nen_iyi = ''\nen_yuksek = -1\n"
+           "for ad, puan in notlar.items():\n    if puan > en_yuksek:\n        en_yuksek = puan\nen_iyi = ad\n"
+           "print(en_iyi)")
+    assert rejects(q, src, "son öğrenciyi")
+
+
+def test_freq_dict_reset_inside_loop_is_named():
+    src = ("meyveler = ['elma', 'armut', 'elma', 'kiraz', 'elma', 'armut']\nfor m in meyveler:\n    sayim = {}\n"
+           "    sayim[m] = sayim.get(m, 0) + 1\nprint(sayim)")
+    assert rejects(FREQ, src, "döngüden önce")
