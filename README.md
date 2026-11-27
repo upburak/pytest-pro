@@ -1,7 +1,7 @@
 # PyTest Pro — Python Dinamik Ölçme ve Değerlendirme Sistemi
 
 Okul laboratuvarında yerel ağda çalışan, her öğrenciye **kendine özel sorular** üreten Python sınav ve
-pratik sistemi. Python öğreniminin başından sonuna **11 ünite** ve **75 soru şablonu** içerir:
+pratik sistemi. Python öğreniminin başından sonuna **11 ünite** ve **164 soru şablonu** içerir:
 temel giriş/çıkıştan nesne yönelimli programlamaya kadar. Ayrıntılı liste: [docs/MUFREDAT.md](docs/MUFREDAT.md)
 
 | # | Ünite | Seviye |
@@ -81,7 +81,7 @@ Pratik modu     : http://192.168.1.25:5000/pratik
   - **Bu konudan yeni soru:** Yanlıştan sonra aynı kavram farklı değerlerle hemen tekrar sorulur.
   - **Konu tamamlama:** Bir şablonda ipucusuz iki doğru konuyu tamamlar; içindekiler sayfası ilerlemeyi gösterir.
 - **Sınav sonucu:** Öğretmen çözümleri açtıysa her yanlışta "neden yanlış" notu ve kodun adım adım izi görünür.
-- **Soru tipleri:** çoktan seçmeli, doğru/yanlış, kısa cevap (kod çıktısı) ve kod yazma
+- **Soru tipleri:** çoktan seçmeli, doğru/yanlış, boşluk doldurma, kısa cevap ve kod yazma (açık uçlu)
   (değişken/aritmetik, `for` döngüsü, fonksiyon tanımlama).
 
 ## Ayarlar (isteğe bağlı ortam değişkenleri)
