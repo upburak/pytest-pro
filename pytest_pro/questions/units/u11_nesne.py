@@ -460,7 +460,7 @@ def write_counter_class():
     """Kazanım: nesne durumunu değiştiren metotlar yazar · Bloom: O"""
     cls = random.choice(["Sayac", "Tiklayici", "Adimsayar"])
     attr = random.choice(["deger", "sayi", "adim"])
-    inc = random.choice(["arttir", "artir", "ileri"])
+    inc = random.choice(["artir", "ileri", "say"])
     other, kind = random.choice([("sifirla", "sifirla"), ("azalt", "azalt"), ("geri", "azalt")])
     n = random.randint(2, 4)
     obj = cls[0].lower()
@@ -681,9 +681,17 @@ def check_counter_class(tree, p):
     if init is None:
         return False, (f"Sınıfta <code>__init__</code> metodu yok; <code>{attr}</code> başlangıç değerini nesne "
                        "oluşturulurken __init__ içinde ver.")
-    s, note = _method_self(init)
-    if note:
-        return False, note
+    ip = function_params(init) or []
+    if len(ip) > 1 and len(init.args.defaults) == len(ip) - 1 and not init.args.kwonlyargs:
+        # __init__(self, deger=0): Sayac() çağrısında varsayılan değer kullanılır; parametreyi o değerle izle
+        s = ip[0]
+        init = copy.deepcopy(init)
+        init.body = [ast.Assign(targets=[ast.Name(id=name, ctx=ast.Store())], value=default)
+                     for name, default in zip(ip[1:], init.args.defaults)] + init.body
+    else:
+        s, note = _method_self(init)
+        if note:
+            return False, note
     start = _attr_effect(init, s, attr, None)
     start_value = const_value(start) if start is not None else None
     if isinstance(start_value, bool) or not same_value(start_value, 0):

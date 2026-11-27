@@ -130,3 +130,24 @@ def test_counter_class_decrement_variant():
 ])
 def test_counter_class_rejects(src, reason):
     assert rejects(COUNTER, src, reason)
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_counter_accepts_init_with_default_zero_parameter():
+    """Sayac() çağrısı __init__(self, deger=0) ile de çalışır ve deger 0 olur; haksız reddedilmemeli."""
+    src = COUNTER_OK.replace("def __init__(self):\n        self.deger = 0",
+                             "def __init__(self, deger=0):\n        self.deger = deger")
+    assert accepts(COUNTER, src)
+    bad = COUNTER_OK.replace("def __init__(self):\n        self.deger = 0",
+                             "def __init__(self, deger=5):\n        self.deger = deger")
+    assert rejects(COUNTER, bad, "0 olmalı")
+    required = COUNTER_OK.replace("def __init__(self):\n        self.deger = 0",
+                                  "def __init__(self, deger):\n        self.deger = deger")
+    assert rejects(COUNTER, required, "self")
+
+
+def test_counter_method_names_use_correct_turkish_ascii():
+    """'arttir' yanlış yazımdır (artırmak -> artir)."""
+    for q in samples(gen_by_name("nesne.write_counter_class"), 200):
+        assert q["check"]["inc"] != "arttir" and "arttir" not in q["text"]
