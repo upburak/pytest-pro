@@ -271,8 +271,14 @@ python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md
 
 Öğrenci kodu **asla çalıştırılmaz** (okul ağında güvenlik riski). Kod `ast.parse` ile ağaca çevrilir ve
 incelenir. `codecheck.safe_eval` yalnızca sayı/metin sabitleri, dört işlem, karşılaştırma ve birkaç saf
-fonksiyondan (int, float, str, abs, round, min, max, pow, len, bool) oluşan **ifadeleri** sınırlı büyüklükte
-kendi kodumuzla hesaplar; döngü, fonksiyon çağrısı, modül hesaplanmaz.
+fonksiyondan (int, float, str, abs, round, min, max, pow, len, bool; yazılı bir liste/demet üzerinde
+`sum([a, b, c])`, `min((a, b))`, `max([a, b])`) oluşan **ifadeleri** sınırlı büyüklükte kendi kodumuzla
+hesaplar; döngü, fonksiyon çağrısı, modül hesaplanmaz.
+
+Kalıba dayalı denetleyiciler, kalıba uymayan ama doğru çalışan çözümleri haksız reddedebilir. Bunun için
+u05'teki sınırlı izleyici (`Sim`, `sim_run`) ile **davranış yedeği** kurulabilir: değişkene birkaç deneme
+değeri konup çıktı karşılaştırılır (örnek: `u04_metinler._behaves`). İzleyici de öğrenci kodunu çalıştırmaz;
+desteklemediği yapıda `Unknown` verir ve yedek yol yalnızca ek kabul için kullanılır.
 
 Denetleyici, ünitenin kendi dosyasında tanımlanabilir (ünite yüklenince kaydolur; aynı tür iki kez
 kaydedilirse ValueError). Soru şablonunda `"check": {"kind": "<tür>", ...parametreler}` kullanılır.

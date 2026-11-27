@@ -1003,3 +1003,146 @@ Uygulama sırası önerisi: (1) K1-K5 ve Y1 düzeltmeleri (puanlama adaleti). (2
 - [ ] KC/BD'de kabul listesi eşdeğerleri kapsıyor ve çalıştırılarak doğrulanıyor.
 - [ ] KY'de 6 kabul ve 6 ret testi var; sabit cevap yakalanıyor.
 - [ ] `python -m pytest_pro.questions.mufredat > docs/MUFREDAT.md` ile müfredat belgesi yenilendi.
+
+---
+
+## 5. Yeni şablonların denetimi
+
+Aşama 2'de üç yazar ajanın eklediği **86 yeni şablonun tamamı** denetlendi (bölüm 3'teki önerilerin hepsi
+uygulanmış; banka 78 → 164 şablon). Yöntem:
+
+- Her şablondan 6-10 örnek üretilip kök, şıklar, açıklamalar, ipucu ve çözüm metni tek tek okundu.
+- 23 kod yazma şablonunun her biri için 12-20 gerçekçi öğrenci cevabı (farklı ama doğru yazımlar ve tipik
+  hatalar) yazılıp `check_code` ile denendi; toplam ~370 deneme. Öğrenci kodu hiçbir aşamada çalıştırılmadı.
+- Tüm D/Y şablonlarında doğru/yanlış oranı (%43-56), tüm yeni şablonlarda en sık cevap payı (en yüksek %37)
+  ölçüldü; hepsi kılavuz eşiklerinin içinde.
+- Bankanın tamamına uygulanan yeni bir otomatik test eklendi: sayıdan sonra gelen ekin, sayının okunuşuna
+  uyması (`test_content.py::test_number_suffixes_follow_vowel_harmony`).
+
+Her düzeltme önce başarısız bir testle (haksız ret/kabul örneği) kayda geçirildi, sonra düzeltildi. Şablon
+kimlikleri değişmedi.
+
+### 5.1 Bulgular ve yapılan düzeltmeler
+
+**Altyapı**
+
+| Yer | Sorun | Düzeltme |
+|---|---|---|
+| `helpers.tf_claim` | İddia doğruyken varsayılan açıklama hata iddiasında bozuk cümle kuruyordu: "İddia doğru: kod gerçekten `TypeError` hatası oluşur." (13 D/Y şablonunu etkiliyordu) | "İddia doğru: bu kodda gerçekten `X` hatası oluşur." / "... bu kod çalıştırıldığında gerçekten ekrana `X` yazılır." |
+| `codecheck.safe_eval` | `sum([a, b, c])` hesaplanamadığı için ortalama ve toplam sorularında doğru cevap reddediliyordu | Yazılı liste/demet üzerinde `sum`, `min`, `max` desteklendi (eleman sayısı ve değer sınırlı) |
+| u05 `Sim` | `"".join(...)` izlenemiyordu | `str.join` eklendi (yalnızca metin elemanlarıyla) |
+| u09 `FuncSim` | Koşul ifadesinde iki dal birden indirgeniyordu; `return 1 if n == 0 else n * f(n - 1)` n = 0 için f(-1)'i çağırıp "durma koşuluna ulaşmıyor" diyordu | Yalnızca seçilen dal indirgeniyor |
+| Bütün banka | Değişken sayıya sabit ek: "1'den 6'e", "9'i de üretir", "2'er 2'er", "4'den başlayıp", "Kedi'in" (eski şablonlarda da) | Eksiz yazıma çevrildi ("1 ile 6 arasındaki", "9 sayısını da", "her adımda 2", "Kedi sınıfının"); yeni ünlü uyumu testi tekrarını engelliyor |
+
+**Haksız ret (doğru cevap reddediliyordu)**
+
+| Şablon | Örnek öğrenci cevabı | Düzeltme |
+|---|---|---|
+| `temel.write_greet` | `print("Merhaba {}".format(ad))`, `print("Merhaba %s" % ad)` | Düz `{}`/`{0}`/`%s`/`%d` alanlı biçimlendirme kendi kodumuzla dolduruluyor |
+| `temel.write_rect` | `print(a * b, 2 * (a + b), sep="\n")` | `sep="\n"` verilen print'in değerleri ayrı satır sayılıyor |
+| `veri_tipleri.write_text_sum` | `print(sum([int(a), int(b)]))` | `safe_eval` desteğiyle kabul |
+| `operatorler.write_average` | `print(sum([n1, n2, n3]) / 3)` | Aynı |
+| `metinler.write_reverse` | `while i >= 0: ters += kelime[i]`, `range(1, len + 1)` ile `kelime[-i]`, `liste.reverse()` + `"".join(liste)` | Kalıba uymayan çözüm `Sim` ile beş deneme kelimesinde izleniyor; hepsinde doğruysa kabul (davranış yedeği) |
+| `metinler.write_vowels` | `for i in range(len(metin)): if metin[i] in ...`, `for s in "aeıioöuü": toplam += metin.count(s)`, `len([h for h in metin if ...])`, while döngüsü | Aynı davranış yedeği (altı deneme metni) |
+| `metinler.method_blank` | `casefold` (bu metinlerde `lower` ile aynı sonucu verir) | Aynı sonucu veren parametresiz metotlar da kabul listesine giriyor |
+| `listeler.comp_blank` | `[5, 6, 7, 8]` için `s - 20` | Sayılar aynı onluktaysa onluğu çıkaran ifade de kabul |
+| `donguler.write_times_table` | `print(..., end="\n")` | Açık `end="\n"` serbest |
+| `fonksiyonlar.write_factorial` | `return 1 if n == 0 else n * fakt(n - 1)` | `FuncSim` düzeltmesiyle kabul |
+| `nesne.write_counter_class` | `def __init__(self, deger=0): self.deger = deger` | Varsayılan değerli parametreler o değerle izleniyor; `deger=5` ya da zorunlu parametre yine reddediliyor |
+
+**Haksız kabul (yanlış cevap kabul ediliyordu)**
+
+| Şablon | Örnek | Düzeltme |
+|---|---|---|
+| `veri_tipleri.write_celsius` | `print(c * 9 // 5 + 32)` ve `print(int(c * 9 / 5 + 32))` C 5'in katıyken (45, 35...) kabul, 37 iken ret ediliyordu (tutarsız) | İkinci deneme değeri 5'in katı olmayan 7; "kesir kısmı atılıyor" notu |
+| `operatorler.write_average` | Not toplamı 3'e tam bölününce `//` ve `int()` "Sonucu elle yazma" notuyla reddediliyordu (doğru ret, yanlış teşhis) | Tesadüfen doğru çıkan kesir atma ayrıca adlandırılıyor |
+
+**Yanlış ya da yanıltıcı geri bildirim**
+
+| Şablon | Sorun | Düzeltme |
+|---|---|---|
+| `veri_tipleri.write_text_sum` | `int(a) + b` için "toplamı değil; işlemi kontrol et" | "Metin ile sayı + ile toplanamaz (TypeError)" |
+| `metinler.write_reverse` | `range(len - 1, 0, -1)` (ilk harf eksik) için "harfleri aynı sırayla ekliyor" | "kelimenin tersi değil" |
+| `donguler.write_sum_loop` | `toplam += 1` için "üzerine yazılıyor"; "Kodun yalnızca ... doğru sonuç veriyor" dil hatası (u06 ve u07) | Sayma/üzerine yazma ayrımı; "Kod yalnızca ..." |
+| `donguler.write_times_table` | Soru `3 * 1 = 3` gösterirken ret notu `3 x 1 = 3` diyordu | Notlar da `*` kullanıyor |
+| `listeler.write_filter_even`, `koleksiyonlar.write_freq` | Liste/sözlük döngü içinde her turda boşaltılınca "yeni bir listede tutulmalı" | "Döngünün içinde her turda yeniden boşaltılıyor; döngüden önce bir kez kur" |
+| `koleksiyonlar.write_dict_max` | Ad döngüden sonra atanınca (hep son öğrenci) son öğrenci tesadüfen en düşük notluysa "en düşük notu buluyor" | Son anahtarı yazdığı iki ek sözlükle doğrulanıp "son öğrenciyi yazıyor" deniyor |
+| `fonksiyonlar.write_factorial` | `if n == 1` durma koşulu için genel not | "`fakt(0)` çağrısı durma koşuluna hiç ulaşmıyor (0! = 1)" |
+| `hatalar.write_safe_div` | `return "tanımsız"` (küçük harf) için "return ile döndürmeli; ekrana yazdırma" | "tam olarak "Tanımsız" döndürmeli (büyük/küçük harf ve tırnak dahil)" |
+
+**Kök, açıklama ve dil**
+
+| Şablon | Sorun | Düzeltme |
+|---|---|---|
+| `kosullar.cond_blank` | "Kod, hiz 62 değilse Ceza, değilse Uygun yazmalı." | "hiz 62 sayısına eşit değilse Ceza, aksi hâlde Uygun yazmalı." |
+| `metinler.index_claim` | `[0]` için "ilk karakterden 0 adım sonradır", `[-1]` için "[-1] son karakterdir, [-1] sondan 1. karakterdir" | `[0]` ve `[-1]` için ayrı, doğal cümleler |
+| `operatorler.write_average` | Ortalama tam sayıyken (72.0) "(yaklaşık 72)" | Tam bölünüyorsa "(sonuç: 72.0)" |
+| `fonksiyonlar.print_return_claim` | `def iki_kat(x): print(x * 5)`, `def artir(sayi): return sayi * 3` | Ad gövdeyle çelişirse nötr ad (`katla`, `hesapla`) |
+| `fonksiyonlar.global_blank` | `artir()` içinde `skor -= 4` ya da `//= 3` | `+=` dışında `guncelle()` |
+| `nesne.write_counter_class` | Metot adı `arttir` (yazım yanlışı; artırmak → `artir`) | `artir`, `ileri`, `say` |
+
+Sorun bulunmayan şablonlar (65; düzeltme yapılan 21 şablon dışındakiler): kökleri açık, tek doğru cevaplı, çeldiricileri adlandırılmış yanılgılara
+dayanıyor; açıklamalar doğru. Özellikle `kosullar.write_even_odd`, `kosullar.write_grade_ladder`,
+`listeler.write_max_loop`, `hatalar.write_parse_guard` ve `nesne.write_rect_class` denetleyicileri 15-20
+denemenin hepsinde doğru karar verdi.
+
+### 5.2 Düzeltilmeyen ama öğretmenin bilmesi gereken noktalar
+
+1. **Bilinçli katılıklar:** Ters çevirme ve sesli harf sorularında harfleri döngü içinde `end=""` ile tek tek
+   yazdırmak (çıktı aynı olsa da) "döngüden sonra bir kez yazdır" notuyla reddedilir; amaç biriktirici
+   değişken kullanımını ölçmek. Frekans sorusunda sözlük üreteci (`{m: liste.count(m) for m in liste}`) soru
+   döngü istediği için reddedilir.
+2. **Bilinçli esneklikler:** Selamlama ve `write_parse_guard` çıktı metinlerinde büyük/küçük harf, Türkçe
+   karakter ve fazla boşluk farkını önemsemez ("merhaba", "hatalı giriş" kabul); `write_parse_guard` fazladan
+   bir `finally: print("Bitti")` satırını da kabul eder. Puanlamada katı olmak isteyen öğretmen bunu bilmeli.
+3. **"Değerlendiremedim" (0 puan, suçlamayan not) çıkan doğru yazımlar:** `en_buyuk = float("-inf")`
+   (sonsuz değer izleyicide desteklenmiyor), `print(*divmod(sure, 60))` (yıldızlı argüman), sayaç sınıfında
+   koşullu azaltma (`if self.deger > 0: self.deger -= 1`). Bu cevaplar öğretmen tarafından elle
+   puanlanmalıdır; pratik modunda öğrenci "öğretmenine göster" notunu görür.
+4. **Boşlukta açıklamasız yanlış:** `kosullar.cond_blank` "21 sayısından büyükse" kuralında değer sınırda
+   değilse (`yas = 25`) `>=` aynı çıktıyı verir; cevap kurala göre yanlış sayılır ama altyapı yalnızca farklı
+   sonuç veren yanlışlara açıklama eklediği için öğrenci "neden" notu görmez.
+5. **`fonksiyonlar.call_args_blank`** `tekrar(1, "abab")` gibi parametre anlamını tersine çeviren ama doğru
+   çıktıyı veren argümanları da kabul eder (kod çalışır ve çıktı doğrudur).
+6. **`koleksiyonlar.dict_in_claim`** iddiaları doğası gereği `True`/`False` çıktısıdır; madde, iddia ile
+   cevabın birlikte dört durumu olduğu için çalışır, ama tek başına şans başarısı %50'dir.
+7. **Bloom etiketleri:** Aşama 2 öncesindeki 78 şablonun docstring'inde Bloom düzeyi yok; aşağıdaki tabloda
+   bunlar bölüm 2.1'deki sınıflamayla (üç BD şablonu U) sayıldı. "U/An" gibi çift etiketlerde ilk düzey
+   esas alındı.
+
+### 5.3 Son dağılım (164 şablon)
+
+| # | Ünite | ÇS | D/Y | KC | BD | KY | Toplam | H/A | U | An/D | O |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Temel Giriş/Çıkış ve Değişkenler | 7 | 2 | 1 | 3 | 3 | 16 | 3 | 9 | 1 | 3 |
+| 2 | Veri Tipleri ve Dönüşümler | 6 | 1 | 4 | 2 | 2 | 15 | 5 | 7 | 1 | 2 |
+| 3 | Operatörler | 4 | 2 | 4 | 1 | 2 | 13 | 1 | 7 | 3 | 2 |
+| 4 | Metinler (String) | 8 | 2 | 2 | 2 | 2 | 16 | 1 | 11 | 2 | 2 |
+| 5 | Koşullu İfadeler | 7 | 2 | 1 | 1 | 2 | 13 | 1 | 6 | 4 | 2 |
+| 6 | Döngüler | 6 | 1 | 3 | 3 | 3 | 16 | 0 | 10 | 3 | 3 |
+| 7 | Listeler | 9 | 1 | 2 | 2 | 2 | 16 | 1 | 11 | 2 | 2 |
+| 8 | Sözlük, Demet ve Küme | 8 | 2 | 2 | 1 | 2 | 15 | 3 | 9 | 1 | 2 |
+| 9 | Fonksiyonlar ve Modüller | 8 | 2 | 2 | 3 | 4 | 19 | 2 | 11 | 2 | 4 |
+| 10 | Hata Yönetimi | 4 | 3 | 2 | 1 | 2 | 12 | 4 | 3 | 3 | 2 |
+| 11 | Nesne Yönelimli Programlama | 5 | 2 | 2 | 2 | 2 | 13 | 3 | 7 | 1 | 2 |
+| | **Toplam** | **72** | **20** | **25** | **21** | **26** | **164** | **24** | **91** | **23** | **26** |
+| | **Oran** | %44 | %12 | %15 | %13 | %16 | | %15 | %55 | %14 | %16 |
+
+Hedefle (bölüm 2.3) karşılaştırma: D/Y, KC, BD ve KY hedef aralıkta; ÇS %44 ile hedefin (%35-40) biraz
+üstünde. Uygulama %81'den %55'e, Analiz/Değerlendirme %0'dan %14'e (çift etiketli dört "U/An" maddesiyle
+%16), Oluşturma %4'ten %16'ya çıktı. An/D hedefi (%20-25) henüz tutmuyor; Ünite 1, 2, 8 ve 11'de yalnızca
+birer An/D maddesi var. Ünite 6'da hiç H/A maddesi yok (sorun değil: ünite işlem ağırlıklı).
+
+### 5.4 Uzman değerlendirmesi
+
+Banka 75 şablonluk, %81'i "çıktı nedir?" olan bir alıştırma havuzundan, beş soru tipini ve dört Bloom
+düzeyini dengeli kullanan, her ünitede en az iki açık uçlu kod yazma maddesi bulunan bir ölçme aracına
+dönüştü. Yeni maddelerin büyük çoğunluğu iyi yazılmış: çeldiriciler tek tek adlandırılmış yanılgılara
+dayanıyor, açıklamalar öğrenciyi suçlamadan hatayı gösteriyor, cevap anahtarları testlerde kod
+çalıştırılarak doğrulanıyor. En zayıf halka, kalıp eşleştirmeye dayanan kod yazma denetleyicileriydi: bir
+öğretmenin hiç tereddütsüz tam puan vereceği yaygın çözümler (indeksli döngü, while, `sum([...])`,
+`.format()`) reddediliyordu. Bu aşamada bunlar giderildi ve kalıba uymayan çözümler için izleyiciyle
+davranış denetimi kuruldu; yine de açık uçlu maddelerde "değerlendiremedim" sonucu çıkan nadir yazımlar
+öğretmen incelemesi gerektirir. Sınavda kullanım için öneri: kod yazma maddelerinin puanını öğretmen panelinde
+gözden geçirin, An/D maddelerini (özellikle Ünite 1, 2, 8, 11) çoğaltın ve eski 78 şablona Bloom etiketi
+ekleyin.
