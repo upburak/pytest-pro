@@ -650,7 +650,7 @@ def check_rect_area(tree, p):
         return False, "Alan değeri beklenen sonucu vermiyor; alan iki kenarın çarpımıdır."
     if not same_value(per, want_per):
         if same_value(per, en + 2 * boy) or same_value(per, 2 * en + boy):
-            return False, "Çevre 2 × (en + boy) olmalı; parantez gerekiyor mu?"
+            return False, "Çevre 2 * (en + boy) olmalı; parantez gerekiyor mu?"
         if same_value(per, en + boy):
             return False, "Çevre, iki kenarın toplamının iki katıdır."
         return False, "Çevre değeri beklenen sonucu vermiyor; formülü kontrol et."

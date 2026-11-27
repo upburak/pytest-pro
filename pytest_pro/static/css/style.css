@@ -111,9 +111,10 @@ h2 { font: 700 var(--fs-xl)/1.2 var(--font-head); }
 h3 { font-size: var(--fs-lg); }
 p { margin: 0; }
 a { color: var(--green-dark); }
-code, pre, kbd, textarea, .mono { font-family: var(--font-code); font-variant-ligatures: none; }
-/* bitişik harfler kapalı: == ve != öğrenciye tek bir simge gibi görünmesin */
-.codeview, .opt-text, .ans, .url { font-variant-ligatures: none; }
+code, pre, kbd, textarea, .mono { font-family: var(--font-code); }
+/* Bitişik harfler her yerde kapalı: >=, <=, ==, != ve -> öğrenciye ≥ ≤ gibi tek simge olarak görünmesin.
+   !important gerekli: "font:" kısaltması bu ayarı sessizce sıfırlar. */
+*, *::before, *::after { font-variant-ligatures: none !important; font-feature-settings: "liga" 0, "calt" 0 !important; }
 code { font-size: .92em; background: var(--side); border: 1px solid var(--line); padding: 0 5px; border-radius: 4px; }
 kbd { font: 700 var(--fs-xs)/1 var(--font-ui); padding: 3px 7px; border: 1px solid var(--line); border-radius: 4px; background: #FFF; color: var(--mute); }
 :focus-visible { outline: none; box-shadow: var(--focus); }

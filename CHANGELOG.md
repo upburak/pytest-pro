@@ -1,5 +1,15 @@
 # Sürüm Notları
 
+## 3.3.1
+
+### Kod yazımına uygun gösterim
+- Kod yazı tipinin `>=`, `<=`, `==`, `!=` işaretlerini ≥ ≤ gibi tek simgeye dönüştürmesi her yerde kapatıldı
+  (kod, şıklar, boşluk kutuları, kod izi, yazma alanı). Önceki sürümde bazı yerlerde açık kalıyordu.
+- Soru metni, ipucu ve açıklamalarda matematik defteri yazımı kod yazımına çevrildi: `×` yerine `*`, `n!` yerine
+  "faktöriyel", `→` yerine sözle anlatım ("x > 10 ifadesi True olur", "Adım adım: 2, sonra 10, sonra 20"),
+  durum anlatırken `i = 3 olduğunda` yerine `i == 3 olduğunda`.
+- Bankanın tamamını tarayan bir test bu yazımların yeniden girmesini engeller.
+
 ## 3.3.0
 
 ### Öğretmen paneli: sınavlar listesi

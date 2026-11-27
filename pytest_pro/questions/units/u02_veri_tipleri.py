@@ -526,7 +526,7 @@ def write_celsius():
         "type": "code",
         "text": (
             f"<code>{var}</code> değişkenine <strong>{c}</strong> atayın ve bu Celsius sıcaklığının Fahrenheit "
-            f"karşılığını <strong>F = C × 9 / 5 + 32</strong> formülüyle hesaplayıp yazdırın (sonuç: {shown_f}). "
+            f"karşılığını <strong>F = C * 9 / 5 + 32</strong> formülüyle hesaplayıp yazdırın (sonuç: {shown_f}). "
             "Sonucu elle hesaplamayın; değişkeni kullanın."
         ),
         "code": None,

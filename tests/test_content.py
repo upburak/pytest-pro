@@ -167,3 +167,30 @@ def test_number_suffixes_follow_vowel_harmony(gen):
         for text in texts:
             for m in _NUM_SUFFIX.finditer(text):
                 assert m.group(2) in _suffixes(_number_word(int(m.group(1)))), f"ek uyumsuz: {m.group(0)!r} ({text[:80]})"
+
+
+# ---------------------------------------------------------------- kod yazımına uygun gösterim
+_MATH_NOTATION = [
+    (re.compile(r"[≥≤≠÷×]"), "matematik işareti; kodda >=, <=, !=, /, * yazılır"),
+    (re.compile(r"→"), "ok işareti; sonucu sözle yazın (\"... True olur\")"),
+    (re.compile(r"(?<![\w(])(?:[a-zA-Z]|\d+)!(?!=)"), "n! gösterimi; faktöriyel(n) ya da çarpım olarak yazın"),
+    (re.compile(r"\b\w+ = [^\s,;:]+ (iken|olduğunda|olursa|olunca|ise)\b"),
+     "durumu = ile anlatma; kodda = atamadır, karşılaştırma için == yazın"),
+]
+
+
+@pytest.mark.parametrize("gen", [g for u in UNITS.values() for g in u.generators], ids=lambda g: g.name)
+def test_texts_use_code_notation(gen):
+    """Soru metni, şıklar, ipucu ve açıklamalarda matematik defteri yazımı yerine kod yazımı kullanılır."""
+    for seed in range(40):
+        random.seed(seed)
+        q = gen()
+        texts = [q.get("text") or "", q.get("solution") or "", q.get("hint") or "", q.get("note") or ""]
+        texts += [str(o) for o in q.get("options") or []]
+        texts += [str(v) for v in (q.get("whys") or {}).values()]
+        texts += [str(v) for bw in q.get("blank_whys") or [] for v in bw.values()]
+        for text in texts:
+            plain = re.sub(r"<[^>]+>", "", text)
+            for pattern, why in _MATH_NOTATION:
+                m = pattern.search(plain)
+                assert not m, f"{why}: {m.group(0)!r} … {plain[max(0, m.start() - 40):m.end() + 40]!r}"

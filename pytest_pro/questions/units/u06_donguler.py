@@ -90,7 +90,7 @@ def break_continue():
         stop = random.randint(3, n - 2)  # stop = n - 1 iken "continue sandın" şıkkı doğru cevaba eşit olur
         out = [str(i) for i in range(1, n) if i < stop]
         code = f"for i in range(1, {n}):\n    if i == {stop}:\n        break\n    print(i, end=\" \")"
-        why = f"<code>break</code> döngüyü tamamen sonlandırır; i = {stop} olduğunda döngüden çıkılır."
+        why = f"<code>break</code> döngüyü tamamen sonlandırır; i == {stop} olduğunda döngüden çıkılır."
         wrongs = [
             Wrong(" ".join(out + [str(stop)]), f"break, print'ten önce çalışır; i = {stop} yazdırılmadan çıkılır."),
             Wrong(" ".join(str(i) for i in range(1, n) if i != stop),
@@ -105,7 +105,7 @@ def break_continue():
         why = f"<code>continue</code> yalnızca o turu atlar; i = {skip} yazdırılmaz ama döngü devam eder."
         wrongs = [
             Wrong(" ".join(str(i) for i in range(1, skip)), "continue döngüyü bitirmez; yalnızca o turu atlar."),
-            Wrong(" ".join(str(i) for i in range(1, n)), f"continue, i = {skip} olduğunda print'e ulaşmadan sonraki "
+            Wrong(" ".join(str(i) for i in range(1, n)), f"continue, i == {skip} olduğunda print'e ulaşmadan sonraki "
                                                          "tura geçer."),
             Wrong(" ".join(str(i) for i in range(1, n + 1) if i != skip), f"range(1, {n}) bitiş değerini ({n}) "
                                                                          "üretmez."),
@@ -121,7 +121,7 @@ def nested():
     if random.random() < 0.5:
         return output_question(
             f"sayac = 0\nfor i in range({a}):\n    for j in range({b}):\n        sayac += 1\nprint(sayac)", str(a * b),
-            f"Dış döngü {a} kez döner; her turda iç döngü {b} kez çalışır. Toplam {a} × {b} = {a * b} tekrar.",
+            f"Dış döngü {a} kez döner; her turda iç döngü {b} kez çalışır. Toplam {a} * {b}, yani {a * b} tekrar.",
             wrongs=[
                 Wrong(str(a + b), "İç döngü dış döngünün HER turunda baştan çalışır; tekrarlar toplanmaz, çarpılır."),
                 Wrong(str(a), "İç döngüyü de saymalısın; sayac en içte artıyor."),
@@ -136,7 +136,7 @@ def nested():
         f"İç döngü range(i) kadar döner: i = 0, 1, ..., {a - 1} için 0 + 1 + ... + {a - 1} = {total}.",
         wrongs=[
             Wrong(str(a * a), "İç döngünün tur sayısı sabit değil; range(i) her dış turda i kadar döner."),
-            Wrong(str(total + a), f"range(i), i'yi dahil etmez; i = {a - 1} iken iç döngü {a - 1} kez döner."),
+            Wrong(str(total + a), f"range(i), i'yi dahil etmez; i == {a - 1} iken iç döngü {a - 1} kez döner."),
             Wrong(str(a), "İç döngüyü de saymalısın; sayac en içte artıyor."),
         ],
         hint="i'nin her değeri için iç döngü kaç kez çalışır? Bunları topla.",
@@ -469,9 +469,9 @@ def while_blank():
         if got is None:
             why = f"{var} hiçbir zaman {b} olmaz ya da koşul hep doğru kalır; döngü hiç bitmez."
         elif not got:
-            why = f"{var} = {a} iken koşul yanlış; döngü hiç çalışmaz."
+            why = f"{var} == {a} iken koşul yanlış; döngü hiç çalışmaz."
         elif len(got) < n:
-            why = f"Döngü {last} yazılmadan durur; {var} = {last} iken koşul da doğru olmalı."
+            why = f"Döngü {last} yazılmadan durur; {var} == {last} iken koşul da doğru olmalı."
         else:
             why = f"Döngü {last} değerinden sonra da devam eder; fazladan değer yazılır."
         whys.append(Wrong(op, why))
@@ -481,9 +481,9 @@ def while_blank():
         [accepted], "\n".join(map(str, seq)),
         f"Kod ekrana <code>{', '.join(map(str, seq))}</code> sayılarını alt alta yazmalı. Boşluğa gelmesi gereken "
         "karşılaştırma işlecini yazınız.",
-        f"Koşul her turdan önce denenir. {var} = {last} iken döngü bir kez daha çalışmalı, {last + k} olunca durmalı; "
+        f"Koşul her turdan önce denenir. {var} == {last} iken döngü bir kez daha çalışmalı, {last + k} olunca durmalı; "
         f"bunu <code>{e(' ya da '.join(accepted))}</code> sağlar.",
-        hint=f"{var} = {last} iken döngü bir kez daha çalışmalı mı? Bir sonraki değerde ne olmalı?",
+        hint=f"{var} == {last} iken döngü bir kez daha çalışmalı mı? Bir sonraki değerde ne olmalı?",
         wrongs=[whys],
     )
 
@@ -539,7 +539,7 @@ def sentinel_break():
     if variant == "value":
         code = f"x = {x0}\nwhile True:\n    x -= {d}\n    if x {op} 0:\n        break\nprint(x)"
         res = x
-        common = [Wrong(str(x + d), f"x = {x + d} iken koşul (x {e(op)} 0) yanlış; döngü bir tur daha döner."),
+        common = [Wrong(str(x + d), f"x == {x + d} iken koşul (x {e(op)} 0) yanlış; döngü bir tur daha döner."),
                   Wrong(str(x - d), "break çalışınca döngü hemen biter; x bir kez daha azalmaz."),
                   Wrong("0", f"x her turda {d} azalır; 0 değerine tam denk gelmesi gerekmez.")]
         expl = f"x değerleri: {', '.join(str(x0 - d * t) for t in range(1, turns + 1))}. x {e(op)} 0 olunca break çalışır."
@@ -573,7 +573,7 @@ def _loop_pool(v, n):
         (f"son = {n}\nfor {v} in range(son):\n    son += 1",
          "range(son) döngü başlarken bir kez hesaplanır; son değişse de tur sayısı değişmez."),
         (f"{v} = 1\nwhile {v} != {m_odd}:\n    {v} += 2", f"{v} tek sayılarla ilerler ve {m_odd} olunca döngü biter."),
-        (f"{v} = 0\nwhile True:\n    {v} += 1\n    if {v} == {n}:\n        break", f"{v} = {n} olunca break döngüyü bitirir."),
+        (f"{v} = 0\nwhile True:\n    {v} += 1\n    if {v} == {n}:\n        break", f"{v} == {n} olunca break döngüyü bitirir."),
     ]
     return infinite, finite
 

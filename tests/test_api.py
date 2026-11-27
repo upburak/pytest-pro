@@ -500,3 +500,9 @@ def test_results_show_live_progress(client):
     submit(client, d["exam_id"])
     row = client.get("/api/results", headers=TEACHER).get_json()["rows"][0]
     assert row["total"] == 10
+
+
+def test_code_font_ligatures_are_off_everywhere(client):
+    """Kod yazı tipi >= ve <= işaretlerini ≥ ≤ gibi tek simgeye çevirmesin (font: kısaltması ezemesin)."""
+    css = client.get("/static/css/style.css").data.decode("utf-8")
+    assert "*, *::before, *::after { font-variant-ligatures: none !important;" in css

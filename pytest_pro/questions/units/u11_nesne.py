@@ -69,7 +69,7 @@ def class_counter():
         f"class {cls}:\n    adet = 0\n\n    def __init__(self):\n        {cls}.adet += 1\n\n{creates}\nprint({cls}.adet)",
         str(n),
         "<code>adet</code> bir <strong>sınıf değişkenidir</strong>; tüm nesneler tarafından paylaşılır. Her nesne "
-        f"oluşturulduğunda 1 artar: {n} nesne → {n}.",
+        f"oluşturulduğunda 1 artar: {n} nesne oluşturulunca değer {n} olur.",
         wrongs=[
             Wrong("1", "adet sınıf değişkenidir; her nesne aynı sayacı artırır, kendine ayrı sayaç tutmaz."),
             Wrong("0", "__init__ her nesne oluşturulduğunda kendiliğinden çalışır ve sayacı artırır."),
@@ -364,7 +364,7 @@ def isinstance_check():
               if f"{x} {y}" != answer]
     return output_question(
         code, answer,
-        f"<code>{e1[0]}</code> → {e1[1]}: {e1[3]} <code>{e2[0]}</code> → {e2[1]}: {e2[3]}",
+        f"<code>{e1[0]}</code> ifadesi {e1[1]} olur: {e1[3]} <code>{e2[0]}</code> ifadesi {e2[1]} olur: {e2[3]}",
         wrongs=wrongs,
         hint=f"Her {c1} nesnesi bir {base} nesnesi midir? Her {base} nesnesi bir {c1} nesnesi midir?",
     )
@@ -439,7 +439,7 @@ def write_rect_class():
         "text": f"<code>{cls}</code> adında bir sınıf yazınız: <code>__init__</code> metodu {names} "
                 f"{'değerini' if len(params) == 1 else 'değerlerini'} alıp nesnede saklasın; <code>{method}()</code> "
                 f"metodu şeklin {desc} <strong>döndürsün</strong> (<code>return</code>). (Örnek: "
-                f"<code>{cls}({', '.join(map(str, ex))}).{method}()</code> → <code>{res}</code>)",
+                f"<code>{cls}({', '.join(map(str, ex))}).{method}()</code> çağrısı <code>{res}</code> döndürür)",
         "code": None,
         "check": {"kind": "class_method", "cls": cls, "params": params, "method": method, "formula": key},
         "answer": f"class {cls}:\n    def __init__(self, {', '.join(params)}):\n{init}\n"
@@ -470,7 +470,7 @@ def write_counter_class():
         "text": f"<code>{cls}</code> adında bir sınıf yazınız: <code>__init__</code> metodunda <code>{attr}</code> "
                 f"niteliği 0 olsun; <code>{inc}()</code> metodu bu değeri 1 artırsın; <code>{other}()</code> metodu "
                 f"değeri {COUNTER_OTHERS[kind][2]}. (Örnek: <code>{obj} = {cls}()</code> ardından {n} kez "
-                f"<code>{obj}.{inc}()</code> çağrılınca <code>{obj}.{attr}</code> → <code>{n}</code>)",
+                f"<code>{obj}.{inc}()</code> çağrılınca <code>{obj}.{attr}</code> değeri <code>{n}</code> olur)",
         "code": None,
         "check": {"kind": "counter_class", "cls": cls, "attr": attr, "inc": inc, "other": other, "other_kind": kind},
         "answer": f"class {cls}:\n    def __init__(self):\n        self.{attr} = 0\n\n    def {inc}(self):\n"

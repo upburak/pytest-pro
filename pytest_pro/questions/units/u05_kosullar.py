@@ -111,7 +111,7 @@ def compound_condition():
             f"if yas < {limit} and {var}:\n    print(\"{TICKETS[0]}\")\n"
             f"elif yas < {limit} or {var}:\n    print(\"{TICKETS[1]}\")\n"
             f"else:\n    print(\"{TICKETS[2]}\")")
-    facts = f"yas &lt; {limit} → {young}, {var} → {flag}"
+    facts = f"yas &lt; {limit} ifadesi {young}, {var} değeri {flag}"
     whys = {
         TICKETS[0]: f"<code>and</code> için iki koşulun da True olması gerekir; burada {facts}.",
         TICKETS[1]: (f"<code>or</code> için en az bir koşulun True olması yeter; burada {facts}." if not (young or flag)
@@ -838,8 +838,8 @@ def _inner_condition(x, t):
         return "x % 2 == 1", x % 2 == 1, f"{x} % 2 = {x % 2}"
     t2 = t + random.randint(4, 12)
     if kind == "gt":
-        return f"x > {t2}", x > t2, f"{x} &gt; {t2} → {x > t2}"
-    return f"x < {t2}", x < t2, f"{x} &lt; {t2} → {x < t2}"
+        return f"x > {t2}", x > t2, f"{x} &gt; {t2} ifadesi {x > t2} olur"
+    return f"x < {t2}", x < t2, f"{x} &lt; {t2} ifadesi {x < t2} olur"
 
 
 @q("İç İçe Koşullar", verify="output")
@@ -854,7 +854,7 @@ def nested_if():
         if branch == "out" or inner == (branch == "in_yes"):
             break
     outer = x > t
-    facts = f"x &gt; {t} → {outer}" + (f"; iç koşul: {inner_note}" if outer else "")
+    facts = f"x &gt; {t} ifadesi {outer} olur" + (f"; iç koşul: {inner_note}" if outer else "")
     if random.random() < 0.5:
         code = (f"x = {x}\nif x > {t}:\n    if {cond}:\n        print(\"{p}\")\n    else:\n        print(\"{r_}\")\n"
                 f"else:\n    print(\"{s}\")")
@@ -1028,7 +1028,7 @@ def tie_max():
     second = cmp(vb, vc)
     res = show[0] if first else show[1] if second else show[2]
     g = e(gt)
-    facts = f"{a} {g} {b} → {cmp(va, vb)}, {a} {g} {c} → {cmp(va, vc)}, {b} {g} {c} → {second}"
+    facts = f"{a} {g} {b} ifadesi {cmp(va, vb)}, {a} {g} {c} ifadesi {cmp(va, vc)}, {b} {g} {c} ifadesi {second} olur"
     tie = " Eşit iki sayıdan biri ötekinden büyük değildir." if strict and len(set(vals)) < 3 else ""
     whys = {
         show[0]: (f"İlk koşul için {a}, hem {b} hem {c} değişkeninden büyük olmalı" if strict else
@@ -1069,9 +1069,9 @@ def cond_claim():
         ok = yas >= limit
         if conv:
             output = yes if ok else no
-            wrongs = [Wrong(no if ok else yes, f"{yas} &gt;= {limit} → {ok}; bu yüzden bu blok çalışmaz."),
+            wrongs = [Wrong(no if ok else yes, f"{yas} &gt;= {limit} ifadesi {ok} olur; bu yüzden bu blok çalışmaz."),
                       Wrong(err("TypeError"), "int(input()) girdiyi sayıya çevirir; sayı ile sayı karşılaştırılabilir.")]
-            expl = f"int() girdiyi sayıya çevirir; {yas} &gt;= {limit} → {ok}."
+            expl = f"int() girdiyi sayıya çevirir; {yas} &gt;= {limit} ifadesi {ok} olur."
         else:
             output = err("TypeError")
             wrongs = [Wrong(yes, "input() metin (str) döndürür; metin ile sayı &gt;= ile karşılaştırılamaz, TypeError "
@@ -1088,7 +1088,7 @@ def cond_claim():
             "not": f"yas >= {limit} and not {flag_name}"}[kind]
     value = {"and": young and flag, "or": young or flag, "not": young and not flag}[kind]
     code = f"yas = {yas}\n{flag_name} = {flag}\nif {cond}:\n    print(\"{yes}\")\nelse:\n    print(\"{no}\")"
-    facts = f"yas &gt;= {limit} → {young}, {flag_name} → {flag}" + (f", not {flag_name} → {not flag}" if kind == "not" else "")
+    facts = f"yas &gt;= {limit} ifadesi {young}, {flag_name} değeri {flag}" + (f", not {flag_name} ifadesi {not flag}" if kind == "not" else "")
     rule = {"and": "and için iki tarafın da True olması gerekir",
             "or": "or için en az bir tarafın True olması yeter",
             "not": "not değeri tersine çevirir; and için iki taraf da True olmalı"}[kind]

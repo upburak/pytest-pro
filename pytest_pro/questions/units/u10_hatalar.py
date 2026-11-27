@@ -561,7 +561,7 @@ def write_safe_div():
         "type": "code",
         "text": f"<code>{name}(a, b)</code> fonksiyonunu yazınız: <code>a / b</code> sonucunu döndürsün; b sıfırsa "
                 f"hata vermek yerine <code>{e(fallback)}</code> döndürsün. <strong>try / except kullanınız.</strong> "
-                f"(Örnek: <code>{name}({x}, {y})</code> → <code>{x / y}</code>, <code>{name}({z}, 0)</code> → "
+                f"(Örnek: <code>{name}({x}, {y})</code> çağrısı <code>{x / y}</code>, <code>{name}({z}, 0)</code> çağrısı "
                 f"<code>{e(shown_fb)}</code>)",
         "code": None,
         "check": {"kind": "safe_div", "name": name, "fallback": fallback},
@@ -585,7 +585,7 @@ def write_parse_guard():
         "type": "code",
         "text": f"<code>{var} = \"{e(value)}\"</code> satırıyla başlayan bir kod yazınız: <code>{var}</code> tam "
                 f"sayıya çevrilebiliyorsa sayının {k} katını, çevrilemiyorsa <code>{msg}</code> yazdırsın. "
-                f"<strong>try / except kullanınız.</strong> (Örnek: \"12\" → {12 * k}, \"abc\" → {msg})",
+                f"<strong>try / except kullanınız.</strong> (Örnek: girdi \"12\" ise {12 * k}, \"abc\" ise {msg} yazdırılır)",
         "code": None,
         "check": {"kind": "parse_guard", "var": var, "factor": k, "msg": msg},
         "answer": f"{var} = \"{value}\"\ntry:\n    sayi = int({var})\n    print(sayi * {k})\nexcept ValueError:\n"

@@ -32,7 +32,7 @@ def int_div():
         common = [Wrong(str(a % b), "Bu kalan; kalanı <code>%</code> verir. <code>//</code> bölümün tam kısmını verir."),
                   Wrong(str(a / b), "Bu <code>/</code> bölmesinin sonucu; <code>//</code> kesir kısmını atar.")]
     else:
-        expl = f"<code>%</code> (mod) bölme işleminden kalanı verir: {a} = {b} × {a // b} + {res}."
+        expl = f"<code>%</code> (mod) bölme işleminden kalanı verir: {a} == {b} * {a // b} + {res}."
         common = [Wrong(str(a // b), "Bu bölüm; bölümü <code>//</code> verir. <code>%</code> kalanı verir."),
                   Wrong(str(a / b), "Bu <code>/</code> bölmesinin sonucu; <code>%</code> yalnızca kalanı verir.")]
     return output_question(
@@ -122,7 +122,7 @@ def logic():
         f"print({e1}, {e2})", f"{r1} {r2}",
         "<code>and</code>: iki taraf da True ise True; <code>or</code>: en az biri True ise True; "
         "<code>not</code>: değeri tersine çevirir. Karşılaştırmalar mantıksal operatörlerden önce hesaplanır. "
-        f"<code>{e1}</code> → {r1}, <code>{e2}</code> → {r2}.",
+        f"<code>{e1}</code> ifadesi {r1}, <code>{e2}</code> ifadesi {r2} olur.",
         wrongs=wrongs,
         hint="Önce her karşılaştırmanın doğru mu yanlış mı olduğuna karar ver, sonra and, or ve not'u uygula.",
     )
@@ -139,8 +139,8 @@ def augmented():
     ]
     return output_question(
         f"x = {x}\nx += {a}\nx *= {b}\nx -= {c}\nprint(x)", str(res),
-        f"<code>x += {a}</code>, <code>x = x + {a}</code> demektir. Adım adım: {x} → {x + a} → "
-        f"{(x + a) * b} → {res}.",
+        f"<code>x += {a}</code>, <code>x = x + {a}</code> demektir. Adım adım: {x}, sonra {x + a}, "
+        f"sonra {(x + a) * b}, sonra {res}.",
         common_wrongs=_distinct(str(res), common),
         hint="Her satırdan sonra x'in yeni değerini bir kenara yaz.",
     )
@@ -284,7 +284,7 @@ def augmented2():
     return output_question(
         f"x = {x}\n" + "\n".join(f"x {op} {k}" for op, k in steps) + "\nprint(x)", str(result),
         "<code>x //= k</code>, <code>x = x // k</code> demektir; <code>**=</code> ve <code>%=</code> da aynı "
-        f"biçimde çalışır. Adım adım: {' → '.join(trace)}.",
+        f"biçimde çalışır. Adım adım: {', sonra '.join(trace)}.",
         common_wrongs=common, norm="sayi",
         hint="Her satırdan sonra x'in yeni değerini bir kenara yaz.",
     )

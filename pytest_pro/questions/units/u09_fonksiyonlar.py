@@ -179,8 +179,8 @@ def recursion():
         return output_question(
             f"def {func}({p}):\n    if {p} <= 1:\n        return 1\n    return {p} * {func}({p} - 1)\n\n"
             f"print({func}({n}))", str(math.factorial(n)),
-            f"Fonksiyon kendini {p} - 1 ile çağırır ve {p} <= 1 olunca durur: {n}! = "
-            + " × ".join(str(i) for i in range(n, 0, -1)) + f" = {math.factorial(n)}.",
+            f"Fonksiyon kendini {p} - 1 ile çağırır ve {p} <= 1 olunca durur: "
+            + " * ".join(str(i) for i in range(n, 0, -1)) + f" çarpımı {math.factorial(n)} eder.",
             wrongs=[
                 Wrong(str(math.factorial(n - 1)), f"{func}({n}), {n} ile 1 arasındaki tüm sayıların çarpımıdır; {n} de "
                                                   "dahil."),
@@ -671,7 +671,7 @@ def write_is_even():
     return {
         "type": "code",
         "text": f"<code>{name}</code> adında, bir sayı alıp {desc} <strong>döndüren</strong> (<code>return</code>) "
-                f"bir fonksiyon yazınız. Fonksiyonu çağırmanız gerekmez. (Örnek: <code>{name}({ex})</code> → "
+                f"bir fonksiyon yazınız. Fonksiyonu çağırmanız gerekmez. (Örnek: <code>{name}({ex})</code> çağrısı "
                 f"<code>{func(ex)}</code>)",
         "code": None,
         "check": {"kind": "bool_func", "name": name, "pred": pred},
@@ -697,7 +697,7 @@ def write_mean_func():
     return {
         "type": "code",
         "text": f"<code>{name}</code> adında, bir sayı listesi alıp listenin ortalamasını <strong>döndüren</strong> "
-                f"bir fonksiyon yazınız (liste boş olmayacak). Örnek: <code>{name}({nums})</code> → "
+                f"bir fonksiyon yazınız (liste boş olmayacak). Örnek: <code>{name}({nums})</code> çağrısı "
                 f"<code>{shown_mean}</code>",
         "code": None,
         "check": {"kind": "mean_func", "name": name},
@@ -723,12 +723,12 @@ def write_factorial():
         answer = f"def {name}(n):\n    sonuc = 1\n    for i in range(1, n + 1):\n        sonuc *= i\n    return sonuc"
     return {
         "type": "code",
-        "text": f"<code>{name}(n)</code> fonksiyonunu {how}yazınız: n! değerini <strong>döndürsün</strong>. "
+        "text": f"<code>{name}(n)</code> fonksiyonunu {how}yazınız: n sayısının faktöriyelini <strong>döndürsün</strong>. "
                 f"<code>{name}({k})</code> {math.factorial(k)}, <code>{name}(0)</code> 1 döndürmeli.",
         "code": None,
         "check": {"kind": "factorial", "name": name, "method": method},
         "answer": answer,
-        "hint": "0! = 1 ve n! = n × (n-1)! olduğunu hatırla. Çarpımın başlangıç değeri ne olmalı?",
+        "hint": "0'ın faktöriyeli 1'dir; n'nin faktöriyeli n * faktöriyel(n - 1) olur. Çarpımın başlangıç değeri ne olmalı?",
         "solution": "Döngüyle: <code>sonuc = 1</code> ile başlanır ve 1'den n'ye kadar her sayı çarpılır "
                     "(<code>range(1, n + 1)</code>). Özyinelemeyle: <code>n <= 1</code> durma koşulunda 1 döndürülür, "
                     "diğer durumda <code>n * fonksiyon(n - 1)</code> döndürülür.",
@@ -1038,7 +1038,7 @@ def check_factorial(tree, p):
             got = sim.call(k)
         except NoBase:
             if k == 0:
-                return False, (f"<code>{name}(0)</code> çağrısı durma koşuluna hiç ulaşmıyor (0! = 1 olmalı); durma "
+                return False, (f"<code>{name}(0)</code> çağrısı durma koşuluna hiç ulaşmıyor (0'ın faktöriyeli 1 olmalı); durma "
                                "koşulu 0'ı da kapsamalı (ör. <code>n &lt;= 1</code> ya da <code>n == 0</code>).")
             return False, ("Fonksiyon kendini çağırırken sayı küçülerek durma koşuluna ulaşmıyor; durma koşulunu ve "
                            "çağrıdaki değeri kontrol et.")
