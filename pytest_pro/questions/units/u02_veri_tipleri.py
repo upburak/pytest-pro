@@ -539,17 +539,6 @@ def write_celsius():
 
 
 # ================================================================= denetleyiciler
-def _node_value(node, tr):
-    """İfadenin değeri; sum([a, b]) / sum((a, b)) biçimi de (elemanlar sayıysa) hesaplanır."""
-    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "sum"
-            and len(node.args) == 1 and not node.keywords and isinstance(node.args[0], (ast.List, ast.Tuple))):
-        items = [tr.try_value(item, UNSET) for item in node.args[0].elts]
-        if items and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in items):
-            return sum(items)
-        return UNSET
-    return tr.try_value(node, UNSET)
-
-
 def _mixes_text_and_number(node, tr):
     """İfadede bir tarafı metin, öbür tarafı sayı olan bir + var mı? (TypeError verecek toplama)"""
     for sub in ast.walk(node):
@@ -562,7 +551,7 @@ def _mixes_text_and_number(node, tr):
 
 def _printed_values(prints):
     """Her print satırının yazdırdığı değerler (etiketler hariç, metinler sayıya çevrilmez)."""
-    return [[_node_value(n, tr) for n in print_values(call)] for call, tr in prints]
+    return [[tr.try_value(n, UNSET) for n in print_values(call)] for call, tr in prints]
 
 
 def _flat(lines):

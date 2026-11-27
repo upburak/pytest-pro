@@ -277,3 +277,21 @@ def test_function_helpers():
     assert cc.range_values(expr("range(1, n + 1)"), {"n": 4}) == [1, 2, 3, 4]
     assert cc.range_values(expr("range(1, 10 ** 9)"), {}) is None
     assert cc.uses_name(expr("a * (b + 1)"), "b") and not cc.uses_name(expr("a"), "b")
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+@pytest.mark.parametrize("src, env, value", [
+    ("sum([a, b, c]) / 3", {"a": 3, "b": 4, "c": 5}, 4.0),
+    ("sum((a, b))", {"a": 3, "b": 4}, 7),
+    ("max([a, b, 9])", {"a": 3, "b": 4}, 9),
+    ("min((a, b))", {"a": 3, "b": 4}, 3),
+])
+def test_safe_eval_sum_min_max_over_literal_list(src, env, value):
+    assert cc.safe_eval(ast.parse(src, mode="eval"), env) == value
+
+
+@pytest.mark.parametrize("src", ["sum(x)", "sum([a, 'b'])", "sum([*x])", "sum([])", "sum([1, 2], 5)"])
+def test_safe_eval_sum_refuses_non_literal_or_text(src):
+    with pytest.raises(cc.Unknown):
+        cc.safe_eval(ast.parse(src, mode="eval"), {"a": 1, "x": 5})

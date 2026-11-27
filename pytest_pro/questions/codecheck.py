@@ -83,6 +83,7 @@ _BIN = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, as
         ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.Pow: operator.pow}
 _CMP = {ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt, ast.LtE: operator.le,
         ast.Gt: operator.gt, ast.GtE: operator.ge}
+_SEQ_FUNCS = {"sum": sum, "min": min, "max": max}
 _ARGC = {"int": (1, 1), "float": (1, 1), "str": (1, 1), "abs": (1, 1), "len": (1, 1), "bool": (1, 1),
          "round": (1, 2), "pow": (2, 2), "min": (2, 10), "max": (2, 10)}
 
@@ -158,7 +159,8 @@ def safe_eval(node, env=None):
     """İfadeyi (AST düğümü) hesaplar; hesaplayamazsa Unknown fırlatır. env: {ad: değer}.
 
     Desteklenen: sayı/metin/bool sabitleri, adlar (env'den), + - * / // % **, tekli -, not,
-    karşılaştırmalar, and/or, x if k else y, f-string ve SAFE_FUNCS içindeki fonksiyonlar.
+    karşılaştırmalar, and/or, x if k else y, f-string, SAFE_FUNCS içindeki fonksiyonlar ve yazılı bir
+    liste/demet üzerinde sum/min/max (sum([a, b, c])).
     Sınırlar: sayılar 10**15, metinler 1000 karakter, üs 64, iç içe derinlik 60."""
     return _eval(node, env or {}, 0)
 
@@ -228,9 +230,20 @@ def _eval(node, env, depth):
                 raise Unknown("desteklenmeyen f-string")
         return _checked("".join(out))
     if isinstance(node, ast.Call):
+        single_seq = len(node.args) == 1 and isinstance(node.args[0], (ast.List, ast.Tuple))
         if (isinstance(node.func, ast.Name) and node.func.id in SAFE_FUNCS and node.func.id not in env
+                and not (single_seq and node.func.id in _SEQ_FUNCS)
                 and not node.keywords and not any(isinstance(a, ast.Starred) for a in node.args)):
             return _call(node.func.id, [_eval(a, env, d) for a in node.args])
+        # sum([a, b, c]), min((a, b)), max([a, b]): yazılı (literal) liste/demet üzerinde, sayılarla
+        if (isinstance(node.func, ast.Name) and node.func.id in _SEQ_FUNCS and node.func.id not in env
+                and len(node.args) == 1 and not node.keywords and isinstance(node.args[0], (ast.List, ast.Tuple))
+                and 0 < len(node.args[0].elts) <= 50
+                and not any(isinstance(item, ast.Starred) for item in node.args[0].elts)):
+            items = [_eval(item, env, d) for item in node.args[0].elts]
+            if not all(_num(v) for v in items):
+                raise Unknown("liste elemanları sayı değil")
+            return _checked(_SEQ_FUNCS[node.func.id](items))
         raise Unknown("bu fonksiyon hesaplanamıyor")
     raise Unknown(f"{type(node).__name__} hesaplanamıyor")
 

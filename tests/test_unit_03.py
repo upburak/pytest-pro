@@ -106,3 +106,31 @@ def test_average_accepts(src):
 ])
 def test_average_rejects(src, reason):
     assert rejects(AVG, src, reason)
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3): haksız ret/kabul
+def test_average_accepts_sum_of_list():
+    assert accepts(AVG, "n1 = 70\nn2 = 85\nn3 = 90\nprint(sum([n1, n2, n3]) / 3)")
+
+
+@pytest.mark.parametrize("src", [
+    "n1 = 70\nn2 = 85\nn3 = 90\nprint((n1 + n2 + n3) // 3)",
+    "n1 = 70\nn2 = 85\nn3 = 90\nprint(int((n1 + n2 + n3) / 3))",
+])
+def test_average_truncation_named_even_when_sum_divisible(src):
+    """70 + 85 + 90 = 245 3'e bölünmez; 69 + 84 + 90 = 243 bölünür: // tesadüfen doğru değer verir."""
+    exact = code_q("average3", names=["n1", "n2", "n3"], values=[69, 84, 90])
+    assert rejects(exact, src.replace("70", "69").replace("85", "84"), "//")
+
+
+def test_average_text_says_exact_when_divisible():
+    import random
+    for seed in range(300):
+        random.seed(seed)
+        q = gen_by_name("operatorler.write_average")()
+        total = sum(q["check"]["values"])
+        if total % 3 == 0:
+            assert "yaklaşık" not in q["text"] and f"{total // 3}.0" in q["text"]
+        else:
+            assert "yaklaşık" in q["text"]

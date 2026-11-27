@@ -424,13 +424,14 @@ def write_average():
     names = list(random.choice(AVG_NAMES))
     values = [random.randint(40, 100) for _ in range(3)]
     avg = sum(values) / 3
-    shown_avg = f"{avg:.2f}".rstrip("0").rstrip(".")
+    # Tam bölünüyorsa Python'un gerçek çıktısı (72.0) yazılır; değilse iki basamaklı yaklaşık değer.
+    shown_avg = f"sonuç: {avg}" if sum(values) % 3 == 0 else "yaklaşık " + f"{avg:.2f}".rstrip("0").rstrip(".")
     assigns = ", ".join(f"<code>{n} = {v}</code>" for n, v in zip(names, values))
     return {
         "type": "code",
         "text": (
             f"{assigns} atamalarını yapın. Ardından bu üç notun <strong>ortalamasını</strong> hesaplayıp yazdırın "
-            f"(yaklaşık {shown_avg}). Sonucu elle yazmayın; değişkenleri kullanın."
+            f"({shown_avg}). Sonucu elle yazmayın; değişkenleri kullanın."
         ),
         "code": None,
         "check": {"kind": "average3", "names": names, "values": values},
@@ -531,6 +532,10 @@ def check_average3(tree, p):
     shifted = [v + d for v, d in zip(values, (7, 11, 4))]
     alt_lines, _ = _number_lines(tree, dict(zip(names, shifted)))
     alt_flat = [v for vals in alt_lines for v in vals]
+    if len(alt_flat) == 1 and close(alt_flat[0], sum(shifted) // 3) and not close(alt_flat[0], sum(shifted) / 3):
+        # toplam 3'e tam bölünürken // ya da int() tesadüfen doğru değeri verir
+        return False, ("<code>//</code> ya da <code>int()</code> kesir kısmını atar; bu notlarda tesadüfen doğru "
+                       "çıksa da ortalama için <code>/</code> kullan.")
     if len(alt_flat) != 1 or not close(alt_flat[0], sum(shifted) / 3):
         return False, "Sonucu elle yazma; değişkenleri kullan. Notlar değişince ortalama da değişmeli."
     return True, OK
