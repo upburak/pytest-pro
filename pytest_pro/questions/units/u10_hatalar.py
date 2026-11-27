@@ -675,6 +675,10 @@ def check_safe_div(tree, p):
     if not all(_divides(x, a, b) for x in exprs):
         return False, f"Fonksiyon <code>{b}</code> sıfır değilken <code>{a} / {b}</code> sonucunu döndürmeli."
     if not fallback_ok:
+        if any(r is not None for r in h_returns):
+            # except return ile başka bir değer döndürüyor (ör. "tanımsız"): yazdırma sorunu değil
+            return False, (f"<code>{b}</code> sıfır olduğunda fonksiyon tam olarak <code>{e(p['fallback'])}</code> "
+                           "döndürmeli (büyük/küçük harf ve tırnak dahil).")
         return False, (f"<code>{b}</code> sıfır olduğunda fonksiyon <code>{e(p['fallback'])}</code> değerini "
                        "<code>return</code> ile döndürmeli; ekrana yazdırma.")
     if kind == "broad":

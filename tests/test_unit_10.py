@@ -145,3 +145,14 @@ def test_parse_guard_broad_except_is_accepted_with_note():
 ])
 def test_parse_guard_rejects(src, reason):
     assert rejects(GUARD, src, reason)
+
+
+
+# ---------------------------------------------------------------- uzman denetimi (aşama 3)
+def test_safe_div_wrong_fallback_value_not_called_printing():
+    """except bloğu return ile farklı bir değer döndürüyorsa "ekrana yazdırma" demek yanlış teşhis olur."""
+    src = 'def guvenli_bol(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        return "tanımsız"'
+    ok, note = qs.grade(DIV_TEXT, src)
+    assert not ok and "yazdırma" not in note and "Tanımsız" in note
+    src = 'def guvenli_bol(a, b):\n    try:\n        return a / b\n    except ZeroDivisionError:\n        print("Tanımsız")'
+    assert rejects(DIV_TEXT, src, "yazdırma")
